@@ -47,7 +47,13 @@ def now_str() -> str:
 
 def parse_dt(s: str) -> dt.datetime:
     try:
-        return dt.datetime.fromisoformat(s)
+        # Handle 'Z' (UTC) from JavaScript and convert to local naive time
+        clean_s = s.replace("Z", "+00:00")
+        d = dt.datetime.fromisoformat(clean_s)
+        if d.tzinfo is not None:
+            # Convert to local time and remove tzinfo so it matches dt.datetime.now()
+            return d.astimezone().replace(tzinfo=None)
+        return d
     except Exception:
         return dt.datetime.now() + dt.timedelta(days=7)
 
@@ -150,7 +156,6 @@ async def record_attempt(topic_name: str, correct: int, total: int, source: str)
     old = topic["score"]
     new = pct if topic["attempts"] == 0 else round(0.55 * old + 0.45 * pct, 1)
     new = max(0.0, min(100.0, new))
-
     async with db() as c:
         await c.execute(
             "UPDATE topics SET score=?, attempts=attempts+1, updated_at=? WHERE id=?",
@@ -192,26 +197,20 @@ async def get_stats() -> dict:
     async with db() as c:
         cur = await c.execute("SELECT * FROM topics")
         topics = [dict(r) for r in await cur.fetchall()]
-
         total = sum(t["attempts"] for t in topics)
         if topics:
             w_sum = sum((1 + t["attempts"]) for t in topics)
             w_avg = sum(t["score"] * (1 + t["attempts"]) for t in topics) / w_sum
         else:
             w_avg = 0.0
-
         week_ago = (dt.datetime.now() - dt.timedelta(days=7)).isoformat(timespec="seconds")
         cur = await c.execute("SELECT COUNT(*) n FROM attempts WHERE created_at >= ?", (week_ago,))
         attempts_7d = (await cur.fetchone())["n"]
-
         cur = await c.execute("SELECT AVG(pct) a FROM attempts")
         avg_pct = (await cur.fetchone())["a"] or 0.0
-
         peak = int(round(min(100, max(0, 0.75 * w_avg + 0.25 * min(1.0, attempts_7d / 8) * 100))))
-
         best = max(topics, key=lambda t: t["score"]) if topics else None
         weak = [t for t in topics if t["score"] < 60]
-
         # streak: consecutive study-days ending today (or yesterday, grace)
         cur = await c.execute("SELECT DISTINCT date(created_at) d FROM attempts")
         days = {r["d"] for r in await cur.fetchall()}
@@ -221,7 +220,6 @@ async def get_stats() -> dict:
         while day.isoformat() in days:
             streak += 1
             day -= dt.timedelta(days=1)
-
         return {
             "peak": peak, "weighted_mastery": round(w_avg, 1),
             "attempts": total, "attempts_7d": attempts_7d,
@@ -265,37 +263,31 @@ async def get_schedule() -> dict:
         tasks = [dict(r) for r in await (await c.execute("SELECT * FROM tasks")).fetchall()]
         topics = {t["name"].lower(): t for t in
                   [dict(r) for r in await (await c.execute("SELECT * FROM topics")).fetchall()]}
-
-    queue, cleared = [], []
-    for t in tasks:
-        dl = parse_dt(t["deadline"])
-        hours = (dl - now).total_seconds() / 3600
-        topic = topics.get((t.get("topic") or "").lower())
-        t["topic_score"] = topic["score"] if topic else None
-
-        if t["done"]:
-            t["tier"], t["priority"] = "DONE", 0
-            cleared.append(t)
-            continue
-
-        deadline_score = 100.0 if hours <= 0 else max(0.0, 100 - hours * (100 / 168))
-        weakness = 100 - (topic["score"] if topic else 55)
-        t["priority"] = int(round(0.62 * deadline_score + 0.38 * weakness))
-        t["tier"] = ("OVERDUE" if hours < 0 else
-                     "CRITICAL" if hours < 24 else
-                     "HIGH" if hours < 72 else
-                     "THIS WEEK" if hours < 168 else "PLANNED")
-        queue.append(t)
-
-    queue.sort(key=lambda t: t["priority"], reverse=True)
-    cleared.sort(key=lambda t: t["deadline"], reverse=True)
-
-    # Auto-suggestions: weak topics with no open task
-    busy = {(t.get("topic") or "").lower() for t in tasks if not t["done"]}
-    suggestions = [
-        {"topic": tp["name"], "score": tp["score"]}
-        for tp in sorted(topics.values(), key=lambda x: x["score"])
-        if tp["score"] < 60 and tp["name"].lower() not in busy
-    ][:4]
-
-    return {"queue": queue, "cleared": cleared, "suggestions": suggestions}
+        queue, cleared = [], []
+        for t in tasks:
+            dl = parse_dt(t["deadline"])
+            hours = (dl - now).total_seconds() / 3600
+            topic = topics.get((t.get("topic") or "").lower())
+            t["topic_score"] = topic["score"] if topic else None
+            if t["done"]:
+                t["tier"], t["priority"] = "DONE", 0
+                cleared.append(t)
+                continue
+            deadline_score = 100.0 if hours <= 0 else max(0.0, 100 - hours * (100 / 168))
+            weakness = 100 - (topic["score"] if topic else 55)
+            t["priority"] = int(round(0.62 * deadline_score + 0.38 * weakness))
+            t["tier"] = ("OVERDUE" if hours < 0 else
+                         "CRITICAL" if hours < 24 else
+                         "HIGH" if hours < 72 else
+                         "THIS WEEK" if hours < 168 else "PLANNED")
+            queue.append(t)
+        queue.sort(key=lambda t: t["priority"], reverse=True)
+        cleared.sort(key=lambda t: t["deadline"], reverse=True)
+        # Auto-suggestions: weak topics with no open task
+        busy = {(t.get("topic") or "").lower() for t in tasks if not t["done"]}
+        suggestions = [
+            {"topic": tp["name"], "score": tp["score"]}
+            for tp in sorted(topics.values(), key=lambda x: x["score"])
+            if tp["score"] < 60 and tp["name"].lower() not in busy
+        ][:4]
+        return {"queue": queue, "cleared": cleared, "suggestions": suggestions}
