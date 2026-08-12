@@ -1,0 +1,50 @@
+```
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Dependencies
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.coverage
+coverage/
+htmlcov/
+.nox/
+.tox/
+.pytest_cache/
+.hypothesis/
+
+# Logs
+*.log
+*.out
+*.pid
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Icon?
+```

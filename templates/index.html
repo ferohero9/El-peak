@@ -21,29 +21,35 @@
 </script>
 
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script>
 tailwind.config = {
   darkMode: 'class',
   theme: { extend: {
     colors: {
-      ink:{
-        950:'var(--bg-main)',
-        900:'var(--bg-ink-900)',
-        800:'var(--bg-ink-800)',
-        700:'var(--bg-ink-700)',
-        600:'var(--bg-ink-600)'
-      },
-      line:'var(--border-color)',
-      snow:'var(--text-main)',
-      mist:{DEFAULT:'var(--text-mist)',dim:'var(--text-dim)'},
-      gold:{DEFAULT:'#F5A524',soft:'#FFC964'},
-      glacier:{DEFAULT:'#2FD6C3',soft:'#7DE8DC'},
-      ember:'#FF5D5D', skyx:'#5AB0FF',
+      ink:{ 950:'var(--bg-main)', 900:'var(--bg-ink-900)', 800:'var(--bg-ink-800)', 700:'var(--bg-ink-700)', 600:'var(--bg-ink-600)' },
+      line:'var(--border-color)', snow:'var(--text-main)', mist:{DEFAULT:'var(--text-mist)',dim:'var(--text-dim)'},
+      gold:{DEFAULT:'#F5A524',soft:'#FFC964'}, glacier:{DEFAULT:'#2FD6C3',soft:'#7DE8DC'}, ember:'#FF5D5D', skyx:'#5AB0FF',
     },
-    fontFamily:{
-      disp:['"Bricolage Grotesque"','sans-serif'],
-      body:['"Instrument Sans"','sans-serif'],
-      mono:['"JetBrains Mono"','monospace'],
+    fontFamily:{ disp:['"Bricolage Grotesque"','sans-serif'], body:['"Instrument Sans"','sans-serif'], mono:['"JetBrains Mono"','monospace'] },
+    animation: {
+      'fade-in': 'fadeIn 0.5s ease-out forwards', 'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+      'fade-in-down': 'fadeInDown 0.5s ease-out forwards', 'scale-in': 'scaleIn 0.3s ease-out forwards',
+      'slide-in-right': 'slideInRight 0.4s ease-out forwards', 'slide-in-left': 'slideInLeft 0.4s ease-out forwards',
+      'bounce-subtle': 'bounceSubtle 2s ease-in-out infinite', 'float': 'float 3s ease-in-out infinite',
+      'shimmer': 'shimmer 2s linear infinite', 'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+    },
+    keyframes: {
+      fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+      fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+      fadeInDown: { '0%': { opacity: '0', transform: 'translateY(-20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+      scaleIn: { '0%': { opacity: '0', transform: 'scale(0.9)' }, '100%': { opacity: '1', transform: 'scale(1)' } },
+      slideInRight: { '0%': { opacity: '0', transform: 'translateX(30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
+      slideInLeft: { '0%': { opacity: '0', transform: 'translateX(-30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
+      bounceSubtle: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-5px)' } },
+      float: { '0%, 100%': { transform: 'translateY(0) rotate(0deg)' }, '50%': { transform: 'translateY(-10px) rotate(2deg)' } },
+      shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+      pulseGlow: { '0%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 8px rgba(245,165,36,0.5))' }, '50%': { opacity: '0.8', filter: 'drop-shadow(0 0 20px rgba(245,165,36,0.8))' } },
     },
   }}
 }
@@ -52,87 +58,146 @@ tailwind.config = {
 
 <style>
   :root {
-    --bg-main: #F4F7F9;
-    --bg-ink-900: #FFFFFF;
-    --bg-ink-800: #F8FAFC;
-    --bg-ink-700: #E2E8F0;
-    --bg-ink-600: #CBD5E1;
-    --border-color: #E2E8F0;
-    --text-main: #0F172A;
-    --text-mist: #475569;
-    --text-dim: #64748B;
-    --card-bg: rgba(255, 255, 255, 0.92);
-    --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
+    --bg-main: #F4F7F9; --bg-ink-900: #FFFFFF; --bg-ink-800: #F8FAFC; --bg-ink-700: #E2E8F0; --bg-ink-600: #CBD5E1;
+    --border-color: #E2E8F0; --text-main: #0F172A; --text-mist: #475569; --text-dim: #64748B;
+    --card-bg: rgba(255, 255, 255, 0.85);
+    --card-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.08), 0 8px 16px -8px rgba(0, 0, 0, 0.04);
+    --card-backdrop: blur(20px) saturate(180%);
   }
-
   html.dark {
-    --bg-main: #070B0E;
-    --bg-ink-900: #0B1116;
-    --bg-ink-800: #101820;
-    --bg-ink-700: #16222C;
-    --bg-ink-600: #1E2E3A;
-    --border-color: #1C2933;
-    --text-main: #EAF2F6;
-    --text-mist: #93A8B4;
-    --text-dim: #5E7482;
-    --card-bg: rgba(16, 24, 32, 0.82);
-    --card-shadow: none;
+    --bg-main: #070B0E; --bg-ink-900: #0B1116; --bg-ink-800: #101820; --bg-ink-700: #16222C; --bg-ink-600: #1E2E3A;
+    --border-color: #1C2933; --text-main: #EAF2F6; --text-mist: #93A8B4; --text-dim: #5E7482;
+    --card-bg: rgba(16, 24, 32, 0.75);
+    --card-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.5), 0 8px 16px -8px rgba(0, 0, 0, 0.3);
+    --card-backdrop: blur(24px) saturate(160%);
   }
-
+  * { -webkit-tap-highlight-color: transparent; }
   body {
-    background-color: var(--bg-main);
-    color: var(--text-main);
-    transition: background-color 0.3s ease, color 0.3s ease;
+    background-color: var(--bg-main); color: var(--text-main);
+    transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     background-image:
-      radial-gradient(900px 520px at 88% -10%, rgba(245,165,36,.075), transparent 60%),
-      radial-gradient(820px 520px at -8% 108%, rgba(47,214,195,.06), transparent 60%),
-      url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'><g fill='none' stroke='%2314212b' stroke-width='1.2'><path d='M240 88c88 0 152 62 152 152s-64 152-152 152S88 330 88 240 152 88 240 88z'/><path d='M240 128c66 0 114 46 114 112s-48 112-114 112-114-46-114-112 48-112 114-112z'/><path d='M240 168c44 0 76 30 76 72s-32 72-76 72-76-30-76-72 32-72 76-72z'/><path d='M240 40c110 0 192 86 192 200S350 440 240 440 48 354 48 240 130 40 240 40z'/></g></svg>");
-    background-attachment: fixed;
+      radial-gradient(1200px 600px at 90% -10%, rgba(245,165,36,0.08), transparent 50%),
+      radial-gradient(1000px 600px at 10% 110%, rgba(47,214,195,0.08), transparent 50%),
+      radial-gradient(800px 500px at 50% 50%, rgba(90,176,255,0.04), transparent 60%),
+      url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'><g fill='none' stroke='%2314212b' stroke-width='0.8' opacity='0.4'><path d='M240 88c88 0 152 62 152 152s-64 152-152 152S88 330 88 240 152 88 240 88z'/><path d='M240 128c66 0 114 46 114 112s-48 112-114 112-114-46-114-112 48-112 114-112z'/></g></svg>");
+    background-attachment: fixed; overflow-x: hidden;
   }
-
   html:not(.dark) body {
     background-image:
-      radial-gradient(900px 520px at 88% -10%, rgba(245,165,36,.12), transparent 60%),
-      radial-gradient(820px 520px at -8% 108%, rgba(47,214,195,.12), transparent 60%);
+      radial-gradient(1200px 600px at 90% -10%, rgba(245,165,36,0.15), transparent 50%),
+      radial-gradient(1000px 600px at 10% 110%, rgba(47,214,195,0.15), transparent 50%),
+      radial-gradient(800px 500px at 50% 50%, rgba(90,176,255,0.08), transparent 60%);
   }
-
+  body::before, body::after {
+    content: ''; position: fixed; width: 600px; height: 600px; border-radius: 50%;
+    pointer-events: none; z-index: -1; opacity: 0.5; animation: float 15s ease-in-out infinite;
+  }
+  body::before { top: -200px; right: -200px; background: radial-gradient(circle, rgba(245,165,36,0.12) 0%, transparent 70%); animation-delay: 0s; }
+  body::after { bottom: -200px; left: -200px; background: radial-gradient(circle, rgba(47,214,195,0.12) 0%, transparent 70%); animation-delay: -7.5s; }
+  html.dark body::before, html.dark body::after { opacity: 0.3; }
   .card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 14px;
-    box-shadow: var(--card-shadow);
-    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px;
+    box-shadow: var(--card-shadow); backdrop-filter: var(--card-backdrop); -webkit-backdrop-filter: var(--card-backdrop);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;
   }
-  .lift { transition: transform .25s cubic-bezier(.22,1,.36,1), border-color .25s, box-shadow .25s }
-  .lift:hover { transform: translateY(-3px); border-color: rgba(47,214,195,.45); box-shadow: 0 10px 30px -12px rgba(0,0,0,.15) }
-  html.dark .lift:hover { box-shadow: 0 10px 30px -12px rgba(0,0,0,.7) }
-  
-  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: #F5A524 }
-  .anim-in { animation: rise .45s cubic-bezier(.22,1,.36,1) both }
-  @keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+  .card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(0,0,0,0.04) 100%);
+    pointer-events: none; z-index: -1;
+  }
+  html.dark .card::before { background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 50%, rgba(0,0,0,0.12) 100%); }
+  .lift { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, box-shadow 0.3s ease; }
+  .lift:hover {
+    transform: translateY(-6px) scale(1.01); border-color: rgba(47,214,195,0.5);
+    box-shadow: 0 24px 48px -16px rgba(0,0,0,0.2), 0 0 32px rgba(47,214,195,0.15);
+  }
+  html.dark .lift:hover { box-shadow: 0 24px 48px -16px rgba(0,0,0,0.6), 0 0 32px rgba(47,214,195,0.2); }
+  .kicker {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.32em;
+    text-transform: uppercase; color: #F5A524; display: inline-flex; align-items: center; gap: 0.5rem;
+  }
+  .kicker::before { content: ''; width: 20px; height: 1px; background: linear-gradient(90deg, #F5A524, transparent); display: block; }
+  .anim-in { animation: rise 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .anim-in-delay-1 { animation-delay: 0.1s; } .anim-in-delay-2 { animation-delay: 0.2s; }
+  .anim-in-delay-3 { animation-delay: 0.3s; } .anim-in-delay-4 { animation-delay: 0.4s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes rot { to { transform: rotate(360deg) } }
-  .spin { width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--bg-ink-600); border-top-color: #F5A524; animation: rot .8s linear infinite }
-  @keyframes pulse-dot { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
-  .live-dot { animation: pulse-dot 1.6s ease-in-out infinite }
-  @keyframes flick { 0%,100% { transform: rotate(-2deg) scale(1) } 50% { transform: rotate(3deg) scale(1.08) } }
-  .flame { animation: flick 1.2s ease-in-out infinite; transform-origin: bottom center; display: inline-block }
-  @keyframes toast-in { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
-  .toast { animation: toast-in .3s cubic-bezier(.22,1,.36,1) both }
-  .seg-on { background: #F5A524 !important; color: #070B0E !important; border-color: #F5A524 !important; font-weight: 700 }
-  .pill-on { background: rgba(47,214,195,.15) !important; color: #2FD6C3 !important; border-color: rgba(47,214,195,.55) !important }
-  .opt { transition: transform .15s, border-color .15s, background .15s }
-  .opt:not(:disabled):hover { transform: translateX(4px); border-color: rgba(245,165,36,.6); background: rgba(245,165,36,.08) }
-  .navbtn.active { color: var(--text-main); background: rgba(245,165,36,.1); border-color: rgba(245,165,36,.45) }
-  .navbtn.active .navtick { opacity: 1 }
-  input[type=checkbox] { accent-color: #F5A524; width: 16px; height: 16px; cursor: pointer }
-  ::-webkit-scrollbar { width: 9px; height: 9px }
-  ::-webkit-scrollbar-thumb { background: var(--bg-ink-600); border-radius: 9px }
-  ::-webkit-scrollbar-track { background: transparent }
-  select, option, input { background: var(--bg-ink-800); color: var(--text-main); }
+  .spin {
+    width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--bg-ink-600);
+    border-top-color: #F5A524; animation: rot 0.8s linear infinite; box-shadow: 0 0 20px rgba(245,165,36,0.3);
+  }
+  .spin-sm { width: 24px; height: 24px; border-width: 2px; }
+  @keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+  .live-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+  @keyframes flick {
+    0%,100% { transform: rotate(-3deg) scale(1); filter: drop-shadow(0 0 4px rgba(255,93,93,0.4)); }
+    50% { transform: rotate(3deg) scale(1.1); filter: drop-shadow(0 0 12px rgba(255,93,93,0.8)); }
+  }
+  .flame { animation: flick 1.2s ease-in-out infinite; transform-origin: bottom center; display: inline-block; }
+  @keyframes toast-in { from { opacity: 0; transform: translateX(40px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
+  @keyframes toast-out { from { opacity: 1; transform: translateX(0) scale(1); } to { opacity: 0; transform: translateX(40px) scale(0.95); } }
+  .toast { animation: toast-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .seg-on {
+    background: linear-gradient(135deg, #F5A524 0%, #FFB84D 100%) !important; color: #070B0E !important;
+    border-color: #F5A524 !important; font-weight: 700; box-shadow: 0 4px 12px rgba(245,165,36,0.3);
+  }
+  .pill-on {
+    background: rgba(47,214,195,0.2) !important; color: #2FD6C3 !important;
+    border-color: rgba(47,214,195,0.6) !important; box-shadow: 0 0 16px rgba(47,214,195,0.2);
+  }
+  .opt { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+  .opt:not(:disabled):hover {
+    transform: translateX(6px); border-color: rgba(245,165,36,0.7);
+    background: rgba(245,165,36,0.12); box-shadow: 0 4px 12px rgba(245,165,36,0.15);
+  }
+  .opt:not(:disabled):active { transform: translateX(2px) scale(0.98); }
+  .navbtn { position: relative; overflow: hidden; }
+  .navbtn::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(245,165,36,0.1), transparent);
+    transform: translateX(-100%); transition: transform 0.5s ease;
+  }
+  .navbtn:hover::before { transform: translateX(100%); }
+  .navbtn.active {
+    color: var(--text-main); background: rgba(245,165,36,0.12);
+    border-color: rgba(245,165,36,0.5); box-shadow: 0 0 20px rgba(245,165,36,0.15);
+  }
+  .navbtn.active .navtick { opacity: 1; }
+  .navbtn.active::after {
+    content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 60%; background: linear-gradient(180deg, #F5A524, #FFB84D); border-radius: 0 2px 2px 0;
+  }
+  input[type=checkbox] { accent-color: #F5A524; width: 18px; height: 18px; cursor: pointer; transition: transform 0.2s ease; }
+  input[type=checkbox]:hover { transform: scale(1.1); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--bg-ink-600), var(--bg-ink-700)); border-radius: 10px; border: 2px solid var(--bg-main); }
+  ::-webkit-scrollbar-track { background: transparent; }
+  select, option, input { background: var(--bg-ink-800); color: var(--text-main); transition: all 0.3s ease; }
+  select:focus, input:focus { outline: none; border-color: #F5A524; box-shadow: 0 0 0 3px rgba(245,165,36,0.15); }
+  button { position: relative; overflow: hidden; }
+  button::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+    opacity: 0; transform: scale(0.5); transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  button:active::after { opacity: 1; transform: scale(1.5); transition: opacity 0s, transform 0s; }
+  .text-gradient { background: linear-gradient(135deg, #F5A524 0%, #2FD6C3 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .glass { background: var(--card-bg); backdrop-filter: var(--card-backdrop); -webkit-backdrop-filter: var(--card-backdrop); border: 1px solid var(--border-color); }
+  .skeleton { background: linear-gradient(90deg, var(--bg-ink-700) 25%, var(--bg-ink-600) 50%, var(--bg-ink-700) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+  *:focus-visible { outline: 2px solid #F5A524; outline-offset: 2px; border-radius: 4px; }
+  html { scroll-behavior: smooth; }
+  ::selection { background: rgba(245,165,36,0.3); color: inherit; }
+  canvas { transition: opacity 0.3s ease; }
+  [title] { position: relative; }
+  [title]:hover::after {
+    content: attr(title); position: absolute; bottom: 100%; left: 50%;
+    transform: translateX(-50%) translateY(-8px); padding: 6px 12px;
+    background: var(--bg-ink-900); border: 1px solid var(--border-color); border-radius: 8px;
+    font-size: 11px; font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+    z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.2); animation: fadeInUp 0.2s ease-out forwards;
+  }
 </style>
 </head>
-
-<body class="font-body text-snow antialiased min-h-screen">
 
 <aside class="hidden lg:flex fixed inset-y-0 left-0 w-60 flex-col border-r border-line bg-ink-900/80 backdrop-blur-md px-4 py-6 z-40">
   <div class="flex items-center justify-between px-2">
@@ -469,9 +534,12 @@ function toast(msg, type = 'ok') {
   const colors = { ok: 'border-glacier text-glacier', err: 'border-ember text-ember', warn: 'border-gold text-gold' };
   const el = document.createElement('div');
   el.className = `toast card ${colors[type]} border-l-2 px-4 py-3 text-sm font-medium shadow-xl`;
-  el.textContent = msg;
+  el.innerHTML = `<span class="flex items-center gap-2">${type === 'ok' ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>' : type === 'err' ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>' : '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' : ''}${esc(msg)}</span>`;
   $('#toasts').appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .4s'; setTimeout(() => el.remove(), 400); }, 3400);
+  setTimeout(() => { 
+    el.style.animation = 'toast-out 0.4s ease-out forwards'; 
+    setTimeout(() => el.remove(), 400); 
+  }, 3400);
 }
 
 function countUp(el, val, dur = 900) {
@@ -514,7 +582,17 @@ function setView(v) {
   $$('.view').forEach(s => s.classList.add('hidden'));
   const sec = $('#view-' + v);
   sec.classList.remove('hidden');
-  sec.classList.remove('anim-in'); void sec.offsetWidth; sec.classList.add('anim-in');
+  // Staggered animation for child cards
+  void sec.offsetWidth;
+  sec.querySelectorAll('.card').forEach((card, i) => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(20px) scale(0.98)';
+    card.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    setTimeout(() => {
+      card.style.opacity = '1';
+      card.style.transform = 'translateY(0) scale(1)';
+    }, 50 * i);
+  });
   $$('.navbtn').forEach(b => {
     const on = b.dataset.view === v;
     b.classList.toggle('active', on);
@@ -611,15 +689,16 @@ function renderTrend(recent) {
 function renderHeat(days) {
   const lvl = c => c === 0 ? 'bg-ink-700/70' : c === 1 ? 'bg-glacier/20' : c === 2 ? 'bg-glacier/45' : c === 3 ? 'bg-glacier/70' : 'bg-glacier';
   const today = new Date().toISOString().slice(0, 10);
-  $('#heatGrid').innerHTML = days.map(d =>
+  $('#heatGrid').innerHTML = days.map((d, i) =>
     `<div title="${d.date} · ${d.count} session${d.count===1?'':'s'}"
-      class="w-3 h-3 rounded-[3px] ${lvl(d.count)} ${d.date===today?'ring-1 ring-gold':''}"></div>`).join('');
+      class="w-3 h-3 rounded-[3px] ${lvl(d.count)} ${d.date===today?'ring-1 ring-gold animate-pulse-glow':''}"
+      style="animation-delay: ${i * 10}ms; transition: all 0.3s ease;"></div>`).join('');
   $('#heatTotal').textContent = days.reduce((s, d) => s + d.count, 0);
 }
 
 function renderRecent(recent) {
-  $('#recentList').innerHTML = recent.slice(0, 7).map(a => `
-    <div class="flex items-center justify-between py-2.5 border-b border-line/60 last:border-0">
+  $('#recentList').innerHTML = recent.slice(0, 7).map((a, i) => `
+    <div class="flex items-center justify-between py-2.5 border-b border-line/60 last:border-0 anim-in" style="animation-delay: ${i * 50}ms">
       <div class="min-w-0">
         <div class="text-sm font-semibold truncate">${esc(a.topic)}</div>
         <div class="flex items-center gap-2 mt-0.5">
@@ -723,18 +802,18 @@ async function finishQuiz() {
              : ['Base camp reps. The climb starts now.', 'text-ember'];
 
   $('#quizStage').innerHTML = `
-    <div class="m-auto text-center w-full max-w-md">
+    <div class="m-auto text-center w-full max-w-md anim-in">
       <div class="font-mono text-[10px] tracking-[.3em] text-mist-dim">EXPEDITION RESULT</div>
-      <div class="font-disp font-extrabold text-7xl mt-3 ${pctColor(pct)}">${pct}<span class="text-3xl">%</span></div>
-      <div class="font-disp font-bold text-lg mt-2 ${tier[1]}">${tier[0]}</div>
-      <div class="font-mono text-xs text-mist mt-1">${quiz.correct} / ${total} correct</div>
-      <div class="mt-5 space-y-1.5 text-left max-h-32 overflow-y-auto pr-1">
-        ${quiz.qs.map((q) => `<div class="font-mono text-[11px] text-mist truncate">${esc(q.question)}</div>`).join('')}
+      <div class="font-disp font-extrabold text-8xl mt-4 ${pctColor(pct)} animate-bounce-subtle">${pct}<span class="text-4xl">%</span></div>
+      <div class="font-disp font-bold text-xl mt-3 ${tier[1]}">${tier[0]}</div>
+      <div class="font-mono text-xs text-mist mt-2">${quiz.correct} / ${total} correct</div>
+      <div class="mt-6 space-y-1.5 text-left max-h-40 overflow-y-auto pr-1 rounded-lg bg-ink-800/50 p-3">
+        ${quiz.qs.map((q, i) => `<div class="font-mono text-[11px] text-mist truncate anim-in" style="animation-delay: ${i * 30}ms">${esc(q.question)}</div>`).join('')}
       </div>
-      <div id="saveNote" class="font-mono text-[11px] text-mist-dim mt-5">SAVING TO PEAK LOG…</div>
-      <div class="grid grid-cols-2 gap-2 mt-4">
-        <button onclick="startQuizAgain()" class="rounded-lg border border-line py-2.5 text-sm text-mist hover:text-snow hover:border-gold transition">↻ Run it again</button>
-        <button onclick="setView('dashboard')" class="rounded-lg bg-glacier text-ink-950 font-bold py-2.5 text-sm hover:brightness-110 transition">View dashboard</button>
+      <div id="saveNote" class="font-mono text-[11px] text-mist-dim mt-6"></div>
+      <div class="grid grid-cols-2 gap-3 mt-6">
+        <button onclick="startQuizAgain()" class="rounded-lg border border-line py-3 text-sm text-mist hover:text-snow hover:border-gold transition lift">↻ Run it again</button>
+        <button onclick="setView('dashboard')" class="rounded-lg bg-gradient-to-r from-glacier to-skyx text-ink-950 font-bold py-3 text-sm hover:brightness-110 hover:-translate-y-0.5 transition shadow-lg">View dashboard</button>
       </div>
     </div>`;
   try {
@@ -742,7 +821,7 @@ async function finishQuiz() {
       topic_name: quiz.topic, correct: quiz.correct, total, source: quizCfg.source }) });
     const t = d.topic, arrow = t.delta > 0 ? '▲' : t.delta < 0 ? '▼' : '•';
     $('#saveNote').innerHTML =
-      `LOGGED ✓ &nbsp;·&nbsp; '${esc(t.name)}' mastery ${Math.round(t.old)}% → <span class="text-glacier font-bold">${Math.round(t.new)}%</span> <span class="${t.delta >= 0 ? 'text-glacier' : 'text-ember'}">${arrow} ${Math.abs(t.delta).toFixed(1)}</span>`;
+      `<span class="text-glacier font-bold">LOGGED ✓</span> &nbsp;·&nbsp; '${esc(t.name)}' mastery ${Math.round(t.old)}% → <span class="text-glacier font-bold">${Math.round(t.new)}%</span> <span class="${t.delta >= 0 ? 'text-glacier' : 'text-ember'}">${arrow} ${Math.abs(t.delta).toFixed(1)}`;
   } catch { $('#saveNote').textContent = 'FAILED TO SAVE'; }
 }
 function startQuizAgain() { $('#startQuizBtn').click(); }
@@ -786,13 +865,13 @@ async function loadSchedule() {
       <button data-del="${t.id}" class="text-mist-dim hover:text-ember">✕</button>
     </div>`).join('');
 
-  $('#suggestList').innerHTML = d.suggestions.map(s => `
-    <div class="flex items-center justify-between py-2.5 border-b border-line/60 last:border-0">
+  $('#suggestList').innerHTML = d.suggestions.map((s, i) => `
+    <div class="flex items-center justify-between py-2.5 border-b border-line/60 last:border-0 anim-in" style="animation-delay: ${100 + i * 60}ms">
       <div>
         <div class="text-sm font-semibold">${esc(s.topic)}</div>
         <div class="font-mono text-[9px] text-ember tracking-widest mt-0.5">MASTERY ${Math.round(s.score)}% · NO TASK SET</div>
       </div>
-      <button data-plan="${esc(s.topic)}" class="planBtn text-xs font-mono px-2.5 py-1.5 rounded border border-gold/50 text-gold hover:bg-gold hover:text-ink-950 transition">+ PLAN</button>
+      <button data-plan="${esc(s.topic)}" class="planBtn text-xs font-mono px-2.5 py-1.5 rounded border border-gold/50 text-gold hover:bg-gold hover:text-ink-950 transition lift">+ PLAN</button>
     </div>`).join('') || '<div class="text-mist-dim text-sm py-2">No orphaned weak topics. 🎯</div>';
 }
 
