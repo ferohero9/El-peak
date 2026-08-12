@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El-Peak · Study Companion</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M4 26L13 8l5 9 3-5 7 14z' fill='%23F5A524'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<script>
+  (function() {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  })();
+</script>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    colors: {
+      ink:{
+        950:'var(--bg-main)',
+        900:'var(--bg-ink-900)',
+        800:'var(--bg-ink-800)',
+        700:'var(--bg-ink-700)',
+        600:'var(--bg-ink-600)'
+      },
+      line:'var(--border-color)',
+      snow:'var(--text-main)',
+      mist:{DEFAULT:'var(--text-mist)',dim:'var(--text-dim)'},
+      gold:{DEFAULT:'#F5A524',soft:'#FFC964'},
+      glacier:{DEFAULT:'#2FD6C3',soft:'#7DE8DC'},
+      ember:'#FF5D5D', skyx:'#5AB0FF',
+    },
+    fontFamily:{
+      disp:['"Bricolage Grotesque"','sans-serif'],
+      body:['"Instrument Sans"','sans-serif'],
+      mono:['"JetBrains Mono"','monospace'],
+    },
+  }}
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<style>
+  :root {
+    --bg-main: #F4F7F9;
+    --bg-ink-900: #FFFFFF;
+    --bg-ink-800: #F8FAFC;
+    --bg-ink-700: #E2E8F0;
+    --bg-ink-600: #CBD5E1;
+    --border-color: #E2E8F0;
+    --text-main: #0F172A;
+    --text-mist: #475569;
+    --text-dim: #64748B;
+    --card-bg: rgba(255, 255, 255, 0.92);
+    --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
+  }
+
+  html.dark {
+    --bg-main: #070B0E;
+    --bg-ink-900: #0B1116;
+    --bg-ink-800: #101820;
+    --bg-ink-700: #16222C;
+    --bg-ink-600: #1E2E3A;
+    --border-color: #1C2933;
+    --text-main: #EAF2F6;
+    --text-mist: #93A8B4;
+    --text-dim: #5E7482;
+    --card-bg: rgba(16, 24, 32, 0.82);
+    --card-shadow: none;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    background-image:
+      radial-gradient(900px 520px at 88% -10%, rgba(245,165,36,.075), transparent 60%),
+      radial-gradient(820px 520px at -8% 108%, rgba(47,214,195,.06), transparent 60%),
+      url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'><g fill='none' stroke='%2314212b' stroke-width='1.2'><path d='M240 88c88 0 152 62 152 152s-64 152-152 152S88 330 88 240 152 88 240 88z'/><path d='M240 128c66 0 114 46 114 112s-48 112-114 112-114-46-114-112 48-112 114-112z'/><path d='M240 168c44 0 76 30 76 72s-32 72-76 72-76-30-76-72 32-72 76-72z'/><path d='M240 40c110 0 192 86 192 200S350 440 240 440 48 354 48 240 130 40 240 40z'/></g></svg>");
+    background-attachment: fixed;
+  }
+
+  html:not(.dark) body {
+    background-image:
+      radial-gradient(900px 520px at 88% -10%, rgba(245,165,36,.12), transparent 60%),
+      radial-gradient(820px 520px at -8% 108%, rgba(47,214,195,.12), transparent 60%);
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .lift { transition: transform .25s cubic-bezier(.22,1,.36,1), border-color .25s, box-shadow .25s }
+  .lift:hover { transform: translateY(-3px); border-color: rgba(47,214,195,.45); box-shadow: 0 10px 30px -12px rgba(0,0,0,.15) }
+  html.dark .lift:hover { box-shadow: 0 10px 30px -12px rgba(0,0,0,.7) }
+  
+  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: #F5A524 }
+  .anim-in { animation: rise .45s cubic-bezier(.22,1,.36,1) both }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+  @keyframes rot { to { transform: rotate(360deg) } }
+  .spin { width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--bg-ink-600); border-top-color: #F5A524; animation: rot .8s linear infinite }
+  @keyframes pulse-dot { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+  .live-dot { animation: pulse-dot 1.6s ease-in-out infinite }
+  @keyframes flick { 0%,100% { transform: rotate(-2deg) scale(1) } 50% { transform: rotate(3deg) scale(1.08) } }
+  .flame { animation: flick 1.2s ease-in-out infinite; transform-origin: bottom center; display: inline-block }
+  @keyframes toast-in { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
+  .toast { animation: toast-in .3s cubic-bezier(.22,1,.36,1) both }
+  .seg-on { background: #F5A524 !important; color: #070B0E !important; border-color: #F5A524 !important; font-weight: 700 }
+  .pill-on { background: rgba(47,214,195,.15) !important; color: #2FD6C3 !important; border-color: rgba(47,214,195,.55) !important }
+  .opt { transition: transform .15s, border-color .15s, background .15s }
+  .opt:not(:disabled):hover { transform: translateX(4px); border-color: rgba(245,165,36,.6); background: rgba(245,165,36,.08) }
+  .navbtn.active { color: var(--text-main); background: rgba(245,165,36,.1); border-color: rgba(245,165,36,.45) }
+  .navbtn.active .navtick { opacity: 1 }
+  input[type=checkbox] { accent-color: #F5A524; width: 16px; height: 16px; cursor: pointer }
+  ::-webkit-scrollbar { width: 9px; height: 9px }
+  ::-webkit-scrollbar-thumb { background: var(--bg-ink-600); border-radius: 9px }
+  ::-webkit-scrollbar-track { background: transparent }
+  select, option, input { background: var(--bg-ink-800); color: var(--text-main); }
+</style>
+</head>
+
+<body class="font-body text-snow antialiased min-h-screen">
+
+<aside class="hidden lg:flex fixed inset-y-0 left-0 w-60 flex-col border-r border-line bg-ink-900/80 backdrop-blur-md px-4 py-6 z-40">
+  <div class="flex items-center justify-between px-2">
+    <div class="flex items-center gap-2.5">
+      <svg width="34" height="34" viewBox="0 0 32 32"><path d="M3 26L12 7l5.5 10L21 11l8 15z" fill="none" stroke="#F5A524" stroke-width="2.2" stroke-linejoin="round"/><circle cx="24" cy="7" r="2.4" fill="#2FD6C3"/></svg>
+      <div>
+        <div class="font-disp font-extrabold text-lg leading-none tracking-tight">EL-PEAK</div>
+        <div class="font-mono text-[9px] text-mist-dim tracking-[.3em] mt-1">STUDY COMPASS</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mt-9 space-y-1.5">
+    <button data-view="dashboard" class="navbtn active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-mist hover:text-snow hover:bg-ink-800 transition text-sm font-semibold">
+      <span class="navtick w-1 h-5 rounded bg-gold opacity-0 transition"></span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 20L10 5l4 8 2.5-4L21 20z"/></svg>
+      Dashboard
+    </button>
+    <button data-view="quiz" class="navbtn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-mist hover:text-snow hover:bg-ink-800 transition text-sm font-semibold">
+      <span class="navtick w-1 h-5 rounded bg-gold opacity-0 transition"></span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".5" fill="currentColor"/></svg>
+      Quiz Engine
+    </button>
+    <button data-view="schedule" class="navbtn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-mist hover:text-snow hover:bg-ink-800 transition text-sm font-semibold">
+      <span class="navtick w-1 h-5 rounded bg-gold opacity-0 transition"></span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      Scheduler
+    </button>
+    <button data-view="coach" class="navbtn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-mist hover:text-snow hover:bg-ink-800 transition text-sm font-semibold">
+      <span class="navtick w-1 h-5 rounded bg-gold opacity-0 transition"></span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.7 4.6L18 9.3l-4.3 1.7L12 15.6l-1.7-4.6L6 9.3l4.3-1.7zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+      AI Coach
+    </button>
+  </nav>
+
+  <div class="mt-auto space-y-3">
+    <button onclick="toggleTheme()" class="themeToggleBtn w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-line bg-ink-800 hover:border-gold/50 transition text-xs font-mono text-mist hover:text-snow">
+      <span class="flex items-center gap-2">
+        <span class="themeIcon"></span>
+        <span class="themeLabel">THEME</span>
+      </span>
+      <span class="text-[10px] opacity-60">TOGGLE</span>
+    </button>
+
+    <div class="card p-4">
+      <div class="flex items-center justify-between">
+        <span class="font-mono text-[10px] tracking-[.25em] text-mist-dim">DAY STREAK</span>
+        <svg class="w-4 h-4 flame text-ember" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 4-4 5.5-4 10a4 4 0 008 0c0-2-1-3.5-1-3.5s3 1.5 3 4.5a6 6 0 01-12 0C6 8 11 6.5 12 2z"/></svg>
+      </div>
+      <div class="font-disp font-extrabold text-3xl mt-1" id="sideStreak">–</div>
+      <div class="flex items-center gap-1.5 mt-3 pt-3 border-t border-line">
+        <span class="w-1.5 h-1.5 rounded-full bg-glacier live-dot"></span>
+        <span class="font-mono text-[10px] text-mist">ALTITUDE SYNC · LIVE</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<header class="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-line bg-ink-900/90 backdrop-blur">
+  <div class="flex items-center gap-2">
+    <svg width="26" height="26" viewBox="0 0 32 32"><path d="M3 26L12 7l5.5 10L21 11l8 15z" fill="none" stroke="#F5A524" stroke-width="2.2" stroke-linejoin="round"/></svg>
+    <span class="font-disp font-extrabold tracking-tight">EL-PEAK</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <button onclick="toggleTheme()" aria-label="Toggle Theme" class="themeToggleBtn p-2 rounded-lg border border-line bg-ink-800 text-mist hover:text-snow transition">
+      <span class="themeIcon"></span>
+    </button>
+    <div class="flex items-center gap-1 font-mono text-xs text-mist">
+      <span class="flame text-ember">▲</span><span id="mobStreak">–</span>
+    </div>
+  </div>
+</header>
+
+<main class="lg:ml-60 px-4 sm:px-7 py-6 pb-24 lg:pb-10 max-w-[1400px]">
+
+  <div class="flex flex-wrap items-end justify-between gap-3 mb-6">
+    <div>
+      <div class="kicker" id="pageKicker">01 // TELEMETRY</div>
+      <h1 class="font-disp font-extrabold text-3xl sm:text-4xl tracking-tight mt-1" id="pageTitle">Dashboard</h1>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="hidden sm:block font-mono text-xs text-mist" id="hdrDate"></span>
+      <button onclick="toggleTheme()" aria-label="Toggle Mode" class="themeToggleBtn p-2 rounded-md border border-line text-mist hover:text-snow bg-ink-800 hover:border-gold/50 transition" title="Toggle Light/Dark Theme">
+        <span class="themeIcon"></span>
+      </button>
+      <span class="px-2.5 py-1.5 rounded-md border border-line font-mono text-[11px] text-mist flex items-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-gold live-dot"></span>BASECAMP ONLINE
+      </span>
+    </div>
+  </div>
+
+  <section id="view-dashboard" class="view">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+      <div class="card p-6 relative overflow-hidden">
+        <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-gold/5 blur-2xl"></div>
+        <div class="flex items-center justify-between">
+          <span class="kicker">Peak Score</span>
+          <span id="gaugeGrade" class="px-2 py-1 rounded border border-line font-mono text-[10px] tracking-[.2em] text-mist">—</span>
+        </div>
+        <div class="relative w-52 h-52 mx-auto mt-5">
+          <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90">
+            <circle cx="60" cy="60" r="52" stroke="var(--bg-ink-700)" stroke-width="9" fill="none"/>
+            <defs><linearGradient id="gGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#F5A524"/><stop offset="100%" stop-color="#2FD6C3"/>
+            </linearGradient></defs>
+            <circle id="gaugeArc" cx="60" cy="60" r="52" stroke="url(#gGrad)" stroke-width="9"
+              fill="none" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7"
+              style="transition:stroke-dashoffset 1.2s cubic-bezier(.22,1,.36,1)"/>
+          </svg>
+          <div class="absolute inset-0 grid place-items-center text-center">
+            <div>
+              <div class="font-disp font-extrabold text-6xl leading-none" id="gaugeNum">0</div>
+              <div class="font-mono text-[9px] tracking-[.35em] text-mist-dim mt-2">ALTITUDE</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-5">
+          <div class="rounded-lg border border-line p-3">
+            <div class="font-mono text-[9px] tracking-[.25em] text-mist-dim">7-DAY REPS</div>
+            <div class="font-mono font-bold text-xl text-glacier mt-1" id="g7d">–</div>
+          </div>
+          <div class="rounded-lg border border-line p-3">
+            <div class="font-mono text-[9px] tracking-[.25em] text-mist-dim">HIGHEST RIDGE</div>
+            <div class="text-sm font-semibold mt-1 truncate" id="gBest">–</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="xl:col-span-2 grid gap-5 content-start">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="statTiles"></div>
+        <div class="grid md:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-3">
+              <span class="kicker">Mastery Radar</span><span class="font-mono text-[10px] text-mist-dim">0–100</span>
+            </div>
+            <div class="h-56"><canvas id="radarChart"></canvas><div id="radarEmpty" class="hidden h-full grid place-items-center text-mist-dim text-sm">No topics yet — run a quiz to begin.</div></div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-3">
+              <span class="kicker">Score Trend</span><span class="font-mono text-[10px] text-mist-dim">LAST 20 REPS</span>
+            </div>
+            <div class="h-56"><canvas id="trendChart"></canvas><div id="trendEmpty" class="hidden h-full grid place-items-center text-mist-dim text-sm">No attempts logged yet.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-5 gap-5 mt-5">
+      <div class="card p-5 lg:col-span-3">
+        <div class="flex items-center justify-between mb-4">
+          <span class="kicker">Ascent Log · 12 Weeks</span>
+          <span class="font-mono text-[10px] text-mist-dim"><span id="heatTotal" class="text-glacier font-bold">0</span> SESSIONS</span>
+        </div>
+        <div id="heatGrid" class="grid grid-flow-col grid-rows-7 gap-1 w-max max-w-full overflow-x-auto pb-1"></div>
+        <div class="flex items-center gap-1.5 mt-3 font-mono text-[9px] text-mist-dim">
+          LESS
+          <span class="w-2.5 h-2.5 rounded-[3px] bg-ink-700"></span>
+          <span class="w-2.5 h-2.5 rounded-[3px] bg-glacier/20"></span>
+          <span class="w-2.5 h-2.5 rounded-[3px] bg-glacier/45"></span>
+          <span class="w-2.5 h-2.5 rounded-[3px] bg-glacier/70"></span>
+          <span class="w-2.5 h-2.5 rounded-[3px] bg-glacier"></span>
+          MORE
+        </div>
+      </div>
+      <div class="card p-5 lg:col-span-2">
+        <span class="kicker">Recent Attempts</span>
+        <div id="recentList" class="mt-3"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-quiz" class="view hidden">
+    <div class="grid lg:grid-cols-3 gap-5">
+      <div class="card p-6 h-max">
+        <span class="kicker">Expedition Setup</span>
+
+        <label class="block font-mono text-[10px] tracking-[.25em] text-mist-dim mt-5 mb-1.5">TOPIC</label>
+        <select id="qTopicSel" class="w-full rounded-lg border border-line bg-ink-800 px-3 py-2.5 text-sm focus:border-gold outline-none transition"></select>
+        <input id="qCustom" placeholder="Name a new topic…" class="hidden mt-2 w-full rounded-lg border border-line bg-ink-800 px-3 py-2.5 text-sm focus:border-gold outline-none transition">
+
+        <label class="block font-mono text-[10px] tracking-[.25em] text-mist-dim mt-5 mb-1.5">QUESTION SOURCE</label>
+        <div class="grid grid-cols-2 gap-1.5">
+          <button data-src="static" class="srcBtn seg-on rounded-lg border border-line px-3 py-2.5 text-sm text-mist transition">Static Bank</button>
+          <button data-src="ai" class="srcBtn rounded-lg border border-line px-3 py-2.5 text-sm text-mist transition">⚡ AI Generated</button>
+        </div>
+
+        <label class="block font-mono text-[10px] tracking-[.25em] text-mist-dim mt-5 mb-1.5">LENGTH</label>
+        <div class="flex gap-1.5">
+          <button data-n="3" class="nBtn flex-1 rounded-lg border border-line py-2 font-mono text-sm text-mist transition">3</button>
+          <button data-n="4" class="nBtn flex-1 rounded-lg border border-line py-2 font-mono text-sm text-mist pill-on transition">4</button>
+          <button data-n="5" class="nBtn flex-1 rounded-lg border border-line py-2 font-mono text-sm text-mist transition">5</button>
+        </div>
+
+        <div id="diffWrap" class="hidden">
+          <label class="block font-mono text-[10px] tracking-[.25em] text-mist-dim mt-5 mb-1.5">DIFFICULTY</label>
+          <div class="flex gap-1.5">
+            <button data-d="easy" class="dBtn flex-1 rounded-lg border border-line py-2 text-xs text-mist transition">Easy</button>
+            <button data-d="mixed" class="dBtn flex-1 rounded-lg border border-line py-2 text-xs text-mist pill-on transition">Mixed</button>
+            <button data-d="hard" class="dBtn flex-1 rounded-lg border border-line py-2 text-xs text-mist transition">Hard</button>
+          </div>
+        </div>
+
+        <button id="startQuizBtn" class="w-full mt-6 rounded-lg bg-gold text-ink-950 font-disp font-bold py-3 tracking-wide hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 transition shadow-lg shadow-gold/20">
+          BEGIN ASCENT →
+        </button>
+      </div>
+
+      <div class="lg:col-span-2">
+        <div id="quizStage" class="card p-6 min-h-[440px] flex flex-col">
+          <div class="m-auto text-center">
+            <svg class="w-14 h-14 mx-auto text-mist-dim" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 20L10 5l4 8 2.5-4L21 20z"/></svg>
+            <p class="text-mist mt-4 text-sm max-w-xs mx-auto">Pick a topic, choose your source and hit <span class="text-gold font-semibold">Begin Ascent</span>. Every rep raises your Peak Score.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-schedule" class="view hidden">
+    <div class="grid lg:grid-cols-3 gap-5">
+      <div class="space-y-5 h-max">
+        <form id="taskForm" class="card p-6">
+          <span class="kicker">New Objective</span>
+          <input id="tTitle" required placeholder="Task title…" class="mt-4 w-full rounded-lg border border-line bg-ink-800 px-3 py-2.5 text-sm focus:border-gold outline-none transition">
+          <input id="tTopic" list="topicList" placeholder="Linked topic (optional)" class="mt-2.5 w-full rounded-lg border border-line bg-ink-800 px-3 py-2.5 text-sm focus:border-gold outline-none transition">
+          <datalist id="topicList"></datalist>
+          <input id="tDeadline" required type="datetime-local" class="mt-2.5 w-full rounded-lg border border-line bg-ink-800 px-3 py-2.5 text-sm font-mono focus:border-gold outline-none transition">
+          <button class="w-full mt-4 rounded-lg border border-glacier/60 text-glacier font-disp font-bold py-2.5 hover:bg-glacier hover:text-ink-950 transition">+ ADD TO QUEUE</button>
+        </form>
+
+        <div class="card p-6">
+          <div class="flex items-center justify-between">
+            <span class="kicker">Radar Blips</span>
+            <span class="font-mono text-[9px] text-ember tracking-widest">WEAK · UNSCHEDULED</span>
+          </div>
+          <div id="suggestList" class="mt-3"></div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2">
+        <div class="flex items-center justify-between mb-3">
+          <span class="kicker">Priority Queue</span>
+          <span class="font-mono text-[10px] text-mist-dim">RANKED BY DEADLINE × WEAKNESS</span>
+        </div>
+        <div id="queueList" class="space-y-3"></div>
+        <div class="mt-6">
+          <span class="kicker !text-mist-dim">Cleared</span>
+          <div id="clearedList" class="space-y-2 mt-3"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-coach" class="view hidden">
+    <div class="card p-6 mb-5 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <span class="kicker">Weak Ridges Detected</span>
+        <div id="coachWeak" class="flex flex-wrap gap-2 mt-2.5"></div>
+      </div>
+      <button id="coachBtn" class="rounded-lg bg-gold text-ink-950 font-disp font-bold px-6 py-3 hover:brightness-110 hover:-translate-y-0.5 transition shadow-lg shadow-gold/20">
+        ⚡ GENERATE REVISION PLAN
+      </button>
+    </div>
+    <div id="coachOut">
+      <div class="card p-10 text-center text-mist-dim text-sm">Your coach reads live mastery data from the database. Hit the button to build a plan.</div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-4 border-t border-line bg-ink-900/95 backdrop-blur">
+  <button data-view="dashboard" class="navbtn active py-3 flex flex-col items-center gap-1 font-mono text-[9px] tracking-widest text-mist border-t-2 border-transparent">▲ HOME</button>
+  <button data-view="quiz" class="navbtn py-3 flex flex-col items-center gap-1 font-mono text-[9px] tracking-widest text-mist border-t-2 border-transparent">◎ QUIZ</button>
+  <button data-view="schedule" class="navbtn py-3 flex flex-col items-center gap-1 font-mono text-[9px] tracking-widest text-mist border-t-2 border-transparent">▦ PLAN</button>
+  <button data-view="coach" class="navbtn py-3 flex flex-col items-center gap-1 font-mono text-[9px] tracking-widest text-mist border-t-2 border-transparent">✦ COACH</button>
+</nav>
+
+<div id="toasts" class="fixed bottom-20 lg:bottom-6 right-4 z-50 space-y-2 w-72"></div>
+
+<script>
+/* ═══════════════ core utilities ═══════════════ */
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const charts = {};
+let topicsCache = [];
+
+function getChartTextColor() {
+  return document.documentElement.classList.contains('dark') ? '#93A8B4' : '#475569';
+}
+
+function getChartGridColor() {
+  return document.documentElement.classList.contains('dark') ? 'rgba(28,41,51,.9)' : 'rgba(226,232,240,.9)';
+}
+
+Chart.defaults.color = getChartTextColor();
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 10;
+
+/* ═══════════════ Theme Manager ═══════════════ */
+const SUN_SVG  = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+const MOON_SVG = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`;
+
+function updateThemeIcons() {
+  const isDark = document.documentElement.classList.contains('dark');
+  $$('.themeIcon').forEach(el => el.innerHTML = isDark ? SUN_SVG : MOON_SVG);
+  $$('.themeLabel').forEach(el => el.textContent = isDark ? 'LIGHT MODE' : 'DARK MODE');
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  updateThemeIcons();
+  
+  // Dynamic Chart updates
+  Chart.defaults.color = getChartTextColor();
+  if (topicsCache.length > 0 && $('#radarChart')) renderRadar(topicsCache);
+  if ($('#trendChart')) api('/api/recent').then(renderTrend).catch(() => {});
+}
+
+updateThemeIcons();
+
+async function api(path, opt = {}) {
+  try {
+    const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opt });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status));
+    return d;
+  } catch (e) { toast(e.message || 'Network error', 'err'); throw e; }
+}
+
+function toast(msg, type = 'ok') {
+  const colors = { ok: 'border-glacier text-glacier', err: 'border-ember text-ember', warn: 'border-gold text-gold' };
+  const el = document.createElement('div');
+  el.className = `toast card ${colors[type]} border-l-2 px-4 py-3 text-sm font-medium shadow-xl`;
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .4s'; setTimeout(() => el.remove(), 400); }, 3400);
+}
+
+function countUp(el, val, dur = 900) {
+  const t0 = performance.now();
+  const step = t => {
+    const p = Math.min(1, (t - t0) / dur);
+    el.textContent = Math.round(val * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function ago(iso) {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 3600)   return Math.max(1, ~~(s / 60)) + 'm ago';
+  if (s < 86400)  return ~~(s / 3600) + 'h ago';
+  return ~~(s / 86400) + 'd ago';
+}
+
+function dueInfo(iso) {
+  const h = (new Date(iso) - Date.now()) / 36e5, span = Math.round(Math.abs(h) < 48 ? Math.abs(h) + 'h' : Math.abs(h) / 24 + 'd');
+  if (h < 0)  return { label: `OVERDUE ${span}`, cls: 'text-ember font-bold' };
+  if (h < 24) return { label: `due in ${span}`,  cls: 'text-ember' };
+  if (h < 72) return { label: `in ${span}`,      cls: 'text-gold' };
+  return { label: `in ${span}`, cls: 'text-mist' };
+}
+const fmtDate = iso => new Date(iso).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+const pctColor = p => p >= 80 ? 'text-glacier' : p >= 60 ? 'text-gold' : 'text-ember';
+
+/* ═══════════════ navigation ═══════════════ */
+const VIEW_META = {
+  dashboard: ['Dashboard', '01 // TELEMETRY'],
+  quiz:      ['Quiz Engine', '02 // TRAINING GROUND'],
+  schedule:  ['Smart Scheduler', '03 // ROUTE PLANNING'],
+  coach:     ['Peak AI Coach', '04 // SUMMIT GUIDANCE'],
+};
+const LOADERS = { dashboard: loadDashboard, quiz: loadQuizSetup, schedule: loadSchedule, coach: loadCoachPreview };
+
+function setView(v) {
+  $$('.view').forEach(s => s.classList.add('hidden'));
+  const sec = $('#view-' + v);
+  sec.classList.remove('hidden');
+  sec.classList.remove('anim-in'); void sec.offsetWidth; sec.classList.add('anim-in');
+  $$('.navbtn').forEach(b => {
+    const on = b.dataset.view === v;
+    b.classList.toggle('active', on);
+    if (b.tagName === 'BUTTON' && !b.classList.contains('lg:hidden'))
+      b.classList.toggle('!border-t-gold', on);
+  });
+  $('#pageTitle').textContent = VIEW_META[v][0];
+  $('#pageKicker').textContent = VIEW_META[v][1];
+  LOADERS[v]();
+}
+$$('.navbtn').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+
+/* ═══════════════ dashboard ═══════════════ */
+async function loadDashboard() {
+  const [stats, topics, heat, recent] = await Promise.all([
+    api('/api/stats'), api('/api/topics'), api('/api/heatmap'), api('/api/recent')
+  ]);
+  topicsCache = topics;
+
+  // gauge
+  const C = 326.7, peak = stats.peak;
+  requestAnimationFrame(() => $('#gaugeArc').style.strokeDashoffset = C * (1 - peak / 100));
+  countUp($('#gaugeNum'), peak, 1200);
+  const grade = peak >= 85 ? ['PEAKED','text-glacier border-glacier/50']
+             : peak >= 60 ? ['SUMMIT PUSH','text-gold border-gold/50']
+             : peak >= 40 ? ['ASCENDING','text-gold-soft border-gold/30']
+             : ['BASE CAMP','text-mist border-line'];
+  const gg = $('#gaugeGrade'); gg.textContent = grade[0]; gg.className = `px-2 py-1 rounded border font-mono text-[10px] tracking-[.2em] ${grade[1]}`;
+  $('#g7d').textContent = stats.attempts_7d;
+  $('#gBest').textContent = stats.best_topic || '—';
+  $('#sideStreak').textContent = stats.streak + 'd';
+  $('#mobStreak').textContent = stats.streak + 'd';
+
+  // stat tiles
+  const tiles = [
+    ['TOTAL REPS', stats.attempts, 'text-gold', 'border-l-gold'],
+    ['AVG ACCURACY', stats.avg_pct + '%', 'text-glacier', 'border-l-glacier'],
+    ['DAY STREAK', stats.streak, 'text-ember', 'border-l-ember'],
+    ['WEAK TOPICS', stats.weak_count, 'text-skyx', 'border-l-skyx'],
+  ];
+  $('#statTiles').innerHTML = tiles.map(([l, v, c, b]) => `
+    <div class="card lift border-l-2 ${b} p-4">
+      <div class="font-mono text-[9px] tracking-[.25em] text-mist-dim">${l}</div>
+      <div class="font-disp font-extrabold text-2xl mt-1.5 ${c}">${v}</div>
+    </div>`).join('');
+
+  renderRadar(topics);
+  renderTrend(recent);
+  renderHeat(heat);
+  renderRecent(recent);
+}
+
+function renderRadar(topics) {
+  charts.radar?.destroy();
+  const has = topics.length > 0;
+  $('#radarEmpty').classList.toggle('hidden', has);
+  if (!has) return;
+  const lbl = topics.slice(0, 8).map(t => t.name.length > 14 ? t.name.slice(0, 13) + '…' : t.name);
+  charts.radar = new Chart($('#radarChart'), {
+    type: 'radar',
+    data: { labels: lbl, datasets: [{ data: topics.slice(0, 8).map(t => t.score),
+      borderColor: '#F5A524', backgroundColor: 'rgba(245,165,36,.14)',
+      pointBackgroundColor: '#F5A524', pointRadius: 3, borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { r: { min: 0, max: 100,
+        ticks: { stepSize: 25, backdropColor: 'transparent', color: getChartTextColor() },
+        grid: { color: getChartGridColor() }, angleLines: { color: getChartGridColor() },
+        pointLabels: { color: getChartTextColor(), font: { family: "'Instrument Sans'", size: 11, weight: '600' } } } } }
+  });
+}
+
+function renderTrend(recent) {
+  charts.trend?.destroy();
+  const has = recent.length > 0;
+  $('#trendEmpty').classList.toggle('hidden', has);
+  if (!has) return;
+  const data = [...recent].reverse();
+  const ctx = $('#trendChart').getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, 220);
+  g.addColorStop(0, 'rgba(47,214,195,.30)'); g.addColorStop(1, 'rgba(47,214,195,0)');
+  charts.trend = new Chart(ctx, {
+    type: 'line',
+    data: { labels: data.map(a => new Date(a.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'})),
+      datasets: [{ data: data.map(a => a.pct), borderColor: '#2FD6C3', backgroundColor: g,
+        fill: true, tension: .35, pointRadius: 3, pointBackgroundColor: '#2FD6C3', borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { min: 0, max: 100, grid: { color: getChartGridColor() } },
+                x: { grid: { display: false } } } }
+  });
+}
+
+function renderHeat(days) {
+  const lvl = c => c === 0 ? 'bg-ink-700/70' : c === 1 ? 'bg-glacier/20' : c === 2 ? 'bg-glacier/45' : c === 3 ? 'bg-glacier/70' : 'bg-glacier';
+  const today = new Date().toISOString().slice(0, 10);
+  $('#heatGrid').innerHTML = days.map(d =>
+    `<div title="${d.date} · ${d.count} session${d.count===1?'':'s'}"
+      class="w-3 h-3 rounded-[3px] ${lvl(d.count)} ${d.date===today?'ring-1 ring-gold':''}"></div>`).join('');
+  $('#heatTotal').textContent = days.reduce((s, d) => s + d.count, 0);
+}
+
+function renderRecent(recent) {
+  $('#recentList').innerHTML = recent.slice(0, 7).map(a => `
+    <div class="flex items-center justify-between py-2.5 border-b border-line/60 last:border-0">
+      <div class="min-w-0">
+        <div class="text-sm font-semibold truncate">${esc(a.topic)}</div>
+        <div class="flex items-center gap-2 mt-0.5">
+          <span class="font-mono text-[9px] px-1.5 py-0.5 rounded border ${a.source==='ai'?'border-gold/50 text-gold':'border-line text-mist-dim'}">${a.source.toUpperCase()}</span>
+          <span class="font-mono text-[10px] text-mist-dim">${ago(a.created_at)}</span>
+        </div>
+      </div>
+      <span class="font-mono font-bold ${pctColor(a.pct)}">${Math.round(a.pct)}%</span>
+    </div>`).join('') || '<div class="text-mist-dim text-sm py-4">Nothing yet — run your first quiz.</div>';
+}
+
+/* ═══════════════ quiz engine ═══════════════ */
+const quizCfg = { source: 'static', n: 4, diff: 'mixed' };
+const quiz = { qs: [], i: 0, correct: 0, topic: '', locked: false };
+
+async function loadQuizSetup() {
+  topicsCache = await api('/api/topics');
+  $('#qTopicSel').innerHTML = topicsCache.map(t =>
+    `<option value="${esc(t.name)}">${esc(t.name)} · ${Math.round(t.score)}%</option>`).join('')
+    + '<option value="__new">✚ New topic…</option>';
+  $('#topicList').innerHTML = topicsCache.map(t => `<option value="${esc(t.name)}">`).join('');
+}
+
+$('#qTopicSel').addEventListener('change', e => $('#qCustom').classList.toggle('hidden', e.target.value !== '__new'));
+$$('.srcBtn').forEach(b => b.onclick = () => {
+  quizCfg.source = b.dataset.src;
+  $$('.srcBtn').forEach(x => x.classList.toggle('seg-on', x === b));
+  $('#diffWrap').classList.toggle('hidden', quizCfg.source !== 'ai');
+});
+$$('.nBtn').forEach(b => b.onclick = () => { quizCfg.n = +b.dataset.n; $$('.nBtn').forEach(x => x.classList.toggle('pill-on', x === b)); });
+$$('.dBtn').forEach(b => b.onclick = () => { quizCfg.diff = b.dataset.d; $$('.dBtn').forEach(x => x.classList.toggle('pill-on', x === b)); });
+
+$('#startQuizBtn').onclick = async () => {
+  const sel = $('#qTopicSel').value;
+  quiz.topic = sel === '__new' ? $('#qCustom').value.trim() : sel;
+  if (!quiz.topic) return toast('Name your topic first.', 'warn');
+
+  const stage = $('#quizStage');
+  stage.innerHTML = `<div class="m-auto text-center">
+      <div class="spin mx-auto"></div>
+      <p class="font-mono text-xs text-mist mt-5 tracking-widest">${quizCfg.source==='ai' ? 'SUMMONING QUESTIONS FROM LLAMA-3.3…' : 'LOADING QUESTION BANK…'}</p>
+    </div>`;
+  try {
+    const d = quizCfg.source === 'ai'
+      ? await api('/api/quiz/ai', { method: 'POST', body: JSON.stringify({ topic: quiz.topic, num_questions: quizCfg.n, difficulty: quizCfg.diff }) })
+      : await api(`/api/quiz/static?topic=${encodeURIComponent(quiz.topic)}&n=${quizCfg.n}`);
+    if (d.note) toast(d.note, 'warn');
+    Object.assign(quiz, { qs: d.questions, i: 0, correct: 0, locked: false });
+    renderQ();
+  } catch { stage.innerHTML = '<div class="m-auto text-mist text-sm">Could not load a quiz. Check the server console.</div>'; }
+};
+
+function renderQ() {
+  const q = quiz.qs[quiz.i], n = quiz.qs.length;
+  $('#quizStage').innerHTML = `
+    <div>
+      <div class="flex items-center justify-between font-mono text-[10px] tracking-[.25em] text-mist-dim">
+        <span>QUESTION ${quiz.i + 1} / ${n}</span><span class="text-gold">${esc(quiz.topic).toUpperCase()}</span>
+      </div>
+      <div class="h-1.5 rounded bg-ink-700 mt-2 overflow-hidden">
+        <div class="h-full bg-gradient-to-r from-gold to-glacier transition-all duration-500" style="width:${(quiz.i / n) * 100}%"></div>
+      </div>
+      <h3 class="font-disp font-bold text-xl sm:text-2xl mt-6 leading-snug">${esc(q.question)}</h3>
+      <div class="mt-6 space-y-2.5" id="optWrap">
+        ${q.options.map((o, i) => `
+          <button data-i="${i}" class="opt w-full text-left flex items-center gap-3 rounded-lg border border-line bg-ink-800/60 px-4 py-3">
+            <span class="w-6 h-6 shrink-0 grid place-items-center rounded border border-line font-mono text-[11px] text-mist">${'ABCD'[i]}</span>
+            <span class="text-sm">${esc(o)}</span>
+          </button>`).join('')}
+      </div>
+      <div id="explBox" class="hidden mt-5 rounded-lg border border-glacier/40 bg-glacier/5 p-4 text-sm text-glacier-soft"></div>
+      <button id="nextBtn" class="hidden mt-5 w-full rounded-lg bg-gold text-ink-950 font-disp font-bold py-3 hover:brightness-110 transition">${quiz.i + 1 < n ? 'NEXT QUESTION →' : 'SEE RESULTS →'}</button>
+    </div>`;
+  $$('#optWrap .opt').forEach(b => b.onclick = () => pick(+b.dataset.i, q));
+  $('#nextBtn').onclick = () => { quiz.locked = false; quiz.i++; quiz.i < quiz.qs.length ? renderQ() : finishQuiz(); };
+}
+
+function pick(i, q) {
+  if (quiz.locked) return;
+  quiz.locked = true;
+  const ok = i === q.answer_index;
+  if (ok) quiz.correct++;
+  $$('#optWrap .opt').forEach(b => {
+    const idx = +b.dataset.i;
+    b.disabled = true;
+    if (idx === q.answer_index) b.className += ' !border-glacier !bg-glacier/10 text-glacier';
+    else if (idx === i)         b.className += ' !border-ember !bg-ember/10 text-ember';
+    else b.className += ' opacity-40';
+  });
+  const ex = $('#explBox');
+  ex.innerHTML = `<span class="font-mono text-[10px] tracking-widest ${ok ? 'text-glacier' : 'text-ember'}">${ok ? '✓ CORRECT — ' : '✗ MISSED — '}</span>${esc(q.explanation)}`;
+  ex.classList.remove('hidden');
+  $('#nextBtn').classList.remove('hidden');
+}
+
+async function finishQuiz() {
+  const total = quiz.qs.length, pct = Math.round(quiz.correct / total * 100);
+  const tier = pct === 100 ? ['FLAWLESS SUMMIT. 🏔', 'text-glacier']
+             : pct >= 75  ? ['Strong push — nearly at the top.', 'text-glacier']
+             : pct >= 50  ? ['Solid foothold. Drill the misses.', 'text-gold']
+             : ['Base camp reps. The climb starts now.', 'text-ember'];
+
+  $('#quizStage').innerHTML = `
+    <div class="m-auto text-center w-full max-w-md">
+      <div class="font-mono text-[10px] tracking-[.3em] text-mist-dim">EXPEDITION RESULT</div>
+      <div class="font-disp font-extrabold text-7xl mt-3 ${pctColor(pct)}">${pct}<span class="text-3xl">%</span></div>
+      <div class="font-disp font-bold text-lg mt-2 ${tier[1]}">${tier[0]}</div>
+      <div class="font-mono text-xs text-mist mt-1">${quiz.correct} / ${total} correct</div>
+      <div class="mt-5 space-y-1.5 text-left max-h-32 overflow-y-auto pr-1">
+        ${quiz.qs.map((q) => `<div class="font-mono text-[11px] text-mist truncate">${esc(q.question)}</div>`).join('')}
+      </div>
+      <div id="saveNote" class="font-mono text-[11px] text-mist-dim mt-5">SAVING TO PEAK LOG…</div>
+      <div class="grid grid-cols-2 gap-2 mt-4">
+        <button onclick="startQuizAgain()" class="rounded-lg border border-line py-2.5 text-sm text-mist hover:text-snow hover:border-gold transition">↻ Run it again</button>
+        <button onclick="setView('dashboard')" class="rounded-lg bg-glacier text-ink-950 font-bold py-2.5 text-sm hover:brightness-110 transition">View dashboard</button>
+      </div>
+    </div>`;
+  try {
+    const d = await api('/api/quiz/submit', { method: 'POST', body: JSON.stringify({
+      topic_name: quiz.topic, correct: quiz.correct, total, source: quizCfg.source }) });
+    const t = d.topic, arrow = t.delta > 0 ? '▲' : t.delta < 0 ? '▼' : '•';
+    $('#saveNote').innerHTML =
+      `LOGGED ✓ &nbsp;·&nbsp; '${esc(t.name)}' mastery ${Math.round(t.old)}% → <span class="text-glacier font-bold">${Math.round(t.new)}%</span> <span class="${t.delta >= 0 ? 'text-glacier' : 'text-ember'}">${arrow} ${Math.abs(t.delta).toFixed(1)}</span>`;
+  } catch { $('#saveNote').textContent = 'FAILED TO SAVE'; }
+}
+function startQuizAgain() { $('#startQuizBtn').click(); }
+
+/* ═══════════════ scheduler ═══════════════ */
+async function loadSchedule() {
+  const d = await api('/api/schedule');
+  const tierCls = {
+    'OVERDUE':'bg-ember/15 text-ember border-ember/40','CRITICAL':'bg-ember/15 text-ember border-ember/40',
+    'HIGH':'bg-gold/15 text-gold border-gold/40','THIS WEEK':'bg-glacier/10 text-glacier border-glacier/40',
+    'PLANNED':'bg-ink-700 text-mist border-line','DONE':'bg-ink-700 text-mist-dim border-line' };
+
+  $('#queueList').innerHTML = d.queue.map((t, i) => {
+    const due = dueInfo(t.deadline);
+    const bar = t.priority > 70 ? 'bg-ember' : t.priority > 45 ? 'bg-gold' : 'bg-glacier';
+    return `
+    <div class="card lift p-4 flex gap-3 sm:gap-4 items-center anim-in" style="animation-delay:${i * 60}ms">
+      <div class="font-mono text-mist-dim text-sm w-7 text-right shrink-0">${String(i + 1).padStart(2, '0')}</div>
+      <input type="checkbox" data-id="${t.id}" class="taskChk shrink-0">
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold truncate">${esc(t.title)}</div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1 font-mono text-[11px]">
+          <span class="px-1.5 py-0.5 rounded border border-line text-mist">${esc(t.topic || 'General')}</span>
+          <span class="${due.cls}">${due.label} · ${fmtDate(t.deadline)}</span>
+          ${t.topic_score != null ? `<span class="text-mist-dim">mastery ${Math.round(t.topic_score)}%</span>` : ''}
+        </div>
+      </div>
+      <div class="hidden sm:block w-28 shrink-0">
+        <div class="text-right font-mono text-[9px] text-mist-dim mb-1">PRIORITY ${t.priority}</div>
+        <div class="h-1.5 rounded bg-ink-700 overflow-hidden"><div class="h-full ${bar}" style="width:${t.priority}%"></div></div>
+      </div>
+      <span class="px-2 py-1 rounded border font-mono text-[9px] tracking-widest shrink-0 ${tierCls[t.tier] || tierCls.PLANNED}">${t.tier}</span>
+      <button data-del="${t.id}" class="text-mist-dim hover:text-ember transition shrink-0">✕</button>
+    </div>`;
+  }).join('') || '<div class="card p-8 text-center text-mist-dim text-sm">Queue clear. Add an objective or accept a suggestion.</div>';
+
+  $('#clearedList').innerHTML = d.cleared.map(t => `
+    <div class="card p-3 flex items-center gap-3 opacity-50">
+      <input type="checkbox" checked data-id="${t.id}" class="taskChk">
+      <span class="flex-1 text-sm line-through truncate">${esc(t.title)}</span>
+      <button data-del="${t.id}" class="text-mist-dim hover:text-ember">✕</button>
+    </div>`).join('');
+
+  $('#suggestList').innerHTML = d.suggestions.map(s => `
+    <div class="flex items-center justify-between py-2.5 border-b border-line/60 last:border-0">
+      <div>
+        <div class="text-sm font-semibold">${esc(s.topic)}</div>
+        <div class="font-mono text-[9px] text-ember tracking-widest mt-0.5">MASTERY ${Math.round(s.score)}% · NO TASK SET</div>
+      </div>
+      <button data-plan="${esc(s.topic)}" class="planBtn text-xs font-mono px-2.5 py-1.5 rounded border border-gold/50 text-gold hover:bg-gold hover:text-ink-950 transition">+ PLAN</button>
+    </div>`).join('') || '<div class="text-mist-dim text-sm py-2">No orphaned weak topics. 🎯</div>';
+}
+
+$('#queueList').addEventListener('change', e => toggleTask(e.target));
+$('#clearedList').addEventListener('change', e => toggleTask(e.target));
+async function toggleTask(el) {
+  if (!el.classList.contains('taskChk')) return;
+  await api('/api/tasks/' + el.dataset.id, { method: 'PATCH' });
+  toast('Task updated.', 'ok'); loadSchedule();
+}
+document.addEventListener('click', async e => {
+  const del = e.target.closest('[data-del]');
+  if (del) { await api('/api/tasks/' + del.dataset.del, { method: 'DELETE' }); toast('Task removed.', 'ok'); loadSchedule(); }
+  const plan = e.target.closest('[data-plan]');
+  if (plan) {
+    $('#tTitle').value = `Deep drill: ${plan.dataset.plan}`;
+    $('#tTopic').value = plan.dataset.plan;
+    const d = new Date(Date.now() + 2 * 864e5); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    $('#tDeadline').value = d.toISOString().slice(0, 16);
+    $('#tTitle').focus(); toast('Objective pre-filled — set the deadline.', 'ok');
+  }
+});
+
+$('#taskForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  await api('/api/tasks', { method: 'POST', body: JSON.stringify({
+    title: $('#tTitle').value, topic: $('#tTopic').value || null, deadline: $('#tDeadline').value }) });
+  $('#tTitle').value = ''; $('#tTopic').value = '';
+  toast('Objective added to the queue.', 'ok'); loadSchedule();
+});
+
+/* ═══════════════ AI coach ═══════════════ */
+async function loadCoachPreview() {
+  topicsCache = await api('/api/topics');
+  const weak = topicsCache.filter(t => t.score < 65).sort((a, b) => a.score - b.score);
+  $('#coachWeak').innerHTML = (weak.length ? weak : topicsCache.slice(0, 2)).map(t =>
+    `<span class="px-2.5 py-1 rounded-md border border-ember/40 bg-ember/10 font-mono text-[11px] text-ember">${esc(t.name)} · ${Math.round(t.score)}%</span>`
+  ).join('') || '<span class="text-mist-dim text-sm">No topics yet.</span>';
+}
+
+$('#coachBtn').onclick = async () => {
+  const out = $('#coachOut');
+  out.innerHTML = `
+    <div class="card p-6 space-y-3">
+      <div class="flex items-center gap-3"><div class="spin !w-6 !h-6"></div>
+      <span class="font-mono text-xs tracking-widest text-mist">ANALYZING WEAK RIDGES…</span></div>
+      ${[1,2,3].map(i => `<div class="h-16 rounded-lg bg-ink-700/60 animate-pulse" style="animation-delay:${i*150}ms"></div>`).join('')}
+    </div>`;
+  try {
+    const d = await api('/api/coach');
+    const badge = d.ai
+      ? '<span class="font-mono text-[9px] px-2 py-1 rounded border border-gold/50 text-gold tracking-widest">⚡ LLAMA-3.3 · LIVE</span>'
+      : '<span class="font-mono text-[9px] px-2 py-1 rounded border border-line text-mist tracking-widest">HEURISTIC MODE · OFFLINE-SAFE</span>';
+    out.innerHTML = `
+      <div class="anim-in space-y-5">
+        <div class="card p-6 border-l-2 border-l-gold flex flex-wrap items-center justify-between gap-3">
+          <h2 class="font-disp font-extrabold text-2xl tracking-tight">${esc(d.headline || 'Your revision plan.')}</h2>
+          ${badge}
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-4">
+          ${(d.focus || []).map(f => `
+            <div class="card lift p-5">
+              <div class="font-mono text-[9px] tracking-[.25em] text-ember">FOCUS AREA</div>
+              <div class="font-disp font-bold text-lg mt-1.5">${esc(f.topic)}</div>
+              <p class="text-sm text-mist mt-2">${esc(f.why)}</p>
+              <div class="mt-3 pt-3 border-t border-line text-sm text-glacier-soft"><span class="font-mono text-[9px] text-glacier tracking-widest">DRILL → </span>${esc(f.drill)}</div>
+            </div>`).join('')}
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-4">
+          <div class="card p-6">
+            <span class="kicker">Tactics</span>
+            <ol class="mt-4 space-y-3">
+              ${(d.tips || []).map((t, i) => `
+                <li class="flex gap-3 text-sm">
+                  <span class="font-mono text-gold shrink-0">${String(i + 1).padStart(2, '0')}</span>
+                  <span class="text-snow/90">${esc(t)}</span>
+                </li>`).join('')}
+            </ol>
+          </div>
+          <div class="card p-6">
+            <span class="kicker">7-Day Route</span>
+            <div class="mt-4 space-y-2">
+              ${(d.plan || []).map(p => `
+                <div class="flex gap-3 items-baseline text-sm py-1.5 border-b border-line/50 last:border-0">
+                  <span class="font-mono text-[10px] text-glacier w-9 shrink-0">${esc(p.day).toUpperCase()}</span>
+                  <span class="text-snow/85">${esc(p.task)}</span>
+                </div>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <blockquote class="card p-6 border-l-2 border-l-glacier text-lg font-disp font-semibold text-glacier-soft">
+          “${esc(d.motivation || 'Keep climbing.')}”
+        </blockquote>
+      </div>`;
+  } catch { out.innerHTML = '<div class="card p-8 text-center text-ember text-sm">Coach unavailable — check server connection.</div>'; }
+};
+
+/* ═══════════════ boot ═══════════════ */
+$('#hdrDate').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+const dflt = new Date(Date.now() + 2 * 864e5); dflt.setMinutes(dflt.getMinutes() - dflt.getTimezoneOffset());
+$('#tDeadline').value = dflt.toISOString().slice(0, 16);
+setView('dashboard');
+</script>
+</body>
+</html>
