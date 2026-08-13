@@ -118,6 +118,12 @@ async def manifest():
         ]
     }
 
+# Google OAuth Config
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("REDIRECT_URI", "https://el-peak-production.up.railway.app/api/auth/google/callback")
+session_serializer = URLSafeSerializer(SECRET_KEY, salt="oauth")
+
 # ================================================================ AUTH ROUTES
 class SignupIn(BaseModel):
     email: EmailStr
@@ -142,6 +148,67 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
         raise HTTPException(401, "Incorrect email or password")
     token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
     return {"token": token, "email": user["email"]}
+
+@app.get("/api/auth/google")
+async def google_login(request: fastapi.Request):
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(500, "Google OAuth not configured")
+    
+    state = session_serializer.dumps({"nonce": secrets.token_urlsafe(16)})
+    auth_url = (
+        f"https://accounts.google.com/o/oauth2/auth"
+        f"?response_type=code&client_id={GOOGLE_CLIENT_ID}"
+        f"&redirect_uri={REDIRECT_URI}"
+        f"&scope=openid email profile&state={state}"
+    )
+    return {"auth_url": auth_url, "state": state}
+
+@app.get("/api/auth/google/callback")
+async def google_callback(request: fastapi.Request, code: str, state: str):
+    # Exchange code for token
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "redirect_uri": REDIRECT_URI,
+                "grant_type": "authorization_code",
+            },
+        )
+        token_resp.raise_for_status()
+        access_token = token_resp.json().get("access_token")
+        
+        # Get user info
+        user_resp = await client.get(
+            "https://www.googleapis.com/oauth2/v1/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        user_resp.raise_for_status()
+        google_data = user_resp.json()
+
+    email = google_data.get("email")
+    if not email:
+        raise HTTPException(400, "Could not get email from Google")
+        
+    # Find or create user
+    user = await db.get_user_by_email(email)
+    if not user:
+        # Create a dummy password for Google users (they won't use it)
+        import hashlib
+        dummy_pw = hashlib.sha256(f"google_{email}".encode()).hexdigest()
+        user = await db.create_user(email, dummy_pw)
+        if not user:
+            raise HTTPException(500, "Failed to create user")
+
+    # Issue JWT
+    jwt_token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
+    
+    # Redirect to frontend with token in URL
+    return fastapi.responses.RedirectResponse(
+        url=f"/?token={jwt_token}"
+    )
 
 # ================================================================ Schemas
 class SubmitIn(BaseModel):
