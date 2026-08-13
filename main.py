@@ -526,6 +526,9 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
 
 @app.post("/api/quiz/pdf")
 async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed"), topic: str = Form(""), num_questions: int = Form(0), user: dict = Depends(get_current_user)):
+    if not PDF_OCR_ENABLED:
+        raise HTTPException(500, "PDF libraries not installed on server.")
+        
     # --- PAYWALL LOGIC ---
     usage = await db.get_user_usage(user["id"])
     tier = usage["tier"]
@@ -533,19 +536,30 @@ async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed")
     
     if usage["pdf_uploads_used"] >= limits["pdf_uploads"]:
         raise HTTPException(403, f"You have reached your monthly PDF upload limit ({limits['pdf_uploads']}). Please upgrade to Plus.")
-        
-    # ... keep the existing PDF text extraction logic ...
-    
-    groq_model = TIER_MODELS.get(tier, TIER_MODELS["free"])
-    
-    # ... inside the try block where you call groq_chat ...
-    # raw = await groq_chat(messages, temperature=0.6, max_tokens=2000, model_override=groq_model)
-    
-    # After successfully generating the quiz:
-    await db.increment_usage(user["id"], pdf_uploads=1)
-    return {"topic": label, "subject": "PDF", "questions": clean, "ai": True, "source": "pdf"}
 
-    if len(text) < 200: raise HTTPException(422, "Not enough readable text in this PDF (even with OCR).")
+    data = await file.read()
+    if len(data) > 15 * 1024 * 1024: 
+        raise HTTPException(413, "PDF too large (max 15 MB).")
+    
+    text = ""
+    try:
+        doc = fitz.open(stream=data, filetype="pdf")
+        for page in doc[:40]: 
+            text += page.get_text()
+        text = re.sub(r"\s+", " ", text).strip()
+        
+        if len(text) < 200:
+            text = ""
+            for page in doc[:10]:
+                pix = page.get_pixmap(dpi=150)
+                img = Image.open(io.BytesIO(pix.tobytes("png")))
+                text += pytesseract.image_to_string(img)
+            text = re.sub(r"\s+", " ", text).strip()
+    except Exception as e:
+        raise HTTPException(422, f"Could not read that file. Is it a valid PDF? ({str(e)})")
+
+    if len(text) < 200: 
+        raise HTTPException(422, "Not enough readable text in this PDF (even with OCR).")
 
     if not num_questions or num_questions == 0:
         if len(text) > 6000: auto_n = 5
@@ -555,14 +569,23 @@ async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed")
 
     label = topic.strip() or Path(file.filename or "upload.pdf").stem
     excerpt = text[:9000]
+    
+    groq_model = TIER_MODELS.get(tier, TIER_MODELS["free"])
+    
     messages = [
         {"role": "system", "content": "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — matching exactly this schema: " + QUIZ_SCHEMA + ". Vary the correct answer position."},
-        {"role": "user", "content": f"Using ONLY the excerpt below from the student's document '{label}', write exactly {num_questions} {difficulty} multiple-choice questions. Make them smart: test conceptual understanding. Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote (max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt},
+        {"role": "user", "content": f"Using ONLY the excerpt below from the student's document '{label}', write exactly {num_questions} {difficulty} multiple-choice questions. Make them smart: test conceptual understanding, application, or inference rather than just rote memorization. Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote (max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt},
     ]
+    
     try:
-        raw = await groq_chat(messages, temperature=0.6, max_tokens=2000)
+        raw = await groq_chat(messages, temperature=0.6, max_tokens=2000, model_override=groq_model)
         clean = _clean_questions(extract_json(raw), num_questions)
-        if not clean: raise ValueError("empty question set")
+        if not clean: 
+            raise ValueError("empty question set")
+            
+        # Increment usage ONLY on success
+        await db.increment_usage(user["id"], pdf_uploads=1)
+        
         return {"topic": label, "subject": "PDF", "questions": clean, "ai": True, "source": "pdf"}
     except Exception as e:
         print(f"⚠️ AI PDF Quiz Error: {e}")
