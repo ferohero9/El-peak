@@ -71,6 +71,13 @@ async def db():
 
 async def init_db():
     async with db() as c:
+        # Migration check: If the old 'topics' table lacks 'user_id', wipe and recreate
+        cur = await c.execute("PRAGMA table_info(topics)")
+        columns = [row[1] for row in await cur.fetchall()]
+        if "user_id" not in columns:
+            print("⚠️ Old database schema detected. Wiping and rebuilding...")
+            await c.executescript("DROP TABLE IF EXISTS topics; DROP TABLE IF EXISTS attempts; DROP TABLE IF EXISTS tasks;")
+        
         await c.executescript(SCHEMA)
         await c.commit()
 
