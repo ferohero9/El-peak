@@ -332,7 +332,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
       <a href="#" data-view="scheduler" data-i18n="scheduler">Scheduler</a>
       <a href="#" data-view="coach" data-i18n="coach">Coach</a>
       <a href="#" data-view="profile" data-i18n="profile">Profile</a>
-      
     </div>
     <div class="navright">
       <button class="iconbtn" id="navSettingsBtn" title="Settings">⚙</button>
@@ -712,15 +711,12 @@ function applyLanguage(lang) {
     if (dict[key]) el.setAttribute('placeholder', dict[key]);
   });
   
-  // Set HTML direction for RTL support
   document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
   document.documentElement.lang = lang;
 
-  // Update streak chip text
   const streakChip = $("#streakChip");
   if (streakChip) streakChip.textContent = (streakChip.textContent.split(" ")[0] || "0") + " " + dict.days;
   
-  // Update Language Dropdown
   const langText = $("#langSelect .select-text");
   if (langText) langText.textContent = lang === 'ar' ? "العربية (Arabic)" : "English";
   const langOptions = $$("#langMenu .select-option");
@@ -747,7 +743,7 @@ document.documentElement.dataset.theme = savedTheme;
 };
 
 let token = localStorage.getItem("ep-token");
-let currentLang = localStorage.getItem("ep-lang") || "en"; // Default English
+let currentLang = localStorage.getItem("ep-lang") || "en";
 
 async function api(p, o={}) {
   let r;
@@ -779,8 +775,7 @@ function showApp() {
     if (activeLink) moveSlider(activeLink);
     loadDashboard();
     loadProfile();
-    loadSettings(); // Load settings on app show
-    applyLanguage(currentLang); // Apply saved language
+    applyLanguage(currentLang);
 }
 
 function logout() {
@@ -898,8 +893,8 @@ function go(v){
  $$("[data-view]").forEach(a => {
   a.onclick = e => { e.preventDefault(); go(a.dataset.view); };
 });
-// Attach click handler for the new settings icon
-$("#navSettingsBtn").onclick = () => go("settings");
+ $("#navSettingsBtn").onclick = () => go("settings");
+
 window.addEventListener('load', () => { const activeLink = $(".navlinks a.active"); if(activeLink) moveSlider(activeLink); });
 window.addEventListener('resize', () => { const activeLink = $(".navlinks a.active"); if(activeLink) moveSlider(activeLink); });
 
@@ -998,7 +993,6 @@ async function loadSettings() {
     btn.disabled = false;
 };
 
-// Language Dropdown
 const langSelect = $("#langSelect");
 const langMenu = $("#langMenu");
 langSelect.querySelector(".select-trigger").onclick = (e) => { e.stopPropagation(); langSelect.classList.toggle("open"); };
@@ -1006,7 +1000,7 @@ document.addEventListener("click", (e) => { if (!langSelect.contains(e.target)) 
  $$("#langMenu .select-option").forEach(opt => {
     opt.onclick = () => {
         currentLang = opt.dataset.val;
-        applyLanguage(currentLang); // Apply immediately for UI preview
+        applyLanguage(currentLang); 
         langSelect.classList.remove("open");
     }
 });
@@ -1207,7 +1201,6 @@ async function sendChat() {
  $("#chatSend").onclick = sendChat;
  $("#chatInput").onkeydown = e => { if(e.key === "Enter") sendChat(); };
 
-// Upgrade Modal & Checkout Logic
 let selectedTier = "pro";
 function showUpgradeModal() { $("#upgradeModal").style.display = "flex"; }
  $("#btnCloseUpgrade").onclick = () => $("#upgradeModal").style.display = "none";
