@@ -108,14 +108,14 @@ async def manifest():
         "theme_color": "#070710",
         "icons": [
             {
-                "src": "https://api.iconify.design/fluent/flash-24-filled.png?color=%236366f1",
+                "src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/26a1.svg",
                 "sizes": "192x192",
-                "type": "image/png"
+                "type": "image/svg+xml"
             },
             {
-                "src": "https://api.iconify.design/fluent/flash-24-filled.png?color=%236366f1",
+                "src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/26a1.svg",
                 "sizes": "512x512",
-                "type": "image/png"
+                "type": "image/svg+xml"
             }
         ]
     }
