@@ -854,6 +854,40 @@ async function sendChat() {
 }
  $("#chatSend").onclick = sendChat;
  $("#chatInput").onkeydown = e => { if(e.key === "Enter") sendChat(); };
+// Upgrade Modal Logic
+let selectedTier = "pro"; // Default to Pro
+
+ $$(".upgrade-box").forEach(box => {
+    box.onclick = () => {
+        $$(".upgrade-box").forEach(b => b.style.border = "1px solid var(--glass-border)");
+        box.style.border = "1px solid var(--accent)";
+        selectedTier = box.id === "plusBox" ? "plus" : "pro";
+    }
+});
+
+ $("#btnCloseUpgrade").onclick = () => $("#upgradeModal").style.display = "none";
+
+ $("#btnCheckout").onclick = async () => {
+    const btn = $("#btnCheckout");
+    btn.classList.add("loading");
+    btn.disabled = true;
+    try {
+        const r = await api("/api/payment/checkout", {method: "POST", body: {tier: selectedTier}});
+        if (r.checkout_url) {
+            // Redirect user to Paymob secure payment page
+            window.location.href = r.checkout_url;
+        }
+    } catch (e) {
+        toast("⚠ " + e.message);
+    }
+    btn.classList.remove("loading");
+    btn.disabled = false;
+};
+
+// Function to open modal (call this when user hits limit)
+function showUpgradeModal() {
+    $("#upgradeModal").style.display = "flex";
+}
 </script>
 </body>
 </html>
