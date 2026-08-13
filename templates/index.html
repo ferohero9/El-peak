@@ -1,778 +1,810 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>El-Peak | AI Study Companion</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Alpine.js for interactivity -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#070710">
+<link rel="manifest" href="manifest.json">
+<title>El-Peak · Study Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- Lenis for buttery smooth scrolling -->
+<script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
+<style>
+/* ============ CLEAN THEME VARIABLES ============ */
+:root, [data-theme="dark"] {
+  --bg:#070710; --ink:#f8fafc; --muted:#94a3b8; 
+  --glass:rgba(255,255,255,0.04); --glass-strong:rgba(255,255,255,0.08); --glass-border:rgba(255,255,255,0.08);
+  --glass-popover:rgba(20,20,30,0.85); /* True liquid glass for dropdowns */
+  --accent:#6366f1; --accent-glow:rgba(99,102,241,0.4); --accent-text:#ffffff;
+  --mint:#34d399; --coral:#fb7185; --amber:#fbbf24; --sky:#38bdf8;
+  --r:24px; --blur:40px;
+  --disp:'Outfit',sans-serif; --body:'Inter',sans-serif;
+  --shadow-sm:0 4px 12px rgba(0,0,0,0.1);
+  --shadow-hover:0 16px 40px rgba(0,0,0,0.3);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --smooth: cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-theme="light"] {
+  --bg:#eef2f7; --ink:#0f172a; --muted:#64748b;
+  --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.75); --glass-border:rgba(15,23,42,0.05);
+  --glass-popover:rgba(255,255,255,0.9);
+  --accent:#4f46e5; --accent-glow:rgba(79,70,229,0.25); --accent-text:#ffffff;
+  --shadow-sm:0 4px 12px rgba(79,70,229,0.05);
+  --shadow-hover:0 16px 40px rgba(79,70,229,0.1);
+}
 
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' },
-                        accent: { 50: '#fdf4ff', 100: '#fae8ff', 200: '#f5d0fe', 300: '#f0abfc', 400: '#e879f9', 500: '#d946ef', 600: '#c026d3', 700: '#a21caf', 800: '#86198f', 900: '#701a75' }
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out forwards',
-                        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
-                        'scale-in': 'scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-                        'slide-in-right': 'slideInRight 0.5s ease-out forwards',
-                        'slide-in-left': 'slideInLeft 0.5s ease-out forwards',
-                        'bounce-subtle': 'bounceSubtle 2s infinite',
-                        'float': 'float 6s ease-in-out infinite',
-                        'shimmer': 'shimmer 2s linear infinite',
-                        'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                        'spin-slow': 'spin 3s linear infinite',
-                    },
-                    keyframes: {
-                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
-                        fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-                        scaleIn: { '0%': { opacity: '0', transform: 'scale(0.9)' }, '100%': { opacity: '1', transform: 'scale(1)' } },
-                        slideInRight: { '0%': { opacity: '0', transform: 'translateX(20px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-                        slideInLeft: { '0%': { opacity: '0', transform: 'translateX(-20px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-                        bounceSubtle: { '0%, 100%': { transform: 'translateY(-3%)' }, '50%': { transform: 'translateY(0)' } },
-                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
-                        shimmer: { '0%': { backgroundPosition: '-1000px 0' }, '100%': { backgroundPosition: '1000px 0' } },
-                        pulseGlow: { '0%, 100%': { opacity: '1', boxShadow: '0 0 20px rgba(14, 165, 233, 0.5)' }, '50%': { opacity: '.8', boxShadow: '0 0 10px rgba(14, 165, 233, 0.2)' } },
-                    }
-                }
-            }
-        }
-    </script>
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100vh;overflow-x:hidden;transition:background .5s var(--smooth), color .5s var(--smooth)}
+button{font-family:inherit;cursor:pointer;outline:none;border:none;background:none;color:inherit}
+input,select{font-family:inherit;outline:none;background:none;color:inherit}
+::selection{background:var(--accent);color:#fff}
 
-    <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Glassmorphism Utilities */
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        .dark .glass {
-            background: rgba(30, 41, 59, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .glass-card {
-            @apply glass rounded-2xl shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
-        }
+/* Custom Minimal Scrollbar */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--glass-strong);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
-        /* Animated Background Blobs */
-        .blob {
-            position: absolute;
-            filter: blur(80px);
-            z-index: -1;
-            opacity: 0.6;
-            animation: float 10s infinite ease-in-out;
-        }
-        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #38bdf8; animation-delay: 0s; }
-        .blob-2 { bottom: -10%; right: -10%; width: 400px; height: 400px; background: #d946ef; animation-delay: 2s; }
-        .blob-3 { top: 40%; left: 40%; width: 300px; height: 300px; background: #818cf8; animation-delay: 4s; }
+/* Aurora Liquid Background */
+.aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.4;animation:float 25s var(--smooth) infinite;transition:opacity .5s var(--smooth)}
+[data-theme="light"] .blob{opacity:0.15}
+.blob.b1{width:600px;height:600px;background:#6366f1;top:-200px;left:-100px}
+.blob.b2{width:500px;height:500px;background:#22d3ee;bottom:-150px;right:-50px;animation-delay:-8s}
+.blob.b3{width:450px;height:450px;background:#a855f7;top:30%;right:20%;animation-delay:-16s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.1)}}
 
-        /* Loading Screen */
-        #loading-screen {
-            position: fixed; inset: 0; z-index: 9999;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            display: flex; justify-content: center; align-items: center; flex-direction: column;
-            transition: opacity 0.5s ease-out, visibility 0.5s;
-        }
-        .loader-logo { font-size: 3rem; font-weight: 800; color: white; margin-bottom: 20px; letter-spacing: -1px; }
-        .loader-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
-        .loader-progress { width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #d946ef); animation: loadProgress 1.2s ease-in-out forwards; }
-        @keyframes loadProgress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
+/* Nav */
+nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--shadow-sm);width:calc(100% - 48px);max-width:1000px;height:60px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;justify-self:start;padding-left:8px}
+.logo svg{width:20px;height:20px}
+.navlinks{position:relative;display:flex;align-items:center;gap:4px;background:var(--glass-strong);padding:4px;border-radius:100px;border:1px solid var(--glass-border);justify-self:center}
+.navlinks a{padding:8px 18px;border-radius:100px;color:var(--muted);text-decoration:none;font-weight:500;font-size:13px;transition:color .3s var(--smooth);position:relative;z-index:2}
+.navlinks a:hover{color:var(--ink)}
+.navlinks a.active{color:var(--accent-text)}
+.nav-slider{position:absolute;top:4px;height:calc(100% - 8px);background:var(--accent);border-radius:100px;z-index:1;transition:all .4s var(--spring);box-shadow:0 4px 15px var(--accent-glow)}
+.navright{display:flex;align-items:center;gap:12px;justify-self:end;padding-right:8px}
+.chip{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--glass-strong);padding:6px 12px;border-radius:100px;border:1px solid var(--glass-border)}
+.chip .flame{color:var(--amber)}
+.iconbtn{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:14px;color:var(--muted);background:var(--glass-strong);border:1px solid var(--glass-border);transition:all .3s var(--spring)}
+.iconbtn:hover{color:var(--ink);transform:rotate(20deg) scale(1.1)}
 
-        /* View Transitions */
-        .view-section { display: none; animation: fadeInUp 0.4s ease-out; }
-        .view-section.active { display: block; }
+/* Layout */
+main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24px 100px}
+.view{display:none}
+.view.active{display:block}
+.view.active > *:not([hidden]){animation:staggerIn 0.6s var(--smooth) backwards}
+.view.active > *:not([hidden]):nth-child(1){animation-delay:0.05s}
+.view.active > *:not([hidden]):nth-child(2){animation-delay:0.15s}
+.view.active > *:not([hidden]):nth-child(3){animation-delay:0.25s}
+.view.active > *:not([hidden]):nth-child(4){animation-delay:0.35s}
+@keyframes staggerIn{from{opacity:0;transform:translateY(20px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 
-        /* Button Ripple Effect */
-        .btn-ripple { position: relative; overflow: hidden; }
-        .btn-ripple::after {
-            content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0;
-            background: rgba(255,255,255,0.3); border-radius: 50%; transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-        .btn-ripple:active::after { width: 300px; height: 300px; }
+.view-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
+.view-header .text-block{flex:1;min-width:250px}
+.view-header .kicker{font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.15em}
+h1.big{font-family:var(--disp);font-weight:700;font-size:clamp(36px,5vw,56px);letter-spacing:-0.04em;line-height:1.1;margin:12px 0 0}
+h2.sec{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:20px;letter-spacing:-0.02em}
+.sub{color:var(--muted);font-size:14px;max-width:560px;line-height:1.6;margin-top:14px}
+.grid{display:grid;gap:20px}
+.card{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--r);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));padding:28px;box-shadow:var(--shadow-sm);transition:transform .4s var(--spring), box-shadow .4s var(--smooth), background .4s var(--smooth)}
+.card:hover{transform:translateY(-4px) scale(1.005);box-shadow:var(--shadow-hover)}
 
-        /* Tooltip */
-        .tooltip { position: relative; }
-        .tooltip::before {
-            content: attr(data-tooltip); position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%);
-            background: #1e293b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;
-            white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s;
-        }
-        .tooltip:hover::before { opacity: 1; }
-    </style>
+/* Controls */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;background:var(--accent);color:var(--accent-text);font-weight:600;font-size:13px;box-shadow:0 8px 20px var(--accent-glow);transition:transform .3s var(--spring), box-shadow .3s var(--smooth)}
+.btn:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 12px 24px var(--accent-glow)}
+.btn:active{transform:scale(0.98)}
+.btn.outline{background:var(--glass-strong);color:var(--ink);border:1px solid var(--glass-border);box-shadow:none}
+.btn.outline:hover{background:var(--glass)}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn .spin{width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:rot .8s linear infinite;display:none}
+.btn.loading .spin{display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;letter-spacing:0.05em}
+.field input,.field select{width:100%;padding:14px 20px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px;font-weight:500;transition:all .3s var(--smooth)}
+.field input:focus,.field select:focus{border-color:var(--accent);background:var(--glass)}
+.seg{display:inline-flex;border:1px solid var(--glass-border);border-radius:100px;overflow:hidden;background:var(--glass-strong)}
+.seg button{padding:10px 16px;color:var(--muted);font-weight:600;font-size:13px;transition:all .2s var(--smooth)}
+.seg button.on{background:var(--accent);color:var(--accent-text)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:11px;font-weight:600;border:1px solid var(--glass-border);background:var(--glass-strong)}
+.badge.ai{color:var(--sky);border-color:rgba(56,189,248,0.3)}
+.badge.static{color:var(--mint);border-color:rgba(52,211,153,0.3)}
+.badge.pdf{color:var(--coral);border-color:rgba(251,113,133,0.3)}
+
+/* Custom Glass Dropdown */
+.custom-select{position:relative;width:100%;z-index:10}
+.select-trigger{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px;font-weight:500;cursor:pointer;transition:all .3s var(--smooth)}
+.select-trigger:hover{border-color:var(--accent)}
+.select-trigger .arrow{width:16px;height:16px;transition:transform .3s var(--spring);opacity:0.7}
+.custom-select.open .select-trigger .arrow{transform:rotate(180deg)}
+.select-menu{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:16px;padding:8px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--shadow-hover);opacity:0;transform:translateY(-10px) scale(0.95);pointer-events:none;transition:all .3s var(--spring);max-height:200px;overflow-y:auto}
+.custom-select.open .select-menu{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.select-option{padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s}
+.select-option:hover{background:var(--glass-strong)}
+.select-option.selected{color:var(--accent);font-weight:600}
+
+/* Custom Range Slider (Fixed bounds) */
+.slider-container{display:flex;align-items:center;gap:16px;width:100%;padding:14px 10px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong)}
+.slider-val{font-family:var(--disp);font-weight:700;font-size:20px;min-width:35px;text-align:center;color:var(--accent);margin-right:6px}
+input[type="range"].custom-range{-webkit-appearance:none;appearance:none;flex:1;height:6px;border-radius:99px;background:var(--glass-border);outline:none;cursor:pointer;margin:0 5px}
+input[type="range"].custom-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);cursor:pointer;transition:transform .2s var(--spring)}
+input[type="range"].custom-range::-webkit-slider-thumb:hover{transform:scale(1.2)}
+input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);cursor:pointer;border:none}
+
+/* Dashboard */
+.ringwrap{display:flex;align-items:center;gap:20px;padding:16px 28px;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--r);backdrop-filter:blur(var(--blur))}
+.ring-svg{width:70px;height:70px;transform:rotate(-90deg)}
+.ring-bg{stroke:var(--glass-border);fill:none;stroke-width:6}
+.ring-arc{stroke:var(--accent);fill:none;stroke-width:6;stroke-linecap:round;filter:drop-shadow(0 0 8px var(--accent-glow));transition:stroke-dashoffset 1.5s var(--smooth)}
+.peak-num{font-family:var(--disp);font-size:28px;font-weight:700;letter-spacing:-0.04em}
+.peak-lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase}
+.stats{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:24px}
+.stat .num{font-family:var(--disp);font-size:32px;font-weight:700;letter-spacing:-0.04em}
+.stat .lbl{font-size:11px;font-weight:600;color:var(--muted);margin-top:4px;text-transform:uppercase}
+.dash-grid{grid-template-columns:1fr 1fr;margin-bottom:24px}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,12px);grid-auto-columns:12px;gap:5px;overflow-x:auto;padding:4px 0;scrollbar-width:none}
+.heat i{border-radius:3px;background:var(--glass-border);transition:transform .2s var(--spring)}
+.heat i:hover{transform:scale(1.3)}
+.heat i.l1{background:color-mix(in srgb,var(--accent) 30%, transparent)}
+.heat i.l2{background:color-mix(in srgb,var(--accent) 60%, transparent)}
+.heat i.l3{background:var(--accent)}
+
+.rowline{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--glass-border);font-size:13px}
+.rowline:last-child{border:none}
+.rowline .r-topic{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rowline .r-time{color:var(--muted);font-size:12px}
+.pctpill{padding:2px 8px;border-radius:6px;font-weight:700;font-size:11px;border:1px solid currentColor}
+
+/* Quiz */
+.src-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.src-card{border:1px solid var(--glass-border);border-radius:20px;padding:22px;background:var(--glass);text-align:left;cursor:pointer;transition:all .3s var(--spring)}
+.src-card:hover{background:var(--glass-strong);transform:translateY(-3px) scale(1.01)}
+.src-card.on{border-color:var(--accent);background:var(--glass-strong);box-shadow:0 0 0 2px var(--accent-glow)}
+.src-card .t{font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.src-card .d{color:var(--muted);font-size:12.5px;line-height:1.5}
+.panel{display:none}
+.panel.on{display:grid;gap:16px}
+.drop{border:1.5px dashed var(--glass-border);border-radius:20px;padding:32px;text-align:center;color:var(--muted);font-weight:500;font-size:14px;background:var(--glass);transition:all .2s var(--smooth)}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--ink)}
+.qcard{max-width:680px;margin:0 auto}
+.qtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted)}
+.qbar{height:4px;border-radius:99px;background:var(--glass-strong);overflow:hidden;margin-bottom:28px}
+.qbar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .4s var(--smooth);box-shadow:0 0 10px var(--accent-glow)}
+.qtext{font-family:var(--disp);font-size:24px;font-weight:600;line-height:1.35;margin-bottom:24px;letter-spacing:-0.02em}
+.opt{display:block;width:100%;text-align:left;padding:16px 20px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass);font-size:14.5px;font-weight:500;color:var(--ink);margin-bottom:10px;transition:all .2s var(--spring)}
+.opt:hover:not(:disabled){border-color:var(--accent);background:var(--glass-strong);transform:translateX(6px)}
+.opt.right{border-color:var(--mint);background:rgba(52,211,153,0.1);color:var(--mint)}
+.opt.wrong{border-color:var(--coral);background:rgba(251,113,133,0.1);color:var(--coral)}
+.explain{border-left:2px solid var(--mint);padding:14px 18px;border-radius:0 12px 12px 0;background:rgba(52,211,153,0.05);font-size:13px;line-height:1.6;margin:16px 0;animation:staggerIn .4s var(--smooth)}
+.context-box{border-left:2px solid var(--sky);padding:14px 18px;border-radius:0 12px 12px 0;background:rgba(56,189,248,0.05);font-size:13px;line-height:1.5;margin:12px 0 16px 0;font-style:italic;animation:staggerIn .4s var(--smooth)}
+.res{text-align:center;padding:48px 20px}
+.res .num{font-family:var(--disp);font-size:64px;font-weight:700;letter-spacing:-0.04em}
+
+/* Scheduler */
+.sched{grid-template-columns:1fr 1fr;align-items:start}
+.task{display:flex;align-items:center;gap:14px;padding:16px 18px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass);margin-bottom:12px;transition:all .3s var(--spring)}
+.task:hover{background:var(--glass-strong);transform:translateX(4px) scale(1.01)}
+.task .rank{font-weight:700;font-size:14px;color:var(--muted);width:24px}
+.task .tt{font-weight:600;font-size:14px}
+.task .meta{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.task .grow{flex:1}
+.tier{padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase}
+.tier.OVERDUE{background:var(--coral);color:#000}
+.tier.CRITICAL{background:rgba(251,113,133,0.2);color:var(--coral)}
+.tier.HIGH{background:rgba(251,191,36,0.2);color:var(--amber)}
+.tier.THISWEEK{background:rgba(56,189,248,0.2);color:var(--sky)}
+.tier.PLANNED{background:var(--glass-strong);color:var(--muted)}
+.tier.DONE{background:rgba(52,211,153,0.2);color:var(--mint);text-decoration:line-through}
+.check{width:28px;height:28px;border-radius:50%;border:1px solid var(--glass-border);background:transparent;color:var(--ink);display:grid;place-items:center;font-size:14px;transition:all .2s var(--spring)}
+.check:hover{border-color:var(--mint);color:var(--mint);transform:scale(1.1)}
+.del{color:var(--muted);font-size:14px;transition:color .2s}
+.del:hover{color:var(--coral)}
+.sug{display:inline-flex;align-items:center;gap:6px;margin:0 8px 8px 0;padding:8px 12px;border-radius:100px;border:1px solid var(--glass-border);background:var(--glass);color:var(--muted);font-weight:600;font-size:12px;transition:all .2s var(--spring)}
+.sug:hover{border-color:var(--accent);color:var(--ink);background:var(--glass-strong);transform:scale(1.05)}
+
+/* Coach */
+.coach-hero{text-align:center;padding:48px 24px;margin-bottom:32px;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--r)}
+.plan{position:relative;padding-left:24px}
+.plan:before{content:"";position:absolute;left:5px;top:8px;bottom:8px;width:1px;background:var(--glass-border)}
+.plan .day{position:relative;margin-bottom:16px}
+.plan .day:before{content:"";position:absolute;left:-22px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--glass-strong);border:2px solid var(--accent)}
+.plan .dname{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em}
+.plan .dtask{font-weight:500;font-size:14px;margin-top:2px}
+.tipbox{border-left:2px solid var(--amber);background:rgba(251,191,36,0.05);padding:14px 18px;border-radius:0 12px 12px 0;margin-bottom:10px;font-size:13px;line-height:1.6}
+.quote{font-family:var(--disp);font-size:20px;font-style:italic;text-align:center;padding:24px;color:var(--muted)}
+
+/* AI Chat Widget */
+.chat-fab{position:fixed;bottom:30px;right:30px;width:56px;height:56px;background:var(--accent);color:#fff;border-radius:50%;display:grid;place-items:center;font-size:22px;cursor:pointer;box-shadow:0 10px 30px var(--accent-glow);z-index:100;transition:all .3s var(--spring)}
+.chat-fab:hover{transform:scale(1.1) rotate(5deg)}
+.chat-win{position:fixed;bottom:100px;right:30px;width:380px;max-width:calc(100vw - 48px);height:550px;max-height:calc(100vh - 140px);background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3);z-index:100;display:flex;flex-direction:column;overflow:hidden;transform:scale(0.8) translateY(40px);opacity:0;pointer-events:none;transition:all .4s var(--spring);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
+.chat-win.open{transform:scale(1) translateY(0);opacity:1;pointer-events:auto}
+.chat-head{padding:18px 24px;border-bottom:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center}
+.chat-head .ttl{font-family:var(--disp);font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
+.chat-head .ttl::before{content:'';width:8px;height:8px;background:var(--mint);border-radius:50%;box-shadow:0 0 8px var(--mint)}
+.chat-head .sub-ttl{font-size:11px;color:var(--muted)}
+.chat-body{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:14px;scrollbar-width:thin}
+.msg{max-width:85%;padding:12px 16px;border-radius:16px;font-size:13.5px;line-height:1.5;animation:msgIn .3s var(--spring)}
+.msg p{margin:0 0 8px 0} .msg p:last-child{margin:0}
+.msg pre{background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);padding:10px;border-radius:8px;overflow-x:auto;font-size:12px;margin:8px 0}
+.msg code{font-family:monospace}
+.msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:var(--glass);border:1px solid var(--glass-border);border-bottom-left-radius:4px}
+.msg.loading span{display:inline-block;width:5px;height:5px;background:var(--muted);border-radius:50%;margin:0 2px;animation:bounce 1s infinite}
+.msg.loading span:nth-child(2){animation-delay:.2s} .msg.loading span:nth-child(3){animation-delay:.4s}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(0.9)}to{opacity:1;transform:none}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.chat-input{padding:14px;border-top:1px solid var(--glass-border);display:flex;gap:10px}
+.chat-input input{flex:1;border:1px solid var(--glass-border);background:var(--glass);padding:12px 16px;border-radius:12px;font-size:13px;transition:all .2s var(--smooth)}
+.chat-input input:focus{border-color:var(--accent)}
+.chat-input button{background:var(--accent);color:#fff;padding:0 18px;border-radius:12px;font-weight:600;cursor:pointer;transition:transform .2s var(--spring)}
+.chat-input button:hover{transform:scale(1.05)}
+
+/* Toast & Mobile */
+#toasts{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));color:var(--ink);padding:12px 24px;border-radius:100px;font-weight:500;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,0.2);animation:toastIn .4s var(--spring)}
+@keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
+#tip{position:fixed;z-index:98;background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s}
+.mobilenav{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:100px;padding:6px;gap:4px;backdrop-filter:blur(var(--blur))}
+.mobilenav a{padding:8px 14px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase}
+.mobilenav a.active{background:var(--accent);color:#fff}
+footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
+@media(max-width:860px){.dash-grid,.sched{grid-template-columns:1fr}.navlinks{display:none}.mobilenav{display:flex}.chat-win{bottom:90px;right:12px;height:60vh}.chat-fab{bottom:90px;right:20px}}
+</style>
 </head>
-<body class="bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-gray-100 transition-colors duration-300 overflow-x-hidden" x-data="appData()" x-init="initApp()">
+<body>
 
-    <!-- Loading Screen -->
-    <div id="loading-screen">
-        <div class="loader-logo animate-pulse-glow">El-Peak</div>
-        <div class="loader-bar"><div class="loader-progress"></div></div>
-        <p class="text-gray-400 mt-4 text-sm animate-fade-in-up" style="animation-delay: 0.6s">Loading your study dashboard...</p>
+<div class="aurora">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+</div>
+
+<nav>
+  <div class="logo">
+    <svg viewBox="0 0 20 20" fill="none"><path d="M2 18 L7 4 L10 12 L13 6 L18 18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    El-Peak
+  </div>
+  <div class="navlinks" id="navlinks">
+    <div class="nav-slider" id="navSlider"></div>
+    <a href="#" data-view="dashboard" class="active">Dashboard</a>
+    <a href="#" data-view="quiz">Quiz</a>
+    <a href="#" data-view="scheduler">Scheduler</a>
+    <a href="#" data-view="coach">Coach</a>
+  </div>
+  <div class="navright">
+    <div class="chip"><span class="flame">▲</span><span id="streakChip">0 days</span></div>
+    <button class="iconbtn" id="themeBtn" title="Toggle theme">◐</button>
+  </div>
+</nav>
+
+<main>
+<!-- DASHBOARD -->
+<section class="view active" id="view-dashboard">
+  <div class="view-header">
+    <div class="text-block">
+      <div class="kicker">Dashboard</div>
+      <h1 class="big">Your Ascent</h1>
+      <p class="sub">Track your mastery, analyze recent attempts, and keep your streak alive. Every quiz updates your Peak Score.</p>
+    </div>
+    <div class="ringwrap">
+      <svg class="ring-svg" viewBox="0 0 80 80">
+        <circle class="ring-bg" cx="40" cy="40" r="34"/>
+        <circle class="ring-arc" id="peakArc" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="213.6"/>
+      </svg>
+      <div>
+        <div class="peak-num" id="peakVal">0</div>
+        <div class="peak-lbl">Peak Score</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid stats">
+    <div class="card stat"><div class="num" id="streakVal">0</div><div class="lbl">Day Streak</div></div>
+    <div class="card stat"><div class="num" id="reps7">0</div><div class="lbl">7-Day Reps</div></div>
+    <div class="card stat"><div class="num" id="avgAcc">0%</div><div class="lbl">Avg Accuracy</div></div>
+    <div class="card stat"><div class="num" id="weakN">0</div><div class="lbl">Weak Topics</div></div>
+    <div class="card stat"><div class="num" id="bestRidge" style="font-size:16px">—</div><div class="lbl">Best Topic</div></div>
+  </div>
+
+  <div class="grid dash-grid">
+    <div class="card">
+      <h2 class="sec">Mastery Radar</h2>
+      <div id="radarBox" style="display:grid;place-items:center;min-height:280px"></div>
+    </div>
+    <div class="card">
+      <h2 class="sec">Score Trend</h2>
+      <div id="trendBox" style="min-height:140px"></div>
+      <h2 class="sec" style="margin-top:32px">Recent Attempts</h2>
+      <div id="recentList"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 class="sec" style="margin:0">Ascent Log</h2>
+      <span class="kicker"><span id="heatSessions">0</span> sessions</span>
+    </div>
+    <div class="heat" id="heatGrid"></div>
+  </div>
+</section>
+
+<!-- QUIZ -->
+<section class="view" id="view-quiz">
+  <div class="view-header">
+    <div class="text-block">
+      <div class="kicker">Quiz Engine</div>
+      <h1 class="big">Expedition</h1>
+    </div>
+    <span class="badge ai">⚡ GROQ · LLAMA-3.3-70B</span>
+  </div>
+
+  <div class="card" id="setupCard">
+    <div class="src-seg">
+      <button class="src-card on" data-src="static">
+        <div class="t">Static Bank <span class="badge static">OFFLINE</span></div>
+        <div class="d">Curated question banks for 5 core subjects. Works with zero internet.</div>
+      </button>
+      <button class="src-card" data-src="ai">
+        <div class="t">AI Generated <span class="badge ai">AI</span></div>
+        <div class="d">Type any topic — the AI writes fresh multiple-choice questions on demand.</div>
+      </button>
+      <button class="src-card" data-src="pdf">
+        <div class="t">Upload PDF <span class="badge pdf">AI</span></div>
+        <div class="d">Drop your book or notes. The AI reads it (even scanned!) and quizzes you.</div>
+      </button>
     </div>
 
-    <!-- Ambient Background -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
+    <!-- Static Panel with Custom Dropdown -->
+    <div class="panel on grid" id="panel-static" style="grid-template-columns:1fr 1fr">
+      <div class="field">
+        <label>Subject</label>
+        <div class="custom-select" id="staticTopicSelect">
+          <div class="select-trigger">
+            <span class="select-text">Loading…</span>
+            <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="select-menu" id="staticTopicMenu"></div>
+        </div>
+      </div>
+      <div class="field"><label>Length</label>
+        <div class="seg" id="lenStatic"><button data-n="3">3</button><button data-n="4" class="on">4</button><button data-n="5">5</button></div></div>
     </div>
 
-    <!-- Main Layout -->
-    <div class="flex h-screen overflow-hidden">
-        
-        <!-- Sidebar -->
-        <aside class="w-64 glass border-r border-gray-200 dark:border-slate-800 flex flex-col z-20 transition-all duration-300">
-            <div class="p-6 flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center shadow-lg animate-bounce-subtle">
-                    <i data-lucide="zap" class="text-white w-6 h-6"></i>
-                </div>
-                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-accent-500">El-Peak</h1>
-            </div>
-
-            <nav class="flex-1 px-4 space-y-2 mt-4">
-                <template x-for="item in navItems" :key="item.id">
-                    <button @click="currentView = item.id" 
-                            :class="currentView === item.id ? 'bg-gradient-to-r from-primary-500/10 to-accent-500/10 text-primary-600 dark:text-primary-400 border-l-4 border-primary-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800'"
-                            class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group btn-ripple">
-                        <i :data-lucide="item.icon" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
-                        <span class="font-medium" x-text="item.label"></span>
-                    </button>
-                </template>
-            </nav>
-
-            <div class="p-4 border-t border-gray-200 dark:border-slate-800">
-                <button @click="toggleTheme()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors btn-ripple">
-                    <div class="flex items-center space-x-3">
-                        <i data-lucide="moon" x-show="!isDark" class="w-5 h-5 text-gray-600"></i>
-                        <i data-lucide="sun" x-show="isDark" class="w-5 h-5 text-yellow-400"></i>
-                        <span class="font-medium" x-text="isDark ? 'Light Mode' : 'Dark Mode'"></span>
-                    </div>
-                    <div class="w-10 h-6 bg-gray-300 dark:bg-primary-600 rounded-full relative transition-colors">
-                        <div :class="isDark ? 'translate-x-4' : 'translate-x-0'" class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-md"></div>
-                    </div>
-                </button>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1 overflow-y-auto relative z-10 p-8 scroll-smooth">
-            
-            <!-- Dashboard View -->
-            <section id="dashboard" class="view-section active" :class="{ 'active': currentView === 'dashboard' }">
-                <header class="flex justify-between items-center mb-8 animate-fade-in-up">
-                    <div>
-                        <h2 class="text-3xl font-bold mb-1">Welcome back, Student!</h2>
-                        <p class="text-gray-500 dark:text-gray-400">Here's your learning progress today.</p>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <div class="glass-card px-4 py-2 flex items-center space-x-2">
-                            <i data-lucide="flame" class="text-orange-500 w-5 h-5 animate-pulse"></i>
-                            <span class="font-bold text-lg" x-text="stats.streak"></span>
-                            <span class="text-sm text-gray-500">Day Streak</span>
-                        </div>
-                    </div>
-                </header>
-
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <template x-for="(stat, index) in statsCards" :key="index">
-                        <div class="glass-card p-6 relative overflow-hidden group" :style="'animation: fadeInUp 0.5s ease-out forwards; animation-delay: ' + (index * 0.1) + 's; opacity: 0;'">
-                            <div class="absolute right-0 top-0 w-24 h-24 bg-gradient-to-br from-primary-500/10 to-accent-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                            <div class="relative z-10">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-gray-500 dark:text-gray-400 font-medium" x-text="stat.title"></h3>
-                                    <div :class="stat.iconBg" class="w-10 h-10 rounded-lg flex items-center justify-center">
-                                        <i :data-lucide="stat.icon" :class="stat.iconColor" class="w-5 h-5"></i>
-                                    </div>
-                                </div>
-                                <p class="text-3xl font-bold mb-1" x-text="stat.value"></p>
-                                <p class="text-sm" :class="stat.trend >= 0 ? 'text-green-500' : 'text-red-500'">
-                                    <span x-text="stat.trend >= 0 ? '+' : ''"></span><span x-text="stat.trend"></span>% from last week
-                                </p>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-
-                <!-- Charts Row -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    <div class="lg:col-span-2 glass-card p-6 animate-fade-in-up" style="animation-delay: 0.4s">
-                        <h3 class="text-xl font-bold mb-4 flex items-center">
-                            <i data-lucide="activity" class="w-5 h-5 mr-2 text-primary-500"></i> Mastery Overview
-                        </h3>
-                        <canvas id="radarChart" height="120"></canvas>
-                    </div>
-                    <div class="glass-card p-6 animate-fade-in-up" style="animation-delay: 0.5s">
-                        <h3 class="text-xl font-bold mb-4 flex items-center">
-                            <i data-lucide="trophy" class="w-5 h-5 mr-2 text-accent-500"></i> Peak Score
-                        </h3>
-                        <div class="relative h-48 flex items-center justify-center">
-                            <canvas id="gaugeChart"></canvas>
-                            <div class="absolute inset-0 flex items-center justify-center flex-col">
-                                <span class="text-4xl font-bold" x-text="stats.peakScore"></span>
-                                <span class="text-xs text-gray-500 uppercase tracking-wider">Current</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Recent Activity & Heatmap -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 glass-card p-6 animate-fade-in-up" style="animation-delay: 0.6s">
-                        <h3 class="text-xl font-bold mb-4">Recent Quizzes</h3>
-                        <div class="space-y-3">
-                            <template x-for="attempt in recentAttempts" :key="attempt.id">
-                                <div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-slate-700">
-                                    <div class="flex items-center space-x-3">
-                                        <div :class="attempt.correct ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'" class="w-8 h-8 rounded-full flex items-center justify-center">
-                                            <i :data-lucide="attempt.correct ? 'check' : 'x'" class="w-4 h-4"></i>
-                                        </div>
-                                        <div>
-                                            <p class="font-medium" x-text="attempt.topic_name"></p>
-                                            <p class="text-xs text-gray-500" x-text="new Date(attempt.created_at).toLocaleDateString()"></p>
-                                        </div>
-                                    </div>
-                                    <span class="font-bold" x-text="attempt.pct + '%'"></span>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                    <div class="glass-card p-6 animate-fade-in-up" style="animation-delay: 0.7s">
-                        <h3 class="text-xl font-bold mb-4">Study Heatmap</h3>
-                        <div id="heatmap" class="grid grid-cols-7 gap-2"></div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Quiz View -->
-            <section id="quiz" class="view-section" :class="{ 'active': currentView === 'quiz' }">
-                <header class="mb-8 animate-fade-in-up">
-                    <h2 class="text-3xl font-bold mb-2">Quiz Engine</h2>
-                    <p class="text-gray-500 dark:text-gray-400">Test your knowledge and boost your mastery.</p>
-                </header>
-
-                <div x-show="!quizActive" class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in-up">
-                    <!-- Static Quiz Card -->
-                    <div class="glass-card p-8 text-center hover:border-primary-500 transition-colors cursor-pointer group" @click="startStaticQuiz()">
-                        <div class="w-16 h-16 mx-auto mb-4 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <i data-lucide="book-open" class="w-8 h-8 text-primary-500"></i>
-                        </div>
-                        <h3 class="text-xl font-bold mb-2">Standard Quiz</h3>
-                        <p class="text-gray-500 mb-6">Select a subject and start a pre-defined quiz.</p>
-                        <button class="btn-ripple bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">Start Now</button>
-                    </div>
-
-                    <!-- AI Quiz Card -->
-                    <div class="glass-card p-8 text-center hover:border-accent-500 transition-colors cursor-pointer group" @click="showAiModal = true">
-                        <div class="w-16 h-16 mx-auto mb-4 bg-accent-100 dark:bg-accent-900/30 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative overflow-hidden">
-                            <div class="absolute inset-0 bg-gradient-to-tr from-accent-500/20 to-transparent animate-shimmer"></div>
-                            <i data-lucide="sparkles" class="w-8 h-8 text-accent-500 relative z-10"></i>
-                        </div>
-                        <h3 class="text-xl font-bold mb-2">AI Generated Quiz</h3>
-                        <p class="text-gray-500 mb-6">Enter any topic and let AI create a custom quiz for you.</p>
-                        <button class="btn-ripple bg-accent-500 hover:bg-accent-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">Generate</button>
-                    </div>
-                </div>
-
-                <!-- Active Quiz Interface -->
-                <div x-show="quizActive" class="max-w-3xl mx-auto" style="display: none;">
-                    <div class="glass-card p-8 animate-scale-in">
-                        <div class="flex justify-between items-center mb-6">
-                            <span class="text-sm font-medium text-gray-500 uppercase tracking-wider" x-text="currentQuizTopic"></span>
-                            <span class="text-sm font-bold text-primary-500" x-text="'Question ' + currentQuestionIndex + '/' + currentQuiz.length"></span>
-                        </div>
-                        
-                        <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 mb-8">
-                            <div class="bg-gradient-to-r from-primary-500 to-accent-500 h-2 rounded-full transition-all duration-500" :style="'width: ' + ((currentQuestionIndex/currentQuiz.length)*100) + '%'"></div>
-                        </div>
-
-                        <h3 class="text-2xl font-bold mb-8" x-text="currentQuiz[currentQuestionIndex]?.question"></h3>
-
-                        <div class="space-y-3 mb-8">
-                            <template x-for="(opt, idx) in currentQuiz[currentQuestionIndex]?.options" :key="idx">
-                                <button @click="selectAnswer(opt)" 
-                                    :class="selectedAnswer === opt ? 'bg-primary-500 text-white border-primary-500' : 'bg-transparent border-gray-300 dark:border-slate-600 hover:border-primary-500 dark:hover:border-primary-400'"
-                                    class="w-full text-left p-4 rounded-xl border-2 transition-all duration-200 btn-ripple font-medium">
-                                    <span x-text="['A', 'B', 'C', 'D'][idx] + '. ' + opt"></span>
-                                </button>
-                            </template>
-                        </div>
-
-                        <div class="flex justify-end">
-                            <button @click="submitAnswer()" :disabled="!selectedAnswer" 
-                                class="btn-ripple bg-gradient-to-r from-primary-500 to-accent-500 text-white px-8 py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-primary-500/30 transition-all transform hover:-translate-y-0.5">
-                                Submit Answer
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quiz Results -->
-                <div x-show="quizFinished" class="max-w-2xl mx-auto text-center animate-scale-in" style="display: none;">
-                    <div class="glass-card p-10">
-                        <div class="w-24 h-24 mx-auto mb-6 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center animate-bounce-subtle">
-                            <i data-lucide="award" class="w-12 h-12 text-green-500"></i>
-                        </div>
-                        <h2 class="text-3xl font-bold mb-2">Quiz Completed!</h2>
-                        <p class="text-gray-500 mb-6">You scored</p>
-                        <div class="text-6xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-accent-500 mb-8" x-text="lastScore + '%'"></div>
-                        
-                        <div class="flex justify-center space-x-4">
-                            <button @click="resetQuiz()" class="btn-ripple bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white px-6 py-3 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors">Try Again</button>
-                            <button @click="quizFinished = false; quizActive = false;" class="btn-ripple bg-primary-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-primary-600 transition-colors">Back to Dashboard</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Schedule View -->
-            <section id="schedule" class="view-section" :class="{ 'active': currentView === 'schedule' }">
-                <header class="flex justify-between items-center mb-8 animate-fade-in-up">
-                    <div>
-                        <h2 class="text-3xl font-bold mb-1">Study Schedule</h2>
-                        <p class="text-gray-500 dark:text-gray-400">Manage your tasks and deadlines.</p>
-                    </div>
-                    <button @click="showTaskModal = true" class="btn-ripple bg-primary-500 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium flex items-center shadow-lg shadow-primary-500/30 transition-all hover:-translate-y-0.5">
-                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i> Add Task
-                    </button>
-                </header>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Task List -->
-                    <div class="lg:col-span-2 space-y-4 animate-fade-in-up" style="animation-delay: 0.1s">
-                        <template x-for="task in tasks" :key="task.id">
-                            <div class="glass-card p-5 flex items-center justify-between group" 
-                                 :class="task.done ? 'opacity-60 bg-gray-50 dark:bg-slate-800/50' : ''"
-                                 style="animation: fadeInUp 0.4s ease-out forwards;">
-                                <div class="flex items-center space-x-4 flex-1">
-                                    <button @click="toggleTask(task)" 
-                                        :class="task.done ? 'bg-green-500 border-green-500' : 'border-gray-300 dark:border-slate-600 hover:border-primary-500'"
-                                        class="w-6 h-6 rounded border-2 flex items-center justify-center transition-all btn-ripple">
-                                        <i x-show="task.done" data-lucide="check" class="w-4 h-4 text-white"></i>
-                                    </button>
-                                    <div>
-                                        <h4 :class="task.done ? 'line-through text-gray-500' : 'font-bold'" class="text-lg" x-text="task.title"></h4>
-                                        <div class="flex items-center space-x-3 mt-1 text-sm text-gray-500">
-                                            <span class="flex items-center"><i data-lucide="tag" class="w-3 h-3 mr-1"></i> <span x-text="task.topic || 'General'"></span></span>
-                                            <span class="flex items-center" :class="isOverdue(task.deadline) && !task.done ? 'text-red-500 font-bold' : ''">
-                                                <i data-lucide="calendar" class="w-3 h-3 mr-1"></i> <span x-text="formatDate(task.deadline)"></span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button @click="deleteTask(task.id)" class="text-gray-400 hover:text-red-500 transition-colors p-2 btn-ripple opacity-0 group-hover:opacity-100">
-                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                        </template>
-                        <div x-show="tasks.length === 0" class="text-center py-12 text-gray-500">
-                            <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
-                            <p>No tasks yet. Add one to get started!</p>
-                        </div>
-                    </div>
-
-                    <!-- Priority Helper -->
-                    <div class="glass-card p-6 h-fit animate-fade-in-up" style="animation-delay: 0.2s">
-                        <h3 class="font-bold mb-4 flex items-center"><i data-lucide="lightbulb" class="w-5 h-5 mr-2 text-yellow-500"></i> Priority Guide</h3>
-                        <ul class="space-y-3 text-sm">
-                            <li class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-3"></span> <span class="font-medium">Overdue:</span> &nbsp;Do immediately!</li>
-                            <li class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-500 mr-3"></span> <span class="font-medium">Critical:</span> &nbsp;Due within 24h</li>
-                            <li class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-3"></span> <span class="font-medium">High:</span> &nbsp;Due this week</li>
-                            <li class="flex items-center"><span class="w-3 h-3 rounded-full bg-blue-500 mr-3"></span> <span class="font-medium">Planned:</span> &nbsp;Future tasks</li>
-                        </ul>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Coach View -->
-            <section id="coach" class="view-section" :class="{ 'active': currentView === 'coach' }">
-                <header class="mb-8 animate-fade-in-up">
-                    <h2 class="text-3xl font-bold mb-2">AI Coach</h2>
-                    <p class="text-gray-500 dark:text-gray-400">Get personalized advice based on your performance.</p>
-                </header>
-
-                <div class="max-w-4xl mx-auto">
-                    <button @click="generateCoachPlan()" :disabled="coachLoading" 
-                        class="w-full glass-card p-8 mb-8 flex items-center justify-between group hover:border-accent-500 transition-all btn-ripple"
-                        :class="{'opacity-70 cursor-not-allowed': coachLoading}">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-500 to-primary-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                <i data-lucide="bot" class="text-white w-6 h-6"></i>
-                            </div>
-                            <div class="text-left">
-                                <h3 class="text-xl font-bold">Generate New Plan</h3>
-                                <p class="text-gray-500 text-sm">Analyze weak spots and create a 7-day strategy</p>
-                            </div>
-                        </div>
-                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400 group-hover:translate-x-2 transition-transform"></i>
-                    </button>
-
-                    <div x-show="coachLoading" class="text-center py-12 animate-fade-in-up" style="display: none;">
-                        <div class="inline-block w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p class="text-lg font-medium">Analyzing your data...</p>
-                    </div>
-
-                    <div x-show="coachPlan && !coachLoading" class="glass-card p-8 animate-fade-in-up" style="display: none;">
-                        <div class="prose dark:prose-invert max-w-none">
-                            <h3 class="text-2xl font-bold mb-4 flex items-center">
-                                <i data-lucide="file-text" class="w-6 h-6 mr-2 text-accent-500"></i> Your Personalized Plan
-                            </h3>
-                            <div class="whitespace-pre-line leading-relaxed text-gray-700 dark:text-gray-300" x-html="formattedCoachPlan"></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-        </main>
+    <!-- AI Panel with Custom Slider -->
+    <div class="panel grid" id="panel-ai" style="grid-template-columns:2fr 1fr 1fr">
+      <div class="field"><label>Any topic</label><input id="aiTopic" placeholder="e.g. Photosynthesis, Cold War, Recursion…"></div>
+      <div class="field"><label>Difficulty</label>
+        <div class="seg" id="diffSeg"><button data-d="easy">Easy</button><button data-d="mixed" class="on">Mixed</button><button data-d="hard">Hard</button></div></div>
+      <div class="field">
+        <label>Length</label>
+        <div class="slider-container">
+          <input type="range" min="1" max="30" value="4" class="custom-range" id="lenAiSlider">
+          <div class="slider-val" id="lenAiVal">4</div>
+        </div>
+      </div>
     </div>
 
-    <!-- Modals -->
+    <!-- PDF Panel -->
+    <div class="panel grid" id="panel-pdf" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>Your PDF book / notes</label>
+        <div class="drop" id="drop">⬆ Drop PDF here or click to browse<br><span id="fileName" style="font-size:11px"></span></div>
+        <input type="file" id="fileInput" accept="application/pdf" hidden></div>
+      <div class="grid" style="gap:14px">
+        <div class="field"><label>Topic label (optional)</label><input id="pdfTopic" placeholder="defaults to file name"></div>
+        <div class="field" style="display:flex;align-items:center;justify-content:center;flex-direction:column;background:var(--glass-strong);border-radius:16px;padding:14px;border:1px solid var(--glass-border);margin-top:8px">
+            <span style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase">Auto-Optimized Length</span>
+            <span style="font-size:12px;color:var(--accent);font-weight:600;margin-top:4px">AI decides the best amount</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;text-align:center">
+      <button class="btn" id="beginBtn"><span class="spin"></span>Begin Ascent →</button>
+    </div>
+  </div>
+
+  <div class="card qcard" id="playCard" hidden>
+    <div class="qtop"><span id="qMeta">Q 1/4</span><span id="qBadge"></span></div>
+    <div class="qbar"><i id="qBar" style="width:0%"></i></div>
+    <div class="qtext" id="qText"></div>
+    <div id="qOpts"></div>
+    <div id="qExplain"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:20px">
+      <button class="btn outline" id="exitBtn">← Exit</button>
+      <button class="btn" id="qNext" hidden>Next →</button>
+    </div>
+  </div>
+
+  <div class="card qcard res" id="resultCard" hidden>
+    <div class="kicker" style="text-align:center">Ascent Complete</div>
+    <div class="num" id="resPct">0%</div>
+    <div id="resDelta" style="margin:10px 0 4px"></div>
+    <div id="resTopic" class="sub" style="margin:0 auto 30px;text-align:center"></div>
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button class="btn outline" id="againBtn">↺ Again</button>
+      <button class="btn" id="homeBtn">Dashboard ▲</button>
+    </div>
+  </div>
+</section>
+
+<!-- SCHEDULER -->
+<section class="view" id="view-scheduler">
+  <div class="view-header">
+    <div class="text-block">
+      <div class="kicker">Scheduler</div>
+      <h1 class="big">Priority Queue</h1>
+      <p class="sub">Tasks are ranked automatically based on deadline urgency and your current topic weakness.</p>
+    </div>
+  </div>
+  
+  <div class="grid sched">
+    <div class="card">
+      <h2 class="sec">New Objective</h2>
+      <div class="grid" style="gap:14px">
+        <div class="field"><label>Title</label><input id="taskTitle" placeholder="e.g. Chemistry lab report"></div>
+        <div class="field"><label>Linked topic (optional)</label><input id="taskTopic" placeholder="e.g. Integration"></div>
+        <div class="field"><label>Deadline</label><input id="taskDue" type="datetime-local"></div>
+        <button class="btn" id="addTaskBtn">+ Add to Queue</button>
+      </div>
+      <h2 class="sec" style="margin-top:32px">Radar Blips <span class="kicker">weak & unscheduled</span></h2>
+      <div id="sugRow"></div>
+    </div>
+    <div class="card">
+      <h2 class="sec">Queue</h2>
+      <div id="queueList"></div>
+      <h2 class="sec" style="margin-top:32px">Cleared</h2>
+      <div id="clearedList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- COACH -->
+<section class="view" id="view-coach">
+  <div class="view-header" style="justify-content:center;text-align:center">
+    <div class="text-block">
+      <div class="kicker" style="text-align:center">AI Coach</div>
+      <h1 class="big">Summit Plan</h1>
+      <p class="sub" style="margin-left:auto;margin-right:auto">Powered by Groq. It analyses weak topics, deadlines and your accuracy trend, then builds a 7-day revision plan.</p>
+      <button class="btn" id="coachBtn" style="margin-top:24px"><span class="spin"></span>⚡ Generate Revision Plan</button>
+      <div id="coachBadge" style="margin-top:16px"></div>
+    </div>
+  </div>
+  <div id="coachOut"></div>
+</section>
+</main>
+
+<!-- AI TUTOR CHAT WIDGET -->
+<div class="chat-fab" id="chatFab">✦</div>
+<div class="chat-win" id="chatWin">
+  <div class="chat-head">
+    <div>
+      <div class="ttl">El-Peak Tutor</div>
+      <div class="sub-ttl">Powered by Groq · Online</div>
+    </div>
+    <button class="iconbtn" id="chatClose" style="width:28px;height:28px;border:none">✕</button>
+  </div>
+  <div class="chat-body" id="chatBody">
+    <div class="msg ai"><p>Hey! I'm your AI tutor. Ask me anything about your studies — concepts, explanations, or code snippets.</p></div>
+  </div>
+  <div class="chat-input">
+    <input id="chatInput" placeholder="Ask a question..."><button id="chatSend">➤</button>
+  </div>
+</div>
+
+<div class="mobilenav">
+  <a href="#" data-view="dashboard" class="active">Home</a>
+  <a href="#" data-view="quiz">Quiz</a>
+  <a href="#" data-view="scheduler">Plan</a>
+  <a href="#" data-view="coach">Coach</a>
+</div>
+<div id="toasts"></div><div id="tip"></div>
+<footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+async function api(p,o={}){let r;try{r=await fetch(p,o);}catch(e){throw new Error("Cannot connect to server. Is main.py running?");}if(!r.ok){let m="Request failed";try{m=(await r.json()).detail||m}catch(e){}throw new Error(m)}return r.json()}
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;$("#toasts").appendChild(t);setTimeout(()=>t.remove(),3200)}
+function ago(s){const d=(Date.now()-new Date(s))/1e3;if(d<60)return"just now";if(d<3600)return Math.floor(d/60)+"m ago";if(d<86400)return Math.floor(d/3600)+"h ago";return Math.floor(d/86400)+"d ago"}
+function count(el,to,suf=""){const t0=performance.now(),dur=800;function f(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e)+suf;if(p<1)requestAnimationFrame(f)}requestAnimationFrame(f)}
+
+/* === Lenis Buttery Smooth Scrolling === */
+const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
+function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+requestAnimationFrame(raf);
+// Expose for programmatic scrolling
+const scrollToTop = () => lenis.scrollTo(0, { immediate: false });
+
+/* Theme Toggle */
+const savedTheme = localStorage.getItem("ep-theme") || "dark";
+document.documentElement.dataset.theme = savedTheme;
+ $("#themeBtn").onclick = () => {
+    const current = document.documentElement.dataset.theme || "dark";
+    const next = current === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("ep-theme", next);
+};
+
+/* Sliding Nav Logic */
+function moveSlider(activeLink) {
+  const slider = $("#navSlider");
+  if (!slider || !activeLink) return;
+  slider.style.left = activeLink.offsetLeft + "px";
+  slider.style.width = activeLink.offsetWidth + "px";
+}
+
+/* View Transitions */
+function go(v){
+    $$(".view").forEach(x=>x.classList.remove("active"));
+    const view = $("#view-"+v);
+    view.classList.add("active");
     
-    <!-- AI Quiz Modal -->
-    <div x-show="showAiModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" style="display: none;" @click.self="showAiModal = false">
-        <div class="glass-card w-full max-w-md p-6 animate-scale-in bg-white dark:bg-slate-900">
-            <h3 class="text-xl font-bold mb-4">Create AI Quiz</h3>
-            <input type="text" x-model="aiTopic" placeholder="e.g., Quantum Physics, French Revolution..." class="w-full p-3 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-primary-500 outline-none mb-4">
-            <div class="flex justify-end space-x-3">
-                <button @click="showAiModal = false" class="px-4 py-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800">Cancel</button>
-                <button @click="startAiQuiz()" :disabled="!aiTopic || aiLoading" class="btn-ripple bg-accent-500 hover:bg-accent-600 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50 flex items-center">
-                    <span x-show="aiLoading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
-                    <span x-text="aiLoading ? 'Generating...' : 'Generate Quiz'"></span>
-                </button>
-            </div>
-        </div>
-    </div>
+    const activeLink = $(`.navlinks a[data-view="${v}"]`) || $(`.mobilenav a[data-view="${v}"]`);
+    $$(".navlinks a, .mobilenav a").forEach(a=>a.classList.remove("active"));
+    if(activeLink) {
+      activeLink.classList.add("active");
+      if(activeLink.parentElement.id === "navlinks") {
+        moveSlider(activeLink);
+      }
+    }
+    
+    scrollToTop();
+    if(v==="dashboard")loadDashboard();
+    if(v==="scheduler")loadSchedule();
+}
 
-    <!-- Add Task Modal -->
-    <div x-show="showTaskModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" style="display: none;" @click.self="showTaskModal = false">
-        <div class="glass-card w-full max-w-md p-6 animate-scale-in bg-white dark:bg-slate-900">
-            <h3 class="text-xl font-bold mb-4">Add New Task</h3>
-            <input type="text" x-model="newTaskTitle" placeholder="Task title..." class="w-full p-3 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-primary-500 outline-none mb-3">
-            <input type="text" x-model="newTaskTopic" placeholder="Related topic (optional)" class="w-full p-3 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-primary-500 outline-none mb-3">
-            <label class="block text-sm text-gray-500 mb-1">Deadline</label>
-            <input type="date" x-model="newTaskDeadline" class="w-full p-3 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-primary-500 outline-none mb-6">
-            <div class="flex justify-end space-x-3">
-                <button @click="showTaskModal = false" class="px-4 py-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800">Cancel</button>
-                <button @click="addTask()" class="btn-ripple bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-lg font-medium">Save Task</button>
-            </div>
-        </div>
-    </div>
+// Attach click handlers
+ $$("[data-view]").forEach(a => {
+  a.onclick = e => {
+    e.preventDefault();
+    go(a.dataset.view);
+  };
+});
 
-    <!-- Toast Notification -->
-    <div class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none">
-        <template x-for="toast in toasts" :key="toast.id">
-            <div :class="toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-blue-500'" 
-                 class="glass-card text-white px-6 py-3 rounded-xl shadow-2xl flex items-center space-x-3 animate-slide-in-right pointer-events-auto min-w-[300px]">
-                <i :data-lucide="toast.icon" class="w-5 h-5"></i>
-                <span class="font-medium" x-text="toast.message"></span>
-            </div>
-        </template>
-    </div>
+// Initialize slider on load
+window.addEventListener('load', () => {
+  const activeLink = $(".navlinks a.active");
+  if(activeLink) moveSlider(activeLink);
+});
+window.addEventListener('resize', () => {
+  const activeLink = $(".navlinks a.active");
+  if(activeLink) moveSlider(activeLink);
+});
 
-    <script>
-        function appData() {
-            return {
-                currentView: 'dashboard',
-                isDark: true,
-                stats: { streak: 0, peakScore: 0, avgScore: 0, quizzesTaken: 0 },
-                statsCards: [],
-                recentAttempts: [],
-                tasks: [],
-                showAiModal: false,
-                showTaskModal: false,
-                aiTopic: '',
-                aiLoading: false,
-                quizActive: false,
-                quizFinished: false,
-                currentQuiz: [],
-                currentQuizTopic: '',
-                currentQuestionIndex: 0,
-                selectedAnswer: null,
-                lastScore: 0,
-                coachLoading: false,
-                coachPlan: '',
-                toasts: [],
-                navItems: [
-                    { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
-                    { id: 'quiz', label: 'Quiz Engine', icon: 'brain-circuit' },
-                    { id: 'schedule', label: 'Schedule', icon: 'calendar-days' },
-                    { id: 'coach', label: 'AI Coach', icon: 'graduation-cap' }
-                ],
+/* Dashboard */
+async function loadDashboard(){
+  try{
+    const [stats,topics,recent,heat]=await Promise.all([api("/api/stats"),api("/api/topics"),api("/api/recent?limit=20"),api("/api/heatmap")]);
+    $("#streakChip").textContent=stats.streak+" days";
+    count($("#peakVal"),stats.peak);count($("#streakVal"),stats.streak);count($("#reps7"),stats.attempts_7d);
+    count($("#avgAcc"),Math.round(stats.avg_pct),"%");count($("#weakN"),stats.weak_count);
+    $("#bestRidge").textContent=stats.best_topic||"—";
+    $("#peakArc").style.strokeDashoffset=213.6*(1-stats.peak/100);
+    renderRadar(topics);renderTrend(recent);renderHeat(heat);renderRecent(recent);
+  }catch(e){toast("Dashboard load failed: "+e.message)}
+}
+function renderRadar(topics){
+  const t=topics.slice(0,8);if(!t.length){$("#radarBox").innerHTML='<p class="sub">No topics yet.</p>';return}
+  const S=280,c=S/2,R=90,n=t.length;let g="";
+  for(let ring=1;ring<=4;ring++){let pts=t.map((_,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,r=R*ring/4;return`${c+r*Math.cos(a)},${c+r*Math.sin(a)}`}).join(" ");g+=`<polygon points="${pts}" fill="none" stroke="var(--glass-border)" stroke-width="1"/>`}
+  t.forEach((tp,i)=>{const a=-Math.PI/2+i*2*Math.PI/n;g+=`<line x1="${c}" y1="${c}" x2="${c+R*Math.cos(a)}" y2="${c+R*Math.sin(a)}" stroke="var(--glass-border)"/>`;g+=`<text x="${c+(R+20)*Math.cos(a)}" y="${c+(R+20)*Math.sin(a)}" font-size="10" fill="var(--muted)" text-anchor="middle" dominant-baseline="middle" font-family="Inter">${tp.name.length>12?tp.name.slice(0,11)+"…":tp.name}</text>`});
+  const pts=t.map((tp,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,r=R*tp.score/100;return`${c+r*Math.cos(a)},${c+r*Math.sin(a)}`}).join(" ");
+  g+=`<polygon points="${pts}" fill="rgba(99,102,241,0.15)" stroke="var(--accent)" stroke-width="2" style="filter:drop-shadow(0 0 8px var(--accent-glow));transform-origin:${c}px ${c}px;animation:radarIn .8s ease"/>`;
+  $("#radarBox").innerHTML=`<svg viewBox="0 0 ${S} ${S}" style="width:100%;max-width:320px"><style>@keyframes radarIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}</style>${g}</svg>`;
+}
+function renderTrend(recent){
+  const pts=[...recent].reverse();
+  if(pts.length<2){$("#trendBox").innerHTML='<p class="sub">No attempts logged yet.</p>';return}
+  const W=520,H=140,P=12;
+  const xy=pts.map((a,i)=>[P+i*(W-2*P)/(pts.length-1),H-P-(a.pct/100)*(H-2*P)]);
+  const d=xy.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const dots=xy.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="var(--accent)" style="filter:drop-shadow(0 0 4px var(--accent-glow))"><title>${pts[i].pct}%</title></circle>`).join("");
+  $("#trendBox").innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%"><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" class="trendpath"/>${dots}<style>.trendpath{stroke-dasharray:1000;stroke-dashoffset:1000;animation:draw 1.2s ease forwards}@keyframes draw{to{stroke-dashoffset:0}}</style></svg>`;
+}
+function renderHeat(heat){
+  const grid=$("#heatGrid");grid.innerHTML="";
+  const first=new Date(heat[0].date);for(let i=0;i<first.getDay();i++)grid.appendChild(document.createElement("span"));
+  let total=0;
+  heat.forEach(h=>{total+=h.count;const c=document.createElement("i");c.className=h.count===0?"":h.count===1?"l1":h.count===2?"l2":"l3";c.dataset.tip=`${h.date} · ${h.count} session${h.count===1?"":"s"}`;c.onmousemove=e=>{const t=$("#tip");t.textContent=c.dataset.tip;t.style.opacity=1;t.style.left=e.clientX+12+"px";t.style.top=e.clientY-30+"px"};c.onmouseleave=()=>$("#tip").style.opacity=0;grid.appendChild(c)});
+  $("#heatSessions").textContent=total;
+}
+function renderRecent(recent){
+  $("#recentList").innerHTML=recent.length?recent.slice(0,6).map(a=>{
+    const col=a.pct>=70?"var(--mint)":a.pct>=50?"var(--amber)":"var(--coral)";
+    return `<div class="rowline">
+      <span class="r-topic">${a.topic}</span>
+      <span class="r-time">${ago(a.created_at)}</span>
+      <span class="badge ${a.source==="static"?"static":"ai"}">${a.source==="static"?"BANK":a.source.toUpperCase()}</span>
+      <span class="pctpill" style="color:${col}">${a.pct}%</span>
+    </div>`
+  }).join(""):'<p class="sub">No attempts logged yet.</p>';
+}
 
-                async initApp() {
-                    // Theme Init
-                    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                        this.isDark = true; document.documentElement.classList.add('dark');
-                    } else {
-                        this.isDark = false; document.documentElement.classList.remove('dark');
-                    }
+/* Custom Dropdown Logic */
+const staticSelect = $("#staticTopicSelect");
+const staticMenu = $("#staticTopicMenu");
+let staticTopicValue = "";
 
-                    // Hide Loader
-                    setTimeout(() => {
-                        const loader = document.getElementById('loading-screen');
-                        loader.style.opacity = '0';
-                        loader.style.visibility = 'hidden';
-                    }, 1200);
+staticSelect.querySelector(".select-trigger").onclick = (e) => {
+  e.stopPropagation();
+  staticSelect.classList.toggle("open");
+};
 
-                    await this.fetchStats();
-                    await this.fetchTasks();
-                    
-                    // Re-init icons after DOM updates
-                    this.$watch('currentView', () => setTimeout(() => lucide.createIcons(), 50));
-                    setTimeout(() => lucide.createIcons(), 100);
-                },
+document.addEventListener("click", (e) => {
+  if (!staticSelect.contains(e.target)) {
+    staticSelect.classList.remove("open");
+  }
+});
 
-                toggleTheme() {
-                    this.isDark = !this.isDark;
-                    if (this.isDark) {
-                        document.documentElement.classList.add('dark');
-                        localStorage.theme = 'dark';
-                    } else {
-                        document.documentElement.classList.remove('dark');
-                        localStorage.theme = 'light';
-                    }
-                    setTimeout(() => lucide.createIcons(), 50);
-                },
+api("/api/quiz/subjects").then(d => {
+  staticMenu.innerHTML = d.subjects.map(s => `<div class="select-option" data-val="${s}">${s}</div>`).join("");
+  if(d.subjects.length) {
+    staticTopicValue = d.subjects[0];
+    staticSelect.querySelector(".select-text").textContent = staticTopicValue;
+    staticMenu.querySelector(".select-option").classList.add("selected");
+  }
+  $$(".select-option", staticMenu).forEach(opt => {
+    opt.onclick = () => {
+      staticTopicValue = opt.dataset.val;
+      staticSelect.querySelector(".select-text").textContent = staticTopicValue;
+      $$(".select-option", staticMenu).forEach(o => o.classList.remove("selected"));
+      opt.classList.add("selected");
+      staticSelect.classList.remove("open");
+    }
+  });
+}).catch(()=>{});
 
-                async fetchStats() {
-                    try {
-                        const [statsRes, topicsRes, recentRes] = await Promise.all([
-                            fetch('/api/stats'), fetch('/api/topics'), fetch('/api/recent')
-                        ]);
-                        const stats = await statsRes.json();
-                        const topics = await topicsRes.json();
-                        const recent = await recentRes.json();
+/* Custom Slider Logic */
+const lenAiSlider = $("#lenAiSlider");
+const lenAiVal = $("#lenAiVal");
+lenAiSlider.oninput = () => {
+  lenAiVal.textContent = lenAiSlider.value;
+};
 
-                        this.stats = stats;
-                        this.recentAttempts = recent;
-                        
-                        this.statsCards = [
-                            { title: 'Total Quizzes', value: stats.quizzes_taken, trend: 12, icon: 'clipboard-list', iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-500' },
-                            { title: 'Avg Score', value: Math.round(stats.avg_score) + '%', trend: 5, icon: 'target', iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-500' },
-                            { title: 'Topics Mastered', value: topics.filter(t => t.score > 80).length, trend: 8, icon: 'award', iconBg: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-500' },
-                            { title: 'Hours Studied', value: '12.5', trend: -2, icon: 'clock', iconBg: 'bg-orange-100 dark:bg-orange-900/30', iconColor: 'text-orange-500' }
-                        ];
+/* Quiz */
+let src="static",pdfFile=null,quiz=null,qi=0,correct=0;
+ $$(".src-card").forEach(b=>b.onclick=()=>{$$(".src-card").forEach(x=>x.classList.remove("on"));b.classList.add("on");src=b.dataset.src;$$(".panel").forEach(p=>p.classList.remove("on"));$("#panel-"+src).classList.add("on")});
+function segWire(id){$("#"+id).querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#"+id).querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on")})}
+segWire("lenStatic");segWire("diffSeg");
+const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
 
-                        this.$nextTick(() => {
-                            this.renderCharts(topics);
-                            this.renderHeatmap();
-                            lucide.createIcons();
-                        });
-                    } catch (e) { console.error("Stats error", e); }
-                },
+ $("#drop").onclick=()=>$("#fileInput").click();
+ $("#fileInput").onchange=e=>{pdfFile=e.target.files[0]||null;$("#fileName").textContent=pdfFile?`✔ ${pdfFile.name} (${(pdfFile.size/1e6).toFixed(1)} MB)`:""};
+["dragover","dragenter"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.add("over")}));
+["dragleave","drop"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.remove("over")}));
+ $("#drop").addEventListener("drop",e=>{pdfFile=e.dataTransfer.files[0]||null;$("#fileName").textContent=pdfFile?`✔ ${pdfFile.name}`:""});
 
-                renderCharts(topics) {
-                    // Radar
-                    new Chart(document.getElementById('radarChart'), {
-                        type: 'radar',
-                        data: {
-                            labels: topics.map(t => t.name),
-                            datasets: [{
-                                label: 'Mastery',
-                                data: topics.map(t => t.score),
-                                backgroundColor: 'rgba(14, 165, 233, 0.2)',
-                                borderColor: '#0ea5e9',
-                                pointBackgroundColor: '#d946ef',
-                                borderWidth: 2
-                            }]
-                        },
-                        options: {
-                            scales: { r: { beginAtZero: true, max: 100, grid: { color: '#334155' }, angleLines: { color: '#334155' } } },
-                            plugins: { legend: { display: false } },
-                            maintainAspectRatio: false
-                        }
-                    });
+ $("#beginBtn").onclick=async()=>{
+  const btn=$("#beginBtn");btn.classList.add("loading");btn.disabled=true;
+  try{
+    if(src==="static")quiz=await api(`/api/quiz/static?topic=${encodeURIComponent(staticTopicValue)}&n=${segVal("lenStatic","n")}`);
+    else if(src==="ai"){
+      const t=$("#aiTopic").value.trim();if(!t)throw new Error("Type a topic first");
+      let n=parseInt(lenAiSlider.value)||4;
+      n=Math.max(1,Math.min(30,n));
+      quiz=await api("/api/quiz/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({topic:t,num_questions:n,difficulty:segVal("diffSeg","d")})});
+    }else{
+      if(!pdfFile)throw new Error("Choose a PDF first");
+      const fd=new FormData();fd.append("file",pdfFile);
+      fd.append("topic",$("#pdfTopic").value.trim());fd.append("difficulty",segVal("diffSeg","d"));
+      quiz=await api("/api/quiz/pdf",{method:"POST",body:fd});
+    }
+    qi=0;correct=0;$("#setupCard").hidden=true;$("#resultCard").hidden=true;$("#playCard").hidden=false;renderQ();
+    if(quiz.note)toast(quiz.note);
+  }catch(e){toast("⚠ "+e.message)}
+  btn.classList.remove("loading");btn.disabled=false;
+};
+function renderQ(){
+  const q=quiz.questions[qi];
+  $("#qMeta").textContent=`Q ${qi+1}/${quiz.questions.length} · ${quiz.topic}`;
+  $("#qBadge").innerHTML=quiz.ai?`<span class="badge ${quiz.source==="pdf"?"pdf":"ai"}">${quiz.source==="pdf"?"PDF · AI":"AI"}</span>`:`<span class="badge static">BANK</span>`;
+  $("#qBar").style.width=(qi/quiz.questions.length*100)+"%";
+  $("#qText").textContent=q.question;$("#qExplain").innerHTML="";$("#qNext").hidden=true;
+  $("#qOpts").innerHTML=q.options.map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join("");
+  $$("#qOpts .opt").forEach(b=>b.onclick=()=>{
+    $$("#qOpts .opt").forEach(x=>x.disabled=true);
+    const pick=+b.dataset.i;
+    if(pick===q.answer_index){b.classList.add("right");correct++}
+    else{b.classList.add("wrong");$$("#qOpts .opt")[q.answer_index].classList.add("right")}
+    let ctxHtml = q.context ? `<div class="context-box"><b>From your PDF:</b> "${q.context}"</div>` : "";
+    $("#qExplain").innerHTML=`<div class="explain"><b>Why:</b> ${q.explanation}</div>${ctxHtml}`;
+    $("#qBar").style.width=((qi+1)/quiz.questions.length*100)+"%";
+    $("#qNext").hidden=false;$("#qNext").textContent=qi===quiz.questions.length-1?"Finish ▲":"Next →";
+  });
+}
+ $("#qNext").onclick=()=>{qi++;qi<quiz.questions.length?renderQ():finish()};
+ $("#exitBtn").onclick=()=>{$("#playCard").hidden=true;$("#setupCard").hidden=false};
+async function finish(){
+  $("#playCard").hidden=true;
+  try{
+    const source = quiz.source === "pdf" ? "ai" : (quiz.ai ? "ai" : "static");
+    const r=await api("/api/quiz/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({topic_name:quiz.topic,correct,total:quiz.questions.length,source:source})});
+    const t=r.topic,pct=Math.round(correct/quiz.questions.length*100);
+    $("#resPct").textContent=pct+"%";
+    $("#resDelta").innerHTML=`<span class="badge ${t.delta>=0?"static":"pdf"}">${t.delta>=0?"▲ +":"▼ "}${t.delta} mastery</span>`;
+    $("#resTopic").textContent=`${t.name}: ${t.old}% → ${t.new}%`;
+  }catch(e){$("#resPct").textContent=Math.round(correct/quiz.questions.length*100)+"%";$("#resDelta").textContent="";$("#resTopic").textContent="⚠ "+e.message}
+  $("#resultCard").hidden=false;
+}
+ $("#againBtn").onclick=()=>{$("#resultCard").hidden=true;$("#setupCard").hidden=false};
+ $("#homeBtn").onclick=()=>go("dashboard");
 
-                    // Gauge (Simplified Doughnut)
-                    new Chart(document.getElementById('gaugeChart'), {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Score', 'Remaining'],
-                            datasets: [{
-                                data: [this.stats.peak_score, 100 - this.stats.peak_score],
-                                backgroundColor: ['#0ea5e9', '#1e293b'],
-                                borderWidth: 0,
-                                cutout: '75%'
-                            }]
-                        },
-                        options: { rotation: 270, circumference: 180, plugins: { legend: { display: false }, tooltip: { enabled: false } }, maintainAspectRatio: false }
-                    });
-                },
+/* Scheduler */
+async function loadSchedule(){
+  try{
+    const s=await api("/api/schedule");
+    $("#queueList").innerHTML=s.queue.length?s.queue.map((t,i)=>`<div class="task"><span class="rank">${String(i+1).padStart(2,"0")}</span><span class="grow"><span class="tt">${t.title}</span><span class="meta"><span class="tier ${t.tier.replace(/\s+/g,"").toUpperCase()}">${t.tier}</span>${t.topic?`<span>◈ ${t.topic}</span>`:""}<span>due ${ago(t.deadline).replace(" ago","")||"now"}</span><span>priority ${t.priority}</span></span></span><button class="check" data-id="${t.id}" title="Done">✓</button><button class="del" data-id="${t.id}" title="Delete">✕</button></div>`).join(""):'<p class="sub">Queue clear. Add an objective or tap a radar blip.</p>';
+    $("#clearedList").innerHTML=s.cleared.map(t=>`<div class="task" style="opacity:.55"><span class="grow"><span class="tt" style="text-decoration:line-through">${t.title}</span></span><span class="tier DONE">DONE</span><button class="del" data-id="${t.id}">✕</button></div>`).join("")||'<p class="sub">Nothing cleared yet.</p>';
+    $("#sugRow").innerHTML=s.suggestions.map(x=>`<button class="sug" data-topic="${x.topic}">+ ${x.topic} · ${Math.round(x.score)}%</button>`).join("")||'<span class="sub">No weak unscheduled topics 🎉</span>';
+    $$(".check").forEach(b=>b.onclick=async()=>{await api("/api/tasks/"+b.dataset.id,{method:"PATCH"});toast("Objective cleared ✓");loadSchedule()});
+    $$(".del").forEach(b=>b.onclick=async()=>{await api("/api/tasks/"+b.dataset.id,{method:"DELETE"});loadSchedule()});
+    $$(".sug").forEach(b=>b.onclick=()=>{$("#taskTopic").value=b.dataset.topic;$("#taskTitle").value="Drill "+b.dataset.topic;$("#taskTitle").focus()});
+  }catch(e){toast("Schedule load failed: "+e.message)}
+}
+ $("#addTaskBtn").onclick=async()=>{
+  const title=$("#taskTitle").value.trim(),due=$("#taskDue").value;
+  if(!title||!due)return toast("⚠ Title and deadline required");
+  try{await api("/api/tasks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,topic:$("#taskTopic").value.trim()||null,deadline:new Date(due).toISOString()})});$("#taskTitle").value="";$("#taskTopic").value="";toast("Added to queue +");loadSchedule();}catch(e){toast(" "+e.message)}
+};
 
-                renderHeatmap() {
-                    const container = document.getElementById('heatmap');
-                    container.innerHTML = '';
-                    for(let i=0; i<28; i++) {
-                        const intensity = Math.random();
-                        const div = document.createElement('div');
-                        div.className = 'aspect-square rounded-md transition-all hover:scale-110';
-                        div.style.backgroundColor = intensity > 0.8 ? '#0ea5e9' : intensity > 0.5 ? '#38bdf8' : intensity > 0.2 ? '#7dd3fc' : '#e0f2fe';
-                        if(this.isDark) div.style.backgroundColor = intensity > 0.8 ? '#0369a1' : intensity > 0.5 ? '#075985' : intensity > 0.2 ? '#0c4a6e' : '#1e293b';
-                        container.appendChild(div);
-                    }
-                },
+/* Coach */
+ $("#coachBtn").onclick=async()=>{
+  const b=$("#coachBtn");b.classList.add("loading");b.disabled=true;$("#coachOut").innerHTML="";
+  try{
+    const d=await api("/api/coach");
+    $("#coachBadge").innerHTML=d.ai?'<span class="badge ai">⚡ GENERATED BY AI</span>':'<span class="badge static">RULE-BASED FALLBACK · OFFLINE</span>';
+    $("#coachOut").innerHTML=`<div class="card" style="margin-bottom:24px"><h2 class="sec">${d.headline||""}</h2><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:16px">${(d.focus||[]).map(f=>`<div style="background:var(--glass);padding:16px;border-radius:16px;border:1px solid var(--glass-border)"><div style="font-weight:700;font-size:14px;margin-bottom:6px">◈ ${f.topic}</div><p class="sub" style="margin:0 0 8px;font-size:13px">${f.why}</p><p style="font-size:12px;font-weight:600;color:var(--mint)">🎯 ${f.drill}</p></div>`).join("")}</div></div><div class="grid dash-grid"><div class="card"><h2 class="sec">7-Day Plan</h2><div class="plan">${(d.plan||[]).map(p=>`<div class="day"><div class="dname">${p.day.toUpperCase()}</div><div class="dtask">${p.task}</div></div>`).join("")}</div></div><div class="card"><h2 class="sec">Coach Tips</h2>${(d.tips||[]).map(t=>`<div class="tipbox">${t}</div>`).join("")}<div class="quote">“${d.motivation||""}”</div></div></div>`;
+  }catch(e){toast("⚠ "+e.message)}
+  b.classList.remove("loading");b.disabled=false;
+};
 
-                async fetchTasks() {
-                    const res = await fetch('/api/schedule');
-                    this.tasks = await res.json();
-                    this.$nextTick(() => lucide.createIcons());
-                },
+/* AI Chat */
+let chatHistory = [];
+ $("#chatFab").onclick=()=>{$("#chatWin").classList.toggle("open");if($("#chatWin").classList.contains("open"))$("#chatInput").focus();}
+ $("#chatClose").onclick=()=>$("#chatWin").classList.remove("open");
 
-                async addTask() {
-                    if(!this.newTaskTitle) return;
-                    await fetch('/api/tasks', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ title: this.newTaskTitle, topic: this.newTaskTopic, deadline: this.newTaskDeadline })
-                    });
-                    this.showTaskModal = false;
-                    this.newTaskTitle = ''; this.newTaskTopic = ''; this.newTaskDeadline = '';
-                    this.showToast('Task added successfully', 'success');
-                    this.fetchTasks();
-                },
+function addMsg(role, text) {
+  const body = $("#chatBody");
+  const div = document.createElement("div");
+  div.className = `msg ${role}`;
+  if (role === "ai") div.innerHTML = marked.parse(text);
+  else div.textContent = text;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+  return div;
+}
 
-                async toggleTask(task) {
-                    await fetch(`/api/tasks/${task.id}`, {
-                        method: 'PATCH',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ done: !task.done })
-                    });
-                    this.fetchTasks();
-                },
+async function sendChat() {
+  const inp = $("#chatInput");
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = "";
+  addMsg("user", text);
+  chatHistory.push({role: "user", content: text});
+  
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "msg ai loading";
+  loadingDiv.innerHTML = "<span></span><span></span><span></span>";
+  $("#chatBody").appendChild(loadingDiv);
+  $("#chatBody").scrollTop = $("#chatBody").scrollHeight;
+  $("#chatSend").disabled = true;
 
-                async deleteTask(id) {
-                    if(confirm('Delete this task?')) {
-                        await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-                        this.showToast('Task deleted', 'success');
-                        this.fetchTasks();
-                    }
-                },
+  try {
+    const r = await api("/api/ask", {method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({question: text, history: chatHistory.slice(-6)})});
+    loadingDiv.remove();
+    addMsg("ai", r.reply);
+    chatHistory.push({role: "assistant", content: r.reply});
+  } catch (e) {
+    loadingDiv.remove();
+    addMsg("ai", "⚠ " + e.message);
+  }
+  $("#chatSend").disabled = false;
+}
 
-                formatDate(dateStr) {
-                    if(!dateStr) return 'No deadline';
-                    return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                },
+ $("#chatSend").onclick = sendChat;
+ $("#chatInput").onkeydown = e => { if(e.key === "Enter") sendChat(); };
 
-                isOverdue(dateStr) {
-                    if(!dateStr) return false;
-                    return new Date(dateStr) < new Date();
-                },
-
-                startStaticQuiz() {
-                    // Mock static quiz for demo
-                    this.currentQuizTopic = "General Knowledge";
-                    this.currentQuiz = [
-                        { question: "What is the capital of France?", options: ["Berlin", "Madrid", "Paris", "Rome"], answer: "Paris" },
-                        { question: "Which planet is known as the Red Planet?", options: ["Earth", "Mars", "Jupiter", "Venus"], answer: "Mars" },
-                        { question: "What is H2O?", options: ["Gold", "Water", "Silver", "Oxygen"], answer: "Water" }
-                    ];
-                    this.startQuizLogic();
-                },
-
-                async startAiQuiz() {
-                    if(!this.aiTopic) return;
-                    this.aiLoading = true;
-                    try {
-                        const res = await fetch('/api/quiz/ai', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ topic: this.aiTopic })
-                        });
-                        const data = await res.json();
-                        if(data.questions) {
-                            this.currentQuizTopic = this.aiTopic;
-                            this.currentQuiz = data.questions;
-                            this.showAiModal = false;
-                            this.aiTopic = '';
-                            this.startQuizLogic();
-                        } else {
-                            this.showToast('Failed to generate quiz', 'error');
-                        }
-                    } catch(e) { this.showToast('Error connecting to AI', 'error'); }
-                    finally { this.aiLoading = false; }
-                },
-
-                startQuizLogic() {
-                    this.quizActive = true;
-                    this.quizFinished = false;
-                    this.currentQuestionIndex = 0;
-                    this.selectedAnswer = null;
-                    this.$nextTick(() => { lucide.createIcons(); window.scrollTo(0,0); });
-                },
-
-                selectAnswer(opt) { this.selectedAnswer = opt; },
-
-                async submitAnswer() {
-                    // In a real app, send to backend. Here we simulate immediate next question or end
-                    // For simplicity in this UI demo, we just move next or finish
-                    if(this.currentQuestionIndex < this.currentQuiz.length - 1) {
-                        this.currentQuestionIndex++;
-                        this.selectedAnswer = null;
-                    } else {
-                        this.quizActive = false;
-                        this.quizFinished = true;
-                        this.lastScore = 85; // Mock score
-                        this.$nextTick(() => lucide.createIcons());
-                    }
-                },
-
-                resetQuiz() { this.quizFinished = false; this.startStaticQuiz(); },
-
-                async generateCoachPlan() {
-                    this.coachLoading = true;
-                    this.coachPlan = '';
-                    try {
-                        const res = await fetch('/api/coach');
-                        const data = await res.json();
-                        this.coachPlan = data.plan || "No plan generated.";
-                    } catch(e) { this.coachPlan = "Could not connect to AI Coach."; }
-                    finally { 
-                        this.coachLoading = false; 
-                        this.$nextTick(() => {
-                            lucide.createIcons();
-                            // Simple markdown-like formatting
-                            this.formattedCoachPlan = this.coachPlan.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                        });
-                    }
-                },
-
-                showToast(msg, type='info') {
-                    const id = Date.now();
-                    const icons = { success: 'check-circle', error: 'alert-circle', info: 'info' };
-                    this.toasts.push({ id, message: msg, type, icon: icons[type] });
-                    setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 3000);
-                    this.$nextTick(() => lucide.createIcons());
-                }
-            }
-        }
-    </script>
+loadDashboard();
+</script>
 </body>
 </html>
