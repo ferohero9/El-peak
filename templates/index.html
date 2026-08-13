@@ -594,13 +594,13 @@ if (token) {
 
 // Logout Button
  $("#logoutBtn").onclick = () => logout();
+
 // Google Login Logic
  $("#btnGoogle").onclick = async () => {
     try {
         const r = await fetch("/api/auth/google");
         const data = await r.json();
         if (data.auth_url) {
-            // Redirect user to Google's secure login page
             window.location.href = data.auth_url;
         }
     } catch (e) {
@@ -614,7 +614,6 @@ const googleToken = urlParams.get('token');
 if (googleToken) {
     token = googleToken;
     localStorage.setItem("ep-token", token);
-    // Clean the URL (remove ?token=... so it looks nice)
     window.history.replaceState({}, document.title, "/");
     showApp();
 }
