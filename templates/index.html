@@ -75,7 +75,7 @@ nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;displ
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;padding-left:8px}
 .logo svg{width:20px;height:20px}
 .navlinks{position:relative;display:flex;align-items:center;gap:4px;background:var(--glass-strong);padding:4px;border-radius:100px;border:1px solid var(--glass-border)}
-.navlinks a{padding:8px 18px;border-radius:100px;color:var(--muted);text-decoration:none;font-weight:500;font-size:13px;transition:color .3s;position:relative;z-index:2}
+.navlinks a{padding:8px 16px;border-radius:100px;color:var(--muted);text-decoration:none;font-weight:500;font-size:13px;transition:color .3s;position:relative;z-index:2}
 .navlinks a:hover{color:var(--ink)}
 .navlinks a.active{color:var(--accent-text)}
 .nav-slider{position:absolute;top:4px;height:calc(100% - 8px);background:var(--accent);border-radius:100px;z-index:1;transition:all .4s var(--spring);box-shadow:0 4px 15px var(--accent-glow)}
@@ -240,7 +240,7 @@ input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border
 @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
 #tip{position:fixed;z-index:98;background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s}
 .mobilenav{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:100px;padding:6px;gap:4px;backdrop-filter:blur(var(--blur))}
-.mobilenav a{padding:8px 14px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase}
+.mobilenav a{padding:8px 12px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase}
 .mobilenav a.active{background:var(--accent);color:#fff}
 footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
 @media(max-width:860px){
@@ -306,6 +306,7 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
       <a href="#" data-view="quiz">Quiz</a>
       <a href="#" data-view="scheduler">Scheduler</a>
       <a href="#" data-view="coach">Coach</a>
+      <a href="#" data-view="profile">Profile</a>
     </div>
     <div class="navright">
       <div class="chip"><span class="flame">▲</span><span id="streakChip">0 days</span></div>
@@ -348,26 +349,6 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
           <h2 class="sec" style="margin-top:32px">Recent Attempts</h2><div id="recentList"></div>
         </div>
       </div>
-      
-      <!-- Usage & Billing Card -->
-      <div class="card" style="margin-bottom:24px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-          <h2 class="sec" style="margin:0">Usage & Billing</h2>
-          <span class="badge" id="tierBadge" style="text-transform:capitalize">Free</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)">AI Questions</span><span id="aiUsageText" style="font-weight:600">0 / 30</span></div>
-            <div class="qbar" style="margin-bottom:0"><i id="aiUsageBar" style="width:0%;background:var(--accent)"></i></div>
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)">PDF Uploads</span><span id="pdfUsageText" style="font-weight:600">0 / 3</span></div>
-            <div class="qbar" style="margin-bottom:0"><i id="pdfUsageBar" style="width:0%;background:var(--sky)"></i></div>
-          </div>
-        </div>
-        <button class="btn" id="btnUpgradeNav" style="margin-top:20px">Upgrade to Plus / Pro →</button>
-      </div>
-
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <h2 class="sec" style="margin:0">Ascent Log</h2>
@@ -381,7 +362,7 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
     <section class="view" id="view-quiz">
       <div class="view-header">
         <div class="text-block"><div class="kicker">Quiz Engine</div><h1 class="big">Expedition</h1></div>
-        <span class="badge ai">⚡ GROQ · LLAMA-3.3-70B</span>
+        <span class="badge ai" id="quizModelBadge">⚡ GROQ</span>
       </div>
       <div class="card" id="setupCard">
         <div class="src-seg">
@@ -470,6 +451,71 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
       </div>
       <div id="coachOut"></div>
     </section>
+
+    <!-- PROFILE & BILLING -->
+    <section class="view" id="view-profile">
+      <div class="view-header">
+        <div class="text-block">
+          <div class="kicker">Account</div>
+          <h1 class="big">Your Profile</h1>
+          <p class="sub">Manage your subscription, track your usage limits, and view your recent quiz activity.</p>
+        </div>
+      </div>
+      
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
+        <!-- Left Col: Usage & Activity -->
+        <div class="grid" style="gap: 20px;">
+          <div class="card">
+            <h2 class="sec">Account & Usage</h2>
+            <div style="display:flex; justify-content:space-between; margin-bottom:24px; align-items:center;">
+              <div>
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Current Plan</div>
+                <div id="profileTier" style="font-family:var(--disp); font-size:24px; font-weight:700; text-transform:capitalize; color:var(--accent)">Free</div>
+              </div>
+              <span class="badge ai" id="tierBadge" style="text-transform:capitalize">Free</span>
+            </div>
+            
+            <div style="display:grid; gap:20px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)">AI Questions (Monthly)</span><span id="aiUsageText" style="font-weight:600">0 / 30</span></div>
+                <div class="qbar" style="margin-bottom:0"><i id="aiUsageBar" style="width:0%;background:var(--accent)"></i></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)">PDF Uploads (Monthly)</span><span id="pdfUsageText" style="font-weight:600">0 / 3</span></div>
+                <div class="qbar" style="margin-bottom:0"><i id="pdfUsageBar" style="width:0%;background:var(--sky)"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="sec">Recent Activity</h2>
+            <div id="profileRecentList"></div>
+          </div>
+        </div>
+
+        <!-- Right Col: Upgrade Plans -->
+        <div class="card">
+          <h2 class="sec">Upgrade Plan</h2>
+          <p class="sub" style="margin-bottom: 20px;">Unlock higher usage limits and the powerful Llama 3.3 70B model.</p>
+          
+          <div style="display:flex;gap:12px;margin-bottom:20px">
+            <div class="upgrade-box" id="plusBox" style="flex:1;padding:20px;border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;text-align:center">
+              <div style="font-family:var(--disp);font-weight:700;font-size:18px">Plus</div>
+              <div style="font-size:24px;font-weight:800;margin:8px 0">99 EGP</div>
+              <div style="font-size:11px;color:var(--muted)">/ month</div>
+              <div style="margin-top:12px;font-size:12px;color:var(--muted)">500 AI Questions<br>50 PDF Uploads<br>70B Model</div>
+            </div>
+            <div class="upgrade-box" id="proBox" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
+              <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
+              <div style="font-size:24px;font-weight:800;margin:8px 0">199 EGP</div>
+              <div style="font-size:11px;color:var(--muted)">/ month</div>
+              <div style="margin-top:12px;font-size:12px;color:var(--muted)">2000 AI Questions<br>200 PDF Uploads<br>70B Model</div>
+            </div>
+          </div>
+          <button class="btn auth-btn" id="btnCheckout" style="width:100%; justify-content:center;">Proceed to Payment →</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <div class="chat-fab" id="chatFab">✦</div>
@@ -489,30 +535,31 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
     <a href="#" data-view="quiz">Quiz</a>
     <a href="#" data-view="scheduler">Plan</a>
     <a href="#" data-view="coach">Coach</a>
+    <a href="#" data-view="profile">Profile</a>
   </div>
   <footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
 </div>
 
-<!-- Upgrade Modal -->
+<!-- Upgrade Limit Modal -->
 <div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px">
   <div class="auth-card" style="max-width:450px">
-    <div class="auth-logo">El-Peak Premium</div>
-    <div class="auth-sub">Unlock unlimited AI quizzes, PDF uploads, and the powerful Llama 3.3 70B model.</div>
+    <div class="auth-logo">Limit Reached</div>
+    <div class="auth-sub">You've used all your free credits for this month. Upgrade to keep your ascent going!</div>
     <div style="display:flex;gap:12px;width:100%;margin-bottom:20px">
-      <div class="upgrade-box" id="plusBox" style="flex:1;padding:20px;border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;text-align:center">
+      <div class="upgrade-box" id="plusBoxModal" style="flex:1;padding:20px;border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;text-align:center">
         <div style="font-family:var(--disp);font-weight:700;font-size:18px">Plus</div>
         <div style="font-size:24px;font-weight:800;margin:8px 0">99 EGP</div>
         <div style="font-size:11px;color:var(--muted)">/ month</div>
         <div style="margin-top:12px;font-size:12px;color:var(--muted)">500 AI Questions<br>50 PDF Uploads</div>
       </div>
-      <div class="upgrade-box" id="proBox" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
+      <div class="upgrade-box" id="proBoxModal" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
         <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
         <div style="font-size:24px;font-weight:800;margin:8px 0">199 EGP</div>
         <div style="font-size:11px;color:var(--muted)">/ month</div>
         <div style="margin-top:12px;font-size:12px;color:var(--muted)">2000 AI Questions<br>200 PDF Uploads<br><b>70B Model</b></div>
       </div>
     </div>
-    <button class="btn auth-btn" id="btnCheckout">Proceed to Payment →</button>
+    <button class="btn auth-btn" id="btnCheckoutModal">Proceed to Payment →</button>
     <button class="btn outline auth-btn" id="btnCloseUpgrade" style="margin-top:8px">Maybe Later</button>
   </div>
 </div>
@@ -569,6 +616,7 @@ function showApp() {
     const activeLink = $(".navlinks a.active");
     if (activeLink) moveSlider(activeLink);
     loadDashboard();
+    loadProfile(); // Preload profile data
 }
 
 function logout() {
@@ -673,6 +721,7 @@ function go(v){
     scrollToTop();
     if(v==="dashboard")loadDashboard();
     if(v==="scheduler")loadSchedule();
+    if(v==="profile")loadProfile();
 }
 
  $$("[data-view]").forEach(a => {
@@ -686,13 +735,12 @@ async function loadDashboard(){
   try{
     const [stats,topics,recent,heat,usage]=await Promise.all([api("/api/stats"),api("/api/topics"),api("/api/recent?limit=20"),api("/api/heatmap"),api("/api/usage")]);
     
-    // Update Usage UI
-    if(usage) {
-      $("#tierBadge").textContent = usage.tier;
-      $("#aiUsageText").textContent = `${usage.ai_used} / ${usage.ai_limit}`;
-      $("#aiUsageBar").style.width = `${Math.min(100, (usage.ai_used / usage.ai_limit) * 100)}%`;
-      $("#pdfUsageText").textContent = `${usage.pdf_used} / ${usage.pdf_limit}`;
-      $("#pdfUsageBar").style.width = `${Math.min(100, (usage.pdf_used / usage.pdf_limit) * 100)}%`;
+    // Update Model Badge dynamically
+    const modelBadge = $("#quizModelBadge");
+    if (usage && usage.tier === 'free') {
+        modelBadge.textContent = '⚡ GROQ · LLAMA-3.1-8B';
+    } else if (usage) {
+        modelBadge.textContent = '⚡ GROQ · LLAMA-3.3-70B';
     }
     
     $("#streakChip").textContent=stats.streak+" days";
@@ -703,6 +751,33 @@ async function loadDashboard(){
     renderRadar(topics);renderTrend(recent);renderHeat(heat);renderRecent(recent);
   }catch(e){toast("Dashboard load failed: "+e.message)}
 }
+
+async function loadProfile() {
+    try {
+        const [usage, recent] = await Promise.all([api("/api/usage"), api("/api/recent?limit=10")]);
+        
+        $("#tierBadge").textContent = usage.tier;
+        $("#profileTier").textContent = usage.tier;
+        $("#aiUsageText").textContent = `${usage.ai_used} / ${usage.ai_limit}`;
+        $("#aiUsageBar").style.width = `${Math.min(100, (usage.ai_used / usage.ai_limit) * 100)}%`;
+        $("#pdfUsageText").textContent = `${usage.pdf_used} / ${usage.pdf_limit}`;
+        $("#pdfUsageBar").style.width = `${Math.min(100, (usage.pdf_used / usage.pdf_limit) * 100)}%`;
+        
+        $("#profileRecentList").innerHTML = recent.length ? recent.map(a => {
+            const col = a.pct >= 70 ? "var(--mint)" : a.pct >= 50 ? "var(--amber)" : "var(--coral)";
+            return `<div class="rowline">
+                <span class="r-topic">${a.topic}</span>
+                <span class="r-time">${ago(a.created_at)}</span>
+                <span class="badge ${a.source === "static" ? "static" : "ai"}">${a.source === "static" ? "BANK" : a.source.toUpperCase()}</span>
+                <span class="pctpill" style="color:${col}">${a.pct}%</span>
+            </div>`;
+        }).join("") : '<p class="sub">No recent activity.</p>';
+        
+    } catch (e) {
+        toast("Failed to load profile data.");
+    }
+}
+
 function renderRadar(topics){
   const t=topics.slice(0,8);if(!t.length){$("#radarBox").innerHTML='<p class="sub">No topics yet.</p>';return}
   const S=280,c=S/2,R=90,n=t.length;let g="";
@@ -899,20 +974,32 @@ async function sendChat() {
  $("#chatSend").onclick = sendChat;
  $("#chatInput").onkeydown = e => { if(e.key === "Enter") sendChat(); };
 
-// Upgrade Modal Logic
+// Upgrade Modal & Checkout Logic
 let selectedTier = "pro";
 function showUpgradeModal() { $("#upgradeModal").style.display = "flex"; }
- $("#btnUpgradeNav").onclick = showUpgradeModal;
  $("#btnCloseUpgrade").onclick = () => $("#upgradeModal").style.display = "none";
- $$(".upgrade-box").forEach(box => {
-    box.onclick = () => {
-        $$(".upgrade-box").forEach(b => b.style.border = "1px solid var(--glass-border)");
-        box.style.border = "1px solid var(--accent)";
-        selectedTier = box.id === "plusBox" ? "plus" : "pro";
-    }
-});
- $("#btnCheckout").onclick = async () => {
-    const btn = $("#btnCheckout");
+
+function wireUpgradeBoxes(boxIds) {
+    boxIds.forEach(id => {
+        const box = document.getElementById(id);
+        if (!box) return;
+        box.onclick = () => {
+            boxIds.forEach(bid => {
+                const b = document.getElementById(bid);
+                if(b) b.style.border = "1px solid var(--glass-border)";
+                if(b) b.style.background = "transparent";
+            });
+            box.style.border = "1px solid var(--accent)";
+            box.style.background = "rgba(99,102,241,0.1)";
+            selectedTier = box.id.includes("plus") ? "plus" : "pro";
+        };
+    });
+}
+wireUpgradeBoxes(["plusBox", "proBox", "plusBoxModal", "proBoxModal"]);
+
+async function processCheckout(btnId) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
     btn.classList.add("loading");
     btn.disabled = true;
     try {
@@ -925,7 +1012,9 @@ function showUpgradeModal() { $("#upgradeModal").style.display = "flex"; }
     }
     btn.classList.remove("loading");
     btn.disabled = false;
-};
+}
+ $("#btnCheckout").onclick = () => processCheckout("btnCheckout");
+ $("#btnCheckoutModal").onclick = () => processCheckout("btnCheckoutModal");
 </script>
 </body>
 </html>
