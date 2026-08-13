@@ -504,7 +504,6 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
     if usage["ai_questions_used"] + payload.num_questions > limits["ai_questions"]:
         raise HTTPException(403, f"You have reached your monthly AI question limit ({limits['ai_questions']}). Please upgrade to Plus.")
     
-    # Use the model specific to the user's tier
     groq_model = TIER_MODELS.get(tier, TIER_MODELS["free"])
     
     messages = [
@@ -515,14 +514,18 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
         max_tokens = max(1200, payload.num_questions * 250)
         raw = await groq_chat(messages, temperature=0.7, max_tokens=max_tokens, model_override=groq_model)
         clean = _clean_questions(extract_json(raw), payload.num_questions)
-        if not clean: raise ValueError("empty question set")
+        if not clean: 
+            raise ValueError("empty question set")
         
         # Increment usage ONLY on success
         await db.increment_usage(user["id"], ai_questions=payload.num_questions)
         
         return {"topic": payload.topic, "subject": "AI", "questions": clean, "ai": True, "source": "ai"}
     except Exception as e:
-        # ... keep your existing fallback logic here ...
+        print(f"⚠️ AI Quiz Error: {e}")
+        fallback = _match_static(payload.topic, 4)
+        fallback["note"] = "AI unavailable — served from the static bank."
+        return fallback
 
 @app.post("/api/quiz/pdf")
 async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed"), topic: str = Form(""), num_questions: int = Form(0), user: dict = Depends(get_current_user)):
@@ -583,7 +586,6 @@ async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed")
         if not clean: 
             raise ValueError("empty question set")
             
-        # Increment usage ONLY on success
         await db.increment_usage(user["id"], pdf_uploads=1)
         
         return {"topic": label, "subject": "PDF", "questions": clean, "ai": True, "source": "pdf"}
