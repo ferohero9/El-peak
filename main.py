@@ -159,6 +159,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await db.get_user_by_email(form_data.username)
     if not user or not verify_password(form_data.password, user["password"]):  # <-- Changed this
         raise HTTPException(401, "Incorrect email or password")
+    await db.cleanup_old_pdf_attempts()
     token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
     return {"token": token, "email": user["email"]}
 
