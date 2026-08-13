@@ -708,6 +708,16 @@ async def groq_chat(messages: list, temperature: float = 0.6, max_tokens: int = 
     model_to_use = model_override if model_override else GROQ_MODEL
     
     payload = {"model": model_to_use, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    
+    async with httpx.AsyncClient(timeout=45) as client:
+        r = await client.post(GROQ_URL, headers=headers, json=payload)
+        if r.status_code != 200:
+            try: err_msg = r.json().get("error", {}).get("message", str(r.json()))
+            except: err_msg = r.text
+            print(f"\n❌ GROQ API ERROR ({r.status_code}): {err_msg}\n")
+            raise RuntimeError(f"Groq API Error: {err_msg}")
+        return r.json()["choices"][0]["message"]["content"]
     # ... keep the rest of the function the same ...
 
 def extract_json(text: str):
