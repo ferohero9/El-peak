@@ -9,11 +9,16 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost/el-peak")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
-    id         SERIAL PRIMARY KEY,
-    email      TEXT NOT NULL UNIQUE,
-    password   TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    id                SERIAL PRIMARY KEY,
+    email             TEXT NOT NULL UNIQUE,
+    password          TEXT NOT NULL,
+    created_at        TEXT NOT NULL,
+    tier              TEXT DEFAULT 'free',
+    ai_questions_used INTEGER DEFAULT 0,
+    pdf_uploads_used  INTEGER DEFAULT 0,
+    usage_reset_date  TEXT
 );
+# ... keep topics, attempts, and tasks exactly as they are ...
 CREATE TABLE IF NOT EXISTS topics (
     id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id),
@@ -266,3 +271,41 @@ async def get_schedule(user_id: int) -> dict:
             if tp["score"] < 60 and tp["name"].lower() not in busy
         ][:4]
         return {"queue": queue, "cleared": cleared, "suggestions": suggestions}
+# ---------------------------------------------------------------- USAGE & PAYWALL
+async def get_user_usage(user_id: int) -> dict:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT tier, ai_questions_used, pdf_uploads_used, usage_reset_date FROM users WHERE id=$1", user_id)
+        return dict(row) if row else None
+
+async def increment_usage(user_id: int, ai_questions: int = 0, pdf_uploads: int = 0):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Reset monthly usage if it's a new month
+            await conn.execute("""
+                UPDATE users 
+                SET ai_questions_used = CASE WHEN usage_reset_date IS NULL OR TO_CHAR(NOW(), 'YYYY-MM') != SUBSTR(usage_reset_date, 1, 7) THEN 0 ELSE ai_questions_used END,
+                    pdf_uploads_used = CASE WHEN usage_reset_date IS NULL OR TO_CHAR(NOW(), 'YYYY-MM') != SUBSTR(usage_reset_date, 1, 7) THEN 0 ELSE pdf_uploads_used END,
+                    usage_reset_date = TO_CHAR(NOW(), 'YYYY-MM-DD')
+                WHERE id=$1
+            """, user_id)
+            
+            if ai_questions > 0:
+                await conn.execute("UPDATE users SET ai_questions_used = ai_questions_used + $1 WHERE id=$2", ai_questions, user_id)
+            if pdf_uploads > 0:
+                await conn.execute("UPDATE users SET pdf_uploads_used = pdf_uploads_used + $1 WHERE id=$2", pdf_uploads, user_id)
+
+async def upgrade_user_tier(user_id: int, tier: str):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("UPDATE users SET tier=$1 WHERE id=$2", tier, user_id)
+
+async def cleanup_old_pdf_attempts():
+    """Deletes PDF quiz attempts older than 14 days to save database space."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            cutoff = (dt.datetime.now() - dt.timedelta(days=14)).isoformat(timespec="seconds")
+            await conn.execute("DELETE FROM attempts WHERE source='pdf' AND created_at < $1", cutoff)
