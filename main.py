@@ -44,7 +44,9 @@ except ImportError:
     pass
 # Paymob Config
 PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY")
-PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "5853170") 
+PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "12345")
+PAYMOB_IFRAME_ID = os.getenv("PAYMOB_IFRAME_ID", "12345") # Add this line!
+PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
 app = FastAPI(title="El-Peak API", version="4.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -52,10 +54,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 INDEX = Path(__file__).parent / "templates" / "index.html"
 
-# --- PAYMOB CONFIG ---
-PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY")
-PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "12345") # Replace with your actual Integration ID
-PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
+
 
 # --- AUTH CONFIG ---
 SECRET_KEY = os.getenv("SECRET_KEY", "el_peak_super_secret_dev_key_change_in_production")
@@ -313,7 +312,7 @@ async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get
 
         # Paymob's iframe URL. 
         # NOTE: You may need to replace PAYMOB_INTEGRATION_ID with your specific Iframe ID from Paymob dashboard.
-        iframe_url = f"https://accept.paymob.com/api/acceptance/iframes/{PAYMOB_INTEGRATION_ID}?payment_token={payment_token}"
+        iframe_url = f"https://accept.paymob.com/api/acceptance/iframes/{PAYMOB_IFRAME_ID}?payment_token={payment_token}"
         return {"checkout_url": iframe_url}
 
     except httpx.HTTPStatusError as exc:
