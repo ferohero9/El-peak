@@ -52,6 +52,11 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 INDEX = Path(__file__).parent / "templates" / "index.html"
 
+# --- PAYMOB CONFIG ---
+PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY")
+PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "12345") # Replace with your actual Integration ID
+PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
+
 # --- AUTH CONFIG ---
 SECRET_KEY = os.getenv("SECRET_KEY", "el_peak_super_secret_dev_key_change_in_production")
 ALGORITHM = "HS256"
