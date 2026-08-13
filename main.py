@@ -1,5 +1,5 @@
 """
-El-Peak — FastAPI backend v4 (Multi-User Auth, Billing, Settings).
+El-Peak — FastAPI backend v8 (Production Ready).
 """
 import io
 import os
@@ -47,20 +47,18 @@ except ImportError:
     pass
 
 # --- CONFIG ---
-app = FastAPI(title="El-Peak API", version="4.0")
+app = FastAPI(title="El-Peak API", version="8.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 INDEX = Path(__file__).parent / "templates" / "index.html"
 
-# Paymob Config
 PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY")
 PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "12345")
 PAYMOB_IFRAME_ID = os.getenv("PAYMOB_IFRAME_ID", "12345")
 PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
 
-# --- AUTH CONFIG ---
 SECRET_KEY = os.getenv("SECRET_KEY", "el_peak_super_secret_dev_key_change_in_production")
 ALGORITHM = "HS256"
 
@@ -102,7 +100,6 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         raise credentials_exception
     return {"id": user_id, "email": user_email}
 
-# --- TIER CONFIG ---
 TIER_LIMITS = {
     "free": {"ai_questions": 30, "pdf_uploads": 3},
     "plus": {"ai_questions": 500, "pdf_uploads": 50},
@@ -111,38 +108,16 @@ TIER_LIMITS = {
 
 TIER_MODELS = {
     "free": "llama-3.1-8b-instant",
-    "plus": "openai/gpt-oss-20b",       # Slightly stronger model for Plus
-    "pro": "llama-3.3-70b-versatile"    # Most powerful model for Pro
+    "plus": "openai/gpt-oss-20b",
+    "pro": "llama-3.3-70b-versatile"
 }
 
-# --- LIFECYCLE & STATIC ---
-@app.on_event("startup")
-async def startup():
-    await db.init_db()
-    if os.getenv("GROQ_API_KEY"):
-        print("✅ GROQ_API_KEY found!")
+TIER_PRICES = {"plus": 9900, "pro": 19900} # In Piasters (1 EGP = 100 Piasters)
 
-@app.get("/", include_in_schema=False)
-async def home():
-    return FileResponse(INDEX)
-
-@app.get("/manifest.json", include_in_schema=False)
-async def manifest():
-    return {
-        "name": "El-Peak Study Compass",
-        "short_name": "El-Peak",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#070710",
-        "theme_color": "#070710",
-        "icons": [
-            {
-                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 18 L7 4 L10 12 L13 6 L18 18'/%3E%3C/svg%3E",
-                "sizes": "any",
-                "type": "image/svg+xml"
-            }
-        ]
-    }
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("REDIRECT_URI", "https://el-peak-production.up.railway.app/api/auth/google/callback")
+session_serializer = URLSafeSerializer(SECRET_KEY, salt="oauth")
 
 # --- SCHEMAS ---
 class SignupIn(BaseModel):
@@ -170,15 +145,44 @@ class AskIn(BaseModel):
     history: list = []
 
 class CheckoutIn(BaseModel):
-    tier: str # Must be "plus" or "pro"
+    tier: str
 
 class SettingsIn(BaseModel):
     username: str = Field(min_length=1)
-    language: str = "en" # 'en' or 'ar'
+    language: str = "en"
 
 class PasswordIn(BaseModel):
     old_password: str
     new_password: str = Field(min_length=6)
+
+# --- LIFECYCLE & STATIC ---
+@app.on_event("startup")
+async def startup():
+    await db.init_db()
+    if os.getenv("GROQ_API_KEY"):
+        print("✅ GROQ_API_KEY found!")
+
+@app.get("/", include_in_schema=False)
+async def home():
+    return FileResponse(INDEX)
+
+@app.get("/manifest.json", include_in_schema=False)
+async def manifest():
+    return JSONResponse({
+        "name": "El-Peak Study Compass",
+        "short_name": "El-Peak",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#070710",
+        "theme_color": "#070710",
+        "icons": [
+            {
+                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 18 L7 4 L10 12 L13 6 L18 18'/%3E%3C/svg%3E",
+                "sizes": "any",
+                "type": "image/svg+xml"
+            }
+        ]
+    })
 
 # --- AUTH ROUTES ---
 @app.post("/api/auth/signup")
@@ -201,12 +205,6 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     await db.cleanup_old_pdf_attempts()
     token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
     return {"token": token, "email": user["email"]}
-
-# Google OAuth Config
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("REDIRECT_URI", "https://el-peak-production.up.railway.app/api/auth/google/callback")
-session_serializer = URLSafeSerializer(SECRET_KEY, salt="oauth")
 
 @app.get("/api/auth/google")
 async def google_login(request: Request):
@@ -279,8 +277,6 @@ async def get_usage(user: Annotated[dict, Depends(get_current_user)]):
         "pdf_used": usage["pdf_uploads_used"],
         "pdf_limit": limits["pdf_uploads"]
     }
-
-TIER_PRICES = {"plus": 9900, "pro": 19900} # In Piasters (1 EGP = 100 Piasters)
 
 @app.post("/api/payment/checkout")
 async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get_current_user)]):
@@ -475,7 +471,6 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
     
     groq_model = TIER_MODELS.get(tier, TIER_MODELS["free"])
     
-    # Fetch user settings to get language
     user_settings = await db.get_user_by_id(user["id"])
     lang = user_settings.get("language", "en") if user_settings else "en"
     lang_instruction = "Please generate the questions, options, and explanations strictly in Arabic." if lang == "ar" else "Generate in English."
