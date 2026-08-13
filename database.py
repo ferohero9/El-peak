@@ -376,3 +376,6 @@ async def update_user_password(user_id: int, hashed_pw: str):
     async with pool.acquire() as conn:
         async with conn.transaction():
             await conn.execute("UPDATE users SET password=$1 WHERE id=$2", hashed_pw, user_id)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("UPDATE users SET password=$1 WHERE id=$2", hashed_pw, user_id)
