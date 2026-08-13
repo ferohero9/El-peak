@@ -1,5 +1,5 @@
 """
-El-Peak — data layer v5 (PostgreSQL Multi-User).
+El-Peak — data layer v6 (PostgreSQL Multi-User with Transactions).
 """
 import datetime as dt
 import os
@@ -57,8 +57,6 @@ async def get_pool():
             print(f"Current URL seen by code: {db_url}")
             raise RuntimeError("Missing DATABASE_URL")
         
-        # asyncpg sometimes struggles with the ?sslmode=require query param, 
-        # so we strip it and use the ssl='require' argument instead.
         clean_url = db_url.split("?")[0]
         print(f"✅ Connecting to PostgreSQL at: {clean_url.split('@')[1] if '@' in clean_url else clean_url}")
         
@@ -86,7 +84,6 @@ def parse_dt(s: str) -> dt.datetime:
 async def init_db():
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # asyncpg requires executing statements one by one
         statements = SCHEMA.strip().split(';')
         for stmt in statements:
             if stmt.strip():
@@ -97,10 +94,11 @@ async def create_user(email: str, hashed_pw: str) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
         try:
-            row = await conn.fetchrow(
-                "INSERT INTO users(email, password, created_at) VALUES ($1, $2, $3) RETURNING id, email",
-                email, hashed_pw, now_str())
-            return dict(row) if row else None
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "INSERT INTO users(email, password, created_at) VALUES ($1, $2, $3) RETURNING id, email",
+                    email, hashed_pw, now_str())
+                return dict(row) if row else None
         except asyncpg.UniqueViolationError:
             return None
 
@@ -118,10 +116,11 @@ async def ensure_topic(user_id: int, name: str, subject: str = "General") -> dic
         row = await conn.fetchrow("SELECT * FROM topics WHERE user_id=$1 AND lower(name)=lower($2)", user_id, name)
         if row:
             return dict(row)
-        row = await conn.fetchrow(
-            "INSERT INTO topics(user_id, name, subject, score, attempts, updated_at) VALUES ($1, $2, $3, 50.0, 0, $4) RETURNING *",
-            user_id, name, subject, now_str())
-        return dict(row) if row else None
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "INSERT INTO topics(user_id, name, subject, score, attempts, updated_at) VALUES ($1, $2, $3, 50.0, 0, $4) RETURNING *",
+                user_id, name, subject, now_str())
+            return dict(row) if row else None
 
 async def get_topics(user_id: int) -> list[dict]:
     pool = await get_pool()
@@ -139,12 +138,13 @@ async def record_attempt(user_id: int, topic_name: str, correct: int, total: int
     
     pool = await get_pool()
     async with pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE topics SET score=$1, attempts=attempts+1, updated_at=$2 WHERE id=$3",
-            new, now_str(), topic["id"])
-        await conn.execute(
-            "INSERT INTO attempts(user_id, topic_id, correct, total, pct, source, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            user_id, topic["id"], correct, total, pct, source, now_str())
+        async with conn.transaction():
+            await conn.execute(
+                "UPDATE topics SET score=$1, attempts=attempts+1, updated_at=$2 WHERE id=$3",
+                new, now_str(), topic["id"])
+            await conn.execute(
+                "INSERT INTO attempts(user_id, topic_id, correct, total, pct, source, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                user_id, topic["id"], correct, total, pct, source, now_str())
     return {"name": topic["name"], "old": old, "new": new, "delta": round(new - old, 1), "pct": pct}
 
 async def recent_attempts(user_id: int, limit: int = 20) -> list[dict]:
@@ -185,7 +185,6 @@ async def get_stats(user_id: int) -> dict:
         week_ago = (dt.datetime.now() - dt.timedelta(days=7)).isoformat(timespec="seconds")
         attempts_7d = await conn.fetchval("SELECT COUNT(*) FROM attempts WHERE user_id=$1 AND created_at >= $2", user_id, week_ago)
         
-        # PostgreSQL AVG returns a Decimal, so we must cast it to float
         avg_pct_val = await conn.fetchval("SELECT AVG(pct) FROM attempts WHERE user_id=$1", user_id)
         avg_pct = float(avg_pct_val) if avg_pct_val is not None else 0.0
         
@@ -193,7 +192,6 @@ async def get_stats(user_id: int) -> dict:
         best = max(topics, key=lambda t: t["score"]) if topics else None
         weak = [t for t in topics if t["score"] < 60]
         
-        # Use SUBSTR to get the date string consistently in Postgres
         days_set = {r["d"] for r in await conn.fetch("SELECT DISTINCT SUBSTR(created_at, 1, 10) d FROM attempts WHERE user_id=$1", user_id)}
         streak, day = 0, dt.date.today()
         if day.isoformat() not in days_set:
@@ -216,22 +214,25 @@ async def add_task(user_id: int, title: str, topic: str | None, deadline: str) -
         await ensure_topic(user_id, topic)
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "INSERT INTO tasks(user_id, title, topic, deadline, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-            user_id, title.strip(), topic or None, deadline, now_str())
-        return dict(row) if row else None
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "INSERT INTO tasks(user_id, title, topic, deadline, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+                user_id, title.strip(), topic or None, deadline, now_str())
+            return dict(row) if row else None
 
 async def toggle_task(user_id: int, task_id: int) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
-        await conn.execute("UPDATE tasks SET done = 1 - done WHERE id=$1 AND user_id=$2", task_id, user_id)
-        row = await conn.fetchrow("SELECT * FROM tasks WHERE id=$1 AND user_id=$2", task_id, user_id)
-        return dict(row) if row else {}
+        async with conn.transaction():
+            await conn.execute("UPDATE tasks SET done = 1 - done WHERE id=$1 AND user_id=$2", task_id, user_id)
+            row = await conn.fetchrow("SELECT * FROM tasks WHERE id=$1 AND user_id=$2", task_id, user_id)
+            return dict(row) if row else {}
 
 async def delete_task(user_id: int, task_id: int):
     pool = await get_pool()
     async with pool.acquire() as conn:
-        await conn.execute("DELETE FROM tasks WHERE id=$1 AND user_id=$2", task_id, user_id)
+        async with conn.transaction():
+            await conn.execute("DELETE FROM tasks WHERE id=$1 AND user_id=$2", task_id, user_id)
 
 async def get_schedule(user_id: int) -> dict:
     now = dt.datetime.now()
