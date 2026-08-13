@@ -112,7 +112,7 @@ TIER_MODELS = {
     "pro": "llama-3.3-70b-versatile"
 }
 
-TIER_PRICES = {"plus": 9900, "pro": 19900} # In Piasters (1 EGP = 100 Piasters)
+TIER_PRICES = {"plus": 9900, "pro": 19900}
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -148,7 +148,7 @@ class CheckoutIn(BaseModel):
     tier: str
 
 class SettingsIn(BaseModel):
-    username: str = Field(min_length=1)
+    username: str | None = None  # Fixed: Allow empty username to prevent 422 errors
     language: str = "en"
 
 class PasswordIn(BaseModel):
@@ -251,7 +251,7 @@ async def get_settings(user: Annotated[dict, Depends(get_current_user)]):
 
 @app.put("/api/user/settings")
 async def update_settings(payload: SettingsIn, user: Annotated[dict, Depends(get_current_user)]):
-    await db.update_user_settings(user["id"], payload.username, payload.language)
+    await db.update_user_settings(user["id"], payload.username or "", payload.language)
     return {"status": "success"}
 
 @app.put("/api/user/password")
