@@ -332,9 +332,10 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
       <a href="#" data-view="scheduler" data-i18n="scheduler">Scheduler</a>
       <a href="#" data-view="coach" data-i18n="coach">Coach</a>
       <a href="#" data-view="profile" data-i18n="profile">Profile</a>
-      <a href="#" data-view="settings" data-i18n="settings">Settings</a>
+      
     </div>
     <div class="navright">
+      <button class="iconbtn" id="navSettingsBtn" title="Settings">⚙</button>
       <div class="chip"><span class="flame">▲</span><span id="streakChip">0 days</span></div>
       <button class="iconbtn" id="themeBtn" title="Toggle theme">◐</button>
       <button class="iconbtn logout" id="logoutBtn" title="Log out">⏻</button>
@@ -612,10 +613,9 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
   <div class="mobilenav">
     <a href="#" data-view="dashboard" class="active" data-i18n="home">Home</a>
     <a href="#" data-view="quiz" data-i18n="quiz">Quiz</a>
-    <a href="#" data-view="scheduler" data-i18n="plan">Plan</a>
     <a href="#" data-view="coach" data-i18n="coach">Coach</a>
     <a href="#" data-view="profile" data-i18n="profile">Profile</a>
-    <a href="#" data-view="settings" data-i18n="settings">Settings</a>
+    <a href="#" data-view="settings" title="Settings">⚙</a>
   </div>
   <footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
 </div>
@@ -898,7 +898,8 @@ function go(v){
  $$("[data-view]").forEach(a => {
   a.onclick = e => { e.preventDefault(); go(a.dataset.view); };
 });
-
+// Attach click handler for the new settings icon
+$("#navSettingsBtn").onclick = () => go("settings");
 window.addEventListener('load', () => { const activeLink = $(".navlinks a.active"); if(activeLink) moveSlider(activeLink); });
 window.addEventListener('resize', () => { const activeLink = $(".navlinks a.active"); if(activeLink) moveSlider(activeLink); });
 
