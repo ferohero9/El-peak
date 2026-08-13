@@ -87,7 +87,7 @@ def parse_dt(s: str) -> dt.datetime:
 async def init_db():
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # 1. Create tables if they don't exist
+        # Create tables if they don't exist
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -128,7 +128,7 @@ async def init_db():
             );
         """)
         
-        # 2. Safely add new columns for v4/v7 updates (Paywall & Multi-user)
+        # Safely add new columns for v4/v7 updates (Paywall & Multi-user)
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free'")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_questions_used INTEGER DEFAULT 0")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS pdf_uploads_used INTEGER DEFAULT 0")
@@ -138,8 +138,11 @@ async def init_db():
         await conn.execute("ALTER TABLE attempts ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
         await conn.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
         
+        # Safely add new columns for Settings (v8)
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'")
+        
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at)")
-
 # ---------------------------------------------------------------- AUTH
 async def create_user(email: str, hashed_pw: str) -> dict:
     pool = await get_pool()
@@ -355,3 +358,21 @@ async def cleanup_old_pdf_attempts():
         async with conn.transaction():
             cutoff = (dt.datetime.now() - dt.timedelta(days=14)).isoformat(timespec="seconds")
             await conn.execute("DELETE FROM attempts WHERE source='pdf' AND created_at < $1", cutoff)
+# ---------------------------------------------------------------- SETTINGS
+async def get_user_by_id(user_id: int) -> dict:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT id, email, username, language FROM users WHERE id=$1", user_id)
+        return dict(row) if row else None
+
+async def update_user_settings(user_id: int, username: str, language: str):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("UPDATE users SET username=$1, language=$2 WHERE id=$3", username, language, user_id)
+
+async def update_user_password(user_id: int, hashed_pw: str):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("UPDATE users SET password=$1 WHERE id=$2", hashed_pw, user_id)
