@@ -158,7 +158,7 @@ async def heatmap(user_id: int, days: int = 84) -> list[dict]:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT date(created_at) d, COUNT(*) n FROM attempts "
+            "SELECT SUBSTR(created_at, 1, 10) d, COUNT(*) n FROM attempts "
             "WHERE user_id=$1 AND created_at >= $2 GROUP BY d", user_id, start.isoformat())
         for row in rows:
             key = dt.date.fromisoformat(row["d"])
@@ -180,12 +180,17 @@ async def get_stats(user_id: int) -> dict:
             
         week_ago = (dt.datetime.now() - dt.timedelta(days=7)).isoformat(timespec="seconds")
         attempts_7d = await conn.fetchval("SELECT COUNT(*) FROM attempts WHERE user_id=$1 AND created_at >= $2", user_id, week_ago)
-        avg_pct = await conn.fetchval("SELECT AVG(pct) FROM attempts WHERE user_id=$1", user_id) or 0.0
+        
+        # PostgreSQL AVG returns a Decimal, so we must cast it to float
+        avg_pct_val = await conn.fetchval("SELECT AVG(pct) FROM attempts WHERE user_id=$1", user_id)
+        avg_pct = float(avg_pct_val) if avg_pct_val is not None else 0.0
+        
         peak = int(round(min(100, max(0, 0.75 * w_avg + 0.25 * min(1.0, attempts_7d / 8) * 100))))
         best = max(topics, key=lambda t: t["score"]) if topics else None
         weak = [t for t in topics if t["score"] < 60]
         
-        days_set = {r["d"] for r in await conn.fetch("SELECT DISTINCT date(created_at) d FROM attempts WHERE user_id=$1", user_id)}
+        # Use SUBSTR to get the date string consistently in Postgres
+        days_set = {r["d"] for r in await conn.fetch("SELECT DISTINCT SUBSTR(created_at, 1, 10) d FROM attempts WHERE user_id=$1", user_id)}
         streak, day = 0, dt.date.today()
         if day.isoformat() not in days_set:
             day -= dt.timedelta(days=1)
