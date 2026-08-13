@@ -21,6 +21,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, EmailStr
 import jwt
 import bcrypt
+import secrets
+from itsdangerous import URLSafeSerializer
 
 import database as db
 
