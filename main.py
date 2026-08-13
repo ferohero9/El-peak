@@ -14,9 +14,10 @@ import httpx
 import pymupdf as fitz
 import pytesseract
 from PIL import Image
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Depends, status
+import fastapi
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Depends, status, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, EmailStr
 import jwt
@@ -150,7 +151,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     return {"token": token, "email": user["email"]}
 
 @app.get("/api/auth/google")
-async def google_login(request: fastapi.Request):
+async def google_login(request: Request):
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(500, "Google OAuth not configured")
     
@@ -164,7 +165,7 @@ async def google_login(request: fastapi.Request):
     return {"auth_url": auth_url, "state": state}
 
 @app.get("/api/auth/google/callback")
-async def google_callback(request: fastapi.Request, code: str, state: str):
+async def google_callback(request: Request, code: str, state: str):
     # Exchange code for token
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
@@ -206,9 +207,7 @@ async def google_callback(request: fastapi.Request, code: str, state: str):
     jwt_token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
     
     # Redirect to frontend with token in URL
-    return fastapi.responses.RedirectResponse(
-        url=f"/?token={jwt_token}"
-    )
+    return RedirectResponse(url=f"/?token={jwt_token}")
 
 # ================================================================ Schemas
 class SubmitIn(BaseModel):
