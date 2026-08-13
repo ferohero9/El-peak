@@ -97,6 +97,28 @@ async def recent(limit: int = 20): return await db.recent_attempts(limit)
 @app.get("/api/heatmap")
 async def heatmap(): return await db.heatmap()
 
+@app.get("/manifest.json", include_in_schema=False)
+async def manifest():
+    return JSONResponse({
+        "name": "El-Peak Study Compass",
+        "short_name": "El-Peak",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#070710",
+        "theme_color": "#070710",
+        "icons": [
+            {
+                "src": "https://api.iconify.design/fluent/flash-24-filled.png?color=%236366f1",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "https://api.iconify.design/fluent/flash-24-filled.png?color=%236366f1",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    })
 # ================================================================ quiz engine
 STATIC_QUIZZES = {
     "Mathematics": [
