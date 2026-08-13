@@ -699,7 +699,12 @@ if (googleToken) {
     window.history.replaceState({}, document.title, "/");
     showApp();
 }
-
+// Check for simulated upgrade success
+if (urlParams.get('upgraded') === 'true') {
+    window.history.replaceState({}, document.title, "/");
+    toast("🎉 Successfully upgraded your account!");
+    loadDashboard();
+}
  $("#logoutBtn").onclick = () => logout();
 
 function moveSlider(activeLink) {
