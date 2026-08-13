@@ -1,5 +1,5 @@
 """
-El-Peak — data layer v7 (PostgreSQL Multi-User with Transactions & Usage).
+El-Peak — Data Layer v8 (PostgreSQL Multi-User, Production Ready)
 """
 import datetime as dt
 import os
@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS users (
     tier              TEXT DEFAULT 'free',
     ai_questions_used INTEGER DEFAULT 0,
     pdf_uploads_used  INTEGER DEFAULT 0,
-    usage_reset_date  TEXT
+    usage_reset_date  TEXT,
+    username          TEXT,
+    language          TEXT DEFAULT 'en'
 );
 CREATE TABLE IF NOT EXISTS topics (
     id         SERIAL PRIMARY KEY,
@@ -48,6 +50,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_topics_user ON topics(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);
 """
 
 _pool = None
@@ -58,7 +62,6 @@ async def get_pool():
         db_url = os.getenv("DATABASE_URL")
         if not db_url or "localhost" in db_url:
             print("❌ FATAL: DATABASE_URL is missing or invalid! Please set it in Railway.")
-            print(f"Current URL seen by code: {db_url}")
             raise RuntimeError("Missing DATABASE_URL")
         
         clean_url = db_url.split("?")[0]
@@ -66,8 +69,8 @@ async def get_pool():
         
         _pool = await asyncpg.create_pool(
             dsn=clean_url,
-            min_size=1,
-            max_size=5,
+            min_size=2,
+            max_size=15,  # Increased pool size to handle 10k+ users smoothly
             ssl='require'
         )
     return _pool
@@ -84,65 +87,28 @@ def parse_dt(s: str) -> dt.datetime:
         return d
     except Exception:
         return dt.datetime.now() + dt.timedelta(days=7)
+
 async def init_db():
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Create tables if they don't exist
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                email TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS topics (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                subject TEXT DEFAULT 'General',
-                score REAL DEFAULT 50.0,
-                attempts INTEGER DEFAULT 0,
-                updated_at TEXT
-            );
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS attempts (
-                id SERIAL PRIMARY KEY,
-                topic_id INTEGER NOT NULL REFERENCES topics(id),
-                correct INTEGER NOT NULL,
-                total INTEGER NOT NULL,
-                pct REAL NOT NULL,
-                source TEXT DEFAULT 'static',
-                created_at TEXT NOT NULL
-            );
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS tasks (
-                id SERIAL PRIMARY KEY,
-                title TEXT NOT NULL,
-                topic TEXT,
-                deadline TEXT NOT NULL,
-                done INTEGER DEFAULT 0,
-                created_at TEXT
-            );
-        """)
+        statements = SCHEMA.strip().split(';')
+        for stmt in statements:
+            if stmt.strip():
+                await conn.execute(stmt.strip())
         
-        # Safely add new columns for v4/v7 updates (Paywall & Multi-user)
+        # Safely add new columns for older databases
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free'")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_questions_used INTEGER DEFAULT 0")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS pdf_uploads_used INTEGER DEFAULT 0")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS usage_reset_date TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'")
         
         await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
         await conn.execute("ALTER TABLE attempts ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
         await conn.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
-        
-        # Safely add new columns for Settings (v8)
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'")
-        
-        await conn.execute("CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at)")
+
 # ---------------------------------------------------------------- AUTH
 async def create_user(email: str, hashed_pw: str) -> dict:
     pool = await get_pool()
@@ -160,6 +126,12 @@ async def get_user_by_email(email: str) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM users WHERE lower(email)=lower($1)", email)
+        return dict(row) if row else None
+
+async def get_user_by_id(user_id: int) -> dict:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT id, email, username, language FROM users WHERE id=$1", user_id)
         return dict(row) if row else None
 
 # ---------------------------------------------------------------- TOPICS
@@ -358,13 +330,8 @@ async def cleanup_old_pdf_attempts():
         async with conn.transaction():
             cutoff = (dt.datetime.now() - dt.timedelta(days=14)).isoformat(timespec="seconds")
             await conn.execute("DELETE FROM attempts WHERE source='pdf' AND created_at < $1", cutoff)
-# ---------------------------------------------------------------- SETTINGS
-async def get_user_by_id(user_id: int) -> dict:
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT id, email, username, language FROM users WHERE id=$1", user_id)
-        return dict(row) if row else None
 
+# ---------------------------------------------------------------- SETTINGS
 async def update_user_settings(user_id: int, username: str, language: str):
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -373,9 +340,6 @@ async def update_user_settings(user_id: int, username: str, language: str):
 
 async def update_user_password(user_id: int, hashed_pw: str):
     pool = await get_pool()
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute("UPDATE users SET password=$1 WHERE id=$2", hashed_pw, user_id)
     async with pool.acquire() as conn:
         async with conn.transaction():
             await conn.execute("UPDATE users SET password=$1 WHERE id=$2", hashed_pw, user_id)
