@@ -112,12 +112,6 @@ async def manifest():
                 "sizes": "any",
                 "type": "image/svg+xml"
             }
-        ],
-            {
-                "src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/26a1.svg",
-                "sizes": "512x512",
-                "type": "image/svg+xml"
-            }
         ]
     }
 # ================================================================ quiz engine
