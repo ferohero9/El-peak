@@ -42,7 +42,9 @@ try:
         load_dotenv(dotenv_path=env_path)
 except ImportError:
     pass
-
+# Paymob Config
+PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY")
+PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "5853170") 
 app = FastAPI(title="El-Peak API", version="4.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -236,6 +238,147 @@ async def get_usage(user: Annotated[dict, Depends(get_current_user)]):
         "pdf_used": usage["pdf_uploads_used"],
         "pdf_limit": limits["pdf_uploads"]
     }
+
+class CheckoutIn(BaseModel):
+    tier: str # Must be "plus" or "pro"
+
+# Pricing in Piasters (1 EGP = 100 Piasters)
+TIER_PRICES = {
+    "plus": 9900,  # 99 EGP
+    "pro": 19900   # 199 EGP
+}
+
+@app.post("/api/payment/checkout")
+async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get_current_user)]):
+    if payload.tier not in TIER_PRICES:
+        raise HTTPException(400, "Invalid tier selected")
+    
+    if not PAYMOB_API_KEY:
+        raise HTTPException(500, "Payment gateway not configured")
+
+    amount = TIER_PRICES[payload.tier]
+    # We hide the user_id and tier in the merchant_order_id so the webhook knows who to upgrade!
+    merchant_order_id = f"user_{user['id']}_{payload.tier}"
+
+    async with httpx.AsyncClient() as client:
+        # 1. Authenticate with Paymob
+        auth_resp = await client.post(
+            "https://accept.paymob.com/api/auth/tokens",
+            json={"api_key": PAYMOB_API_KEY}
+        )
+        auth_resp.raise_for_status()
+        auth_token = auth_resp.json().get("token")
+        if not auth_token:
+            raise HTTPException(500, "Failed to authenticate with Paymob")
+
+        # 2. Register Order
+        order_resp = await client.post(
+            "https://accept.paymob.com/api/ecommerce/orders",
+            json={
+                "auth_token": auth_token,
+                "delivery_needed": "false",
+                "amount_cents": amount,
+                "currency": "EGP",
+                "merchant_order_id": merchant_order_id,
+                "items": []
+            }
+        )
+        order_resp.raise_for_status()
+        paymob_order_id = order_resp.json().get("id")
+
+        # 3. Generate Payment Key
+        payment_key_resp = await client.post(
+            "https://accept.paymob.com/api/acceptance/payment_keys",
+            json={
+                "auth_token": auth_token,
+                "amount_cents": amount,
+                "expiration": 3600,
+                "order_id": paymob_order_id,
+                "billing_data": {
+                    "apartment": "NA", "email": user["email"], "floor": "NA",
+                    "first_name": "El-Peak", "street": "NA", "building": "NA",
+                    "phone_number": "01000000000", "shipping_method": "NA",
+                    "postal_code": "NA", "city": "Cairo", "country": "EG",
+                    "last_name": "User", "state": "NA"
+                },
+                "currency": "EGP",
+                "integration_id": int(PAYMOB_INTEGRATION_ID)
+            }
+        )
+        payment_key_resp.raise_for_status()
+        payment_token = payment_key_resp.json().get("token")
+
+    if not payment_token:
+        raise HTTPException(500, "Failed to generate payment key")
+
+    # Return the URL the frontend should redirect the user to
+    iframe_url = f"https://accept.paymob.com/api/acceptance/iframes/{PAYMOB_INTEGRATION_ID}?payment_token={payment_token}"
+    
+    # Note: Paymob's standard iframe URL format is usually:
+    # https://accept.paymob.com/api/acceptance/iframes/{IFRAME_ID}?payment_token={TOKEN}
+    # If you have a specific iframe ID from your Paymob dashboard, replace PAYMOB_INTEGRATION_ID in the URL above with it.
+    
+    return {"checkout_url": iframe_url}
+
+import hmac
+import hashlib
+
+@app.post("/api/payment/webhook")
+async def payment_webhook(request: fastapi.Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid payload")
+
+    # --- CRITICAL: HMAC Security Verification ---
+    hmac_secret = os.getenv("PAYMOB_HMAC_SECRET", "")
+    if hmac_secret:
+        req_hmac = request.headers.get("X-PAYMOB-HMAC", "")
+        # Paymob sends the HMAC in a specific concatenated format
+        obj = payload.get("obj", {})
+        concat = "".join([
+            str(obj.get("amount_cents", "")),
+            str(obj.get("created_at", "")),
+            str(obj.get("currency", "")),
+            str(obj.get("error_occured", "")),
+            str(obj.get("has_parent_transaction", "")),
+            str(obj.get("id", "")),
+            str(obj.get("integration_id", "")),
+            str(obj.get("is_hmac_authenticated", "")),
+            str(obj.get("is_auth", "")),
+            str(obj.get("is_capture", "")),
+            str(obj.get("is_refunded", "")),
+            str(obj.get("is_standalone_payment", "")),
+            str(obj.get("is_voided", "")),
+            str(obj.get("order", {}).get("id", "")),
+            str(obj.get("owner", "")),
+            str(obj.get("pending", "")),
+            str(obj.get("source_data", {}).get("pan", "")),
+            str(obj.get("source_data", {}).get("sub_type", "")),
+            str(obj.get("source_data", {}).get("type", "")),
+            str(obj.get("success", ""))
+        ])
+        calculated_hmac = hmac.new(hmac_secret.encode('utf-8'), concat.encode('utf-8'), hashlib.sha512).hexdigest()
+        
+        if calculated_hmac != req_hmac:
+            print("❌ Paymob HMAC Verification Failed!")
+            raise HTTPException(403, "Invalid HMAC signature")
+
+    # --- Process Successful Payment ---
+    if payload.get("success") == "true" or payload.get("obj", {}).get("success") == "true":
+        obj = payload.get("obj", {})
+        order_obj = obj.get("order", {})
+        merchant_order_id = order_obj.get("merchant_order_id", "")
+        
+        parts = merchant_order_id.split("_")
+        if len(parts) == 3:
+            user_id = int(parts[1])
+            tier = parts[2]
+            print(f"✅ Upgrading User {user_id} to {tier}!")
+            await db.upgrade_user_tier(user_id, tier)
+            return {"status": "success"}
+            
+    return {"status": "ignored"}
 # ================================================================ Schemas
 class SubmitIn(BaseModel):
     topic_name: str = Field(min_length=1)
