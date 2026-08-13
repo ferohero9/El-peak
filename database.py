@@ -84,14 +84,61 @@ def parse_dt(s: str) -> dt.datetime:
         return d
     except Exception:
         return dt.datetime.now() + dt.timedelta(days=7)
-
 async def init_db():
     pool = await get_pool()
     async with pool.acquire() as conn:
-        statements = SCHEMA.strip().split(';')
-        for stmt in statements:
-            if stmt.strip():
-                await conn.execute(stmt.strip())
+        # 1. Create tables if they don't exist
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS topics (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                subject TEXT DEFAULT 'General',
+                score REAL DEFAULT 50.0,
+                attempts INTEGER DEFAULT 0,
+                updated_at TEXT
+            );
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS attempts (
+                id SERIAL PRIMARY KEY,
+                topic_id INTEGER NOT NULL REFERENCES topics(id),
+                correct INTEGER NOT NULL,
+                total INTEGER NOT NULL,
+                pct REAL NOT NULL,
+                source TEXT DEFAULT 'static',
+                created_at TEXT NOT NULL
+            );
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                topic TEXT,
+                deadline TEXT NOT NULL,
+                done INTEGER DEFAULT 0,
+                created_at TEXT
+            );
+        """)
+        
+        # 2. Safely add new columns for v4/v7 updates (Paywall & Multi-user)
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free'")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_questions_used INTEGER DEFAULT 0")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS pdf_uploads_used INTEGER DEFAULT 0")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS usage_reset_date TEXT")
+        
+        await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
+        await conn.execute("ALTER TABLE attempts ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
+        await conn.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
+        
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at)")
 
 # ---------------------------------------------------------------- AUTH
 async def create_user(email: str, hashed_pw: str) -> dict:
