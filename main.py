@@ -265,7 +265,8 @@ async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get
         return {"checkout_url": "/?upgraded=true"} # Redirects back to dashboard
 
     amount = TIER_PRICES[payload.tier]
-    merchant_order_id = f"user_{user['id']}_{payload.tier}"
+    import time
+    merchant_order_id = f"user_{user['id']}_{payload.tier}_{int(time.time())}"
 
     try:
         async with httpx.AsyncClient() as client:
@@ -374,9 +375,10 @@ async def payment_webhook(request: fastapi.Request):
         merchant_order_id = order_obj.get("merchant_order_id", "")
         
         parts = merchant_order_id.split("_")
-        if len(parts) == 3:
+        # Format is now: user_ID_TIER_TIMESTAMP (length 4)
+        if len(parts) >= 3:
             user_id = int(parts[1])
-            tier = parts[2]
+            tier = parts[2] # This will safely grab 'plus' or 'pro'
             print(f"✅ Upgrading User {user_id} to {tier}!")
             await db.upgrade_user_tier(user_id, tier)
             return {"status": "success"}
