@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, EmailStr
 import jwt
-from passlib.context import CryptContext
+import bcrypt
 
 import database as db
 
@@ -50,7 +50,15 @@ INDEX = Path(__file__).parent / "templates" / "index.html"
 # --- AUTH CONFIG ---
 SECRET_KEY = os.getenv("SECRET_KEY", "el_peak_super_secret_dev_key_change_in_production")
 ALGORITHM = "HS256"
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def hash_password(password: str) -> str:
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    pwd_bytes = plain_password.encode('utf-8')
+    hashed_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(pwd_bytes, hashed_bytes)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def create_access_token(data: dict):
@@ -116,7 +124,7 @@ async def signup(payload: SignupIn):
     existing = await db.get_user_by_email(payload.email)
     if existing:
         raise HTTPException(400, "Email already registered")
-    hashed_pw = pwd_context.hash(payload.password)
+    hashed_pw = hash_password(payload.password)  # <-- Changed this
     user = await db.create_user(payload.email, hashed_pw)
     if not user:
         raise HTTPException(500, "Failed to create user")
@@ -126,7 +134,7 @@ async def signup(payload: SignupIn):
 @app.post("/api/auth/login")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await db.get_user_by_email(form_data.username)
-    if not user or not pwd_context.verify(form_data.password, user["password"]):
+    if not user or not verify_password(form_data.password, user["password"]):  # <-- Changed this
         raise HTTPException(401, "Incorrect email or password")
     token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
     return {"token": token, "email": user["email"]}
