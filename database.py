@@ -86,7 +86,11 @@ def parse_dt(s: str) -> dt.datetime:
 async def init_db():
     pool = await get_pool()
     async with pool.acquire() as conn:
-        await conn.execute(SCHEMA)
+        # asyncpg requires executing statements one by one
+        statements = SCHEMA.strip().split(';')
+        for stmt in statements:
+            if stmt.strip():
+                await conn.execute(stmt.strip())
 
 # ---------------------------------------------------------------- AUTH
 async def create_user(email: str, hashed_pw: str) -> dict:
