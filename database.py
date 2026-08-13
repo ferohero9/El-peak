@@ -51,9 +51,19 @@ _pool = None
 async def get_pool():
     global _pool
     if _pool is None:
-        # We pass the URL, and explicitly tell asyncpg to require SSL
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url or "localhost" in db_url:
+            print("❌ FATAL: DATABASE_URL is missing or invalid! Please set it in Railway.")
+            print(f"Current URL seen by code: {db_url}")
+            raise RuntimeError("Missing DATABASE_URL")
+        
+        # asyncpg sometimes struggles with the ?sslmode=require query param, 
+        # so we strip it and use the ssl='require' argument instead.
+        clean_url = db_url.split("?")[0]
+        print(f"✅ Connecting to PostgreSQL at: {clean_url.split('@')[1] if '@' in clean_url else clean_url}")
+        
         _pool = await asyncpg.create_pool(
-            dsn=DATABASE_URL,
+            dsn=clean_url,
             min_size=1,
             max_size=5,
             ssl='require'
