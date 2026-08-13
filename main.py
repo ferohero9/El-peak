@@ -75,9 +75,11 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
             raise credentials_exception
+        # Cast the string to an integer for PostgreSQL
+        user_id = int(user_id_str)
     except jwt.PyJWTError:
         raise credentials_exception
     
