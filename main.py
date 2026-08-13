@@ -1,101 +1,92 @@
 """
-El-Peak — FastAPI backend v3.
-REST endpoints + Groq (llama-3.3-70b-versatile): AI quizzes, PDF-to-quiz,
-AI coach, AI Tutor Chat, with OCR fallback and heuristic fallbacks.
+El-Peak — FastAPI backend v4 (Multi-User Auth).
 """
 import io
-import json
 import os
 import random
 import re
+import json
+import datetime as dt
 from pathlib import Path
+from typing import Annotated
 
 import httpx
-import pymupdf as fitz  # PyMuPDF
+import pymupdf as fitz
 import pytesseract
 from PIL import Image
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel, Field, EmailStr
+import jwt
+from passlib.context import CryptContext
 
 import database as db
 
-# Safe imports for PDF/OCR
 try:
-    import fitz  # PyMuPDF
+    import fitz
     import pytesseract
     from PIL import Image
     PDF_OCR_ENABLED = True
 except ImportError:
-    print("⚠️ Warning: PyMuPDF/pytesseract/Pillow not installed. PDF features disabled.")
     PDF_OCR_ENABLED = False
 
-# Load .env file safely
 env_path = Path(__file__).parent / "key.env"
 try:
     from dotenv import load_dotenv
     if env_path.exists():
         load_dotenv(dotenv_path=env_path)
-        print("✅ key.env file found and loaded successfully.")
-    else:
-        print("❌ key.env file NOT found! I am looking for it here:", env_path)
 except ImportError:
-    print("❌ python-dotenv not installed! Run: pip install python-dotenv")
+    pass
 
-app = FastAPI(title="El-Peak API", version="3.0")
+app = FastAPI(title="El-Peak API", version="4.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-
 INDEX = Path(__file__).parent / "templates" / "index.html"
+
+# --- AUTH CONFIG ---
+SECRET_KEY = os.getenv("SECRET_KEY", "el_peak_super_secret_dev_key_change_in_production")
+ALGORITHM = "HS256"
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = dt.datetime.utcnow() + dt.timedelta(days=30)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except jwt.PyJWTError:
+        raise credentials_exception
+    
+    user_email = payload.get("email")
+    if user_id is None or user_email is None:
+        raise credentials_exception
+    return {"id": user_id, "email": user_email}
 
 @app.on_event("startup")
 async def startup():
     await db.init_db()
     if os.getenv("GROQ_API_KEY"):
-        print("✅ GROQ_API_KEY found in environment!")
-    else:
-        print("❌ GROQ_API_KEY NOT found! Make sure your .env file has a line like: GROQ_API_KEY=gsk_...")
+        print("✅ GROQ_API_KEY found!")
 
 @app.get("/", include_in_schema=False)
 async def home():
     return FileResponse(INDEX)
-
-# ================================================================ schemas
-class SubmitIn(BaseModel):
-    topic_name: str = Field(min_length=1)
-    correct: int = Field(ge=0)
-    total: int = Field(ge=1)
-    source: str = "static"
-
-class AIQuizIn(BaseModel):
-    topic: str = Field(min_length=1)
-    num_questions: int = Field(default=4, ge=1, le=30)  # Updated to allow 1-30
-    difficulty: str = "mixed"
-
-class TaskIn(BaseModel):
-    title: str = Field(min_length=1)
-    topic: str | None = None
-    deadline: str = Field(min_length=10)
-
-class AskIn(BaseModel):
-    question: str = Field(min_length=1)
-    history: list = []
-
-# ================================================================ dashboard
-@app.get("/api/stats")
-async def stats(): return await db.get_stats()
-
-@app.get("/api/topics")
-async def topics(): return await db.get_topics()
-
-@app.get("/api/recent")
-async def recent(limit: int = 20): return await db.recent_attempts(limit)
-
-@app.get("/api/heatmap")
-async def heatmap(): return await db.heatmap()
 
 @app.get("/manifest.json", include_in_schema=False)
 async def manifest():
@@ -114,7 +105,71 @@ async def manifest():
             }
         ]
     }
-# ================================================================ quiz engine
+
+# ================================================================ AUTH ROUTES
+class SignupIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6)
+
+@app.post("/api/auth/signup")
+async def signup(payload: SignupIn):
+    existing = await db.get_user_by_email(payload.email)
+    if existing:
+        raise HTTPException(400, "Email already registered")
+    hashed_pw = pwd_context.hash(payload.password)
+    user = await db.create_user(payload.email, hashed_pw)
+    if not user:
+        raise HTTPException(500, "Failed to create user")
+    token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
+    return {"token": token, "email": user["email"]}
+
+@app.post("/api/auth/login")
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    user = await db.get_user_by_email(form_data.username)
+    if not user or not pwd_context.verify(form_data.password, user["password"]):
+        raise HTTPException(401, "Incorrect email or password")
+    token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
+    return {"token": token, "email": user["email"]}
+
+# ================================================================ Schemas
+class SubmitIn(BaseModel):
+    topic_name: str = Field(min_length=1)
+    correct: int = Field(ge=0)
+    total: int = Field(ge=1)
+    source: str = "static"
+
+class AIQuizIn(BaseModel):
+    topic: str = Field(min_length=1)
+    num_questions: int = Field(default=4, ge=1, le=30)
+    difficulty: str = "mixed"
+
+class TaskIn(BaseModel):
+    title: str = Field(min_length=1)
+    topic: str | None = None
+    deadline: str = Field(min_length=10)
+
+class AskIn(BaseModel):
+    question: str = Field(min_length=1)
+    history: list = []
+
+# ================================================================ Dashboard
+@app.get("/api/stats")
+async def stats(user: Annotated[dict, Depends(get_current_user)]):
+    return await db.get_stats(user["id"])
+
+@app.get("/api/topics")
+async def topics(user: Annotated[dict, Depends(get_current_user)]):
+    return await db.get_topics(user["id"])
+
+@app.get("/api/recent")
+async def recent(user: Annotated[dict, Depends(get_current_user)], limit: int = 20):
+    return await db.recent_attempts(user["id"], limit)
+
+@app.get("/api/heatmap")
+async def heatmap(user: Annotated[dict, Depends(get_current_user)]):
+    return await db.heatmap(user["id"])
+
+# ================================================================ Quiz Engine
 STATIC_QUIZZES = {
     "Mathematics": [
         {"question": "What is the derivative of x³?", "options": ["3x²", "x²", "3x", "x³/3"], "answer_index": 0, "explanation": "Power rule: d/dx(xⁿ) = n·xⁿ⁻¹, so 3·x²."},
@@ -124,32 +179,32 @@ STATIC_QUIZZES = {
         {"question": "Slope of the tangent to y = x² at x = 2?", "options": ["4", "2", "8", "1"], "answer_index": 0, "explanation": "dy/dx = 2x; at x=2 the slope is 4."},
     ],
     "Physics": [
-        {"question": "The SI unit of force is the…", "options": ["Newton", "Joule", "Watt", "Pascal"], "answer_index": 0, "explanation": "1 N = 1 kg·m/s². Joule is energy, Watt power, Pascal pressure."},
+        {"question": "The SI unit of force is the…", "options": ["Newton", "Joule", "Watt", "Pascal"], "answer_index": 0, "explanation": "1 N = 1 kg·m/s²."},
         {"question": "Earth's gravitational acceleration ≈ ?", "options": ["9.8 m/s²", "9.8 m/s", "3.0 m/s²", "12.4 m/s²"], "answer_index": 0, "explanation": "g ≈ 9.81 m/s² at sea level."},
-        {"question": "Kinetic energy is given by…", "options": ["½mv²", "mv", "mgh", "ma"], "answer_index": 0, "explanation": "KE = ½mv²; mgh is gravitational potential energy."},
+        {"question": "Kinetic energy is given by…", "options": ["½mv²", "mv", "mgh", "ma"], "answer_index": 0, "explanation": "KE = ½mv²."},
         {"question": "Newton's First Law describes…", "options": ["Inertia", "Action–reaction", "F = ma", "Universal gravitation"], "answer_index": 0, "explanation": "Bodies maintain their state of motion unless acted on by a net force."},
-        {"question": "Speed of light in vacuum ≈ ?", "options": ["3×10⁸ m/s", "3×10⁶ m/s", "3×10¹⁰ m/s", "9.8 m/s"], "answer_index": 0, "explanation": "c ≈ 299,792,458 m/s ≈ 3×10⁸ m/s."},
+        {"question": "Speed of light in vacuum ≈ ?", "options": ["3×10⁸ m/s", "3×10⁶ m/s", "3×10¹⁰ m/s", "9.8 m/s"], "answer_index": 0, "explanation": "c ≈ 299,792,458 m/s."},
     ],
     "Computer Science": [
         {"question": "Big-O of binary search on a sorted array?", "options": ["O(log n)", "O(n)", "O(n log n)", "O(1)"], "answer_index": 0, "explanation": "Each step halves the search space → logarithmic."},
-        {"question": "Which structure is FIFO?", "options": ["Queue", "Stack", "Tree", "Hash map"], "answer_index": 0, "explanation": "First-In-First-Out: a queue. A stack is LIFO."},
-        {"question": "HTTP 404 means…", "options": ["Not Found", "Server Error", "Unauthorized", "Redirect"], "answer_index": 0, "explanation": "404 = resource not found; 500 = server error; 401/403 = auth."},
-        {"question": "Which keyword defines a function in Python?", "options": ["def", "func", "fn", "lambda only"], "answer_index": 0, "explanation": "`def name():` defines a named function."},
-        {"question": "Which SQL statement retrieves data?", "options": ["SELECT", "INSERT", "UPDATE", "ALTER"], "answer_index": 0, "explanation": "SELECT queries rows; the others modify schema/data."},
+        {"question": "Which structure is FIFO?", "options": ["Queue", "Stack", "Tree", "Hash map"], "answer_index": 0, "explanation": "First-In-First-Out: a queue."},
+        {"question": "HTTP 404 means…", "options": ["Not Found", "Server Error", "Unauthorized", "Redirect"], "answer_index": 0, "explanation": "404 = resource not found."},
+        {"question": "Which keyword defines a function in Python?", "options": ["def", "func", "fn", "lambda only"], "answer_index": 0, "explanation": "`def name():`."},
+        {"question": "Which SQL statement retrieves data?", "options": ["SELECT", "INSERT", "UPDATE", "ALTER"], "answer_index": 0, "explanation": "SELECT queries rows."},
     ],
     "History": [
-        {"question": "World War II ended in…", "options": ["1945", "1944", "1946", "1939"], "answer_index": 0, "explanation": "Europe surrendered May 1945; Japan in September 1945."},
+        {"question": "World War II ended in…", "options": ["1945", "1944", "1946", "1939"], "answer_index": 0, "explanation": "Europe surrendered May 1945."},
         {"question": "The first crewed Moon landing was in…", "options": ["1969", "1965", "1972", "1959"], "answer_index": 0, "explanation": "Apollo 11, July 20 1969."},
-        {"question": "The Renaissance began in…", "options": ["Italy", "France", "England", "Spain"], "answer_index": 0, "explanation": "It started in Italian city-states like Florence in the 14th c."},
+        {"question": "The Renaissance began in…", "options": ["Italy", "France", "England", "Spain"], "answer_index": 0, "explanation": "Started in Italian city-states like Florence in the 14th c."},
         {"question": "First President of the United States?", "options": ["George Washington", "Thomas Jefferson", "John Adams", "Lincoln"], "answer_index": 0, "explanation": "Washington served 1789–1797."},
         {"question": "The Berlin Wall fell in…", "options": ["1989", "1991", "1985", "1993"], "answer_index": 0, "explanation": "November 9, 1989."},
     ],
     "Biology": [
-        {"question": "The 'powerhouse of the cell' is the…", "options": ["Mitochondrion", "Nucleus", "Ribosome", "Golgi body"], "answer_index": 0, "explanation": "Mitochondria produce ATP via cellular respiration."},
+        {"question": "The 'powerhouse of the cell' is the…", "options": ["Mitochondrion", "Nucleus", "Ribosome", "Golgi body"], "answer_index": 0, "explanation": "Mitochondria produce ATP."},
         {"question": "Plants convert light energy via…", "options": ["Photosynthesis", "Respiration", "Fermentation", "Osmosis"], "answer_index": 0, "explanation": "6CO₂ + 6H₂O + light → C₆H₁₂O₆ + 6O₂."},
-        {"question": "DNA's structure is a…", "options": ["Double helix", "Single strand", "Triple ring", "Sheet"], "answer_index": 0, "explanation": "Watson & Crick (1953): two antiparallel strands."},
-        {"question": "Red blood cells primarily carry…", "options": ["Oxygen", "Hormones", "Antibodies", "Glucose"], "answer_index": 0, "explanation": "Hemoglobin in RBCs binds and transports O₂."},
-        {"question": "The largest organ of the human body is the…", "options": ["Skin", "Liver", "Brain", "Lungs"], "answer_index": 0, "explanation": "Skin ≈ 1.5–2 m²; the liver is the largest internal organ."},
+        {"question": "DNA's structure is a…", "options": ["Double helix", "Single strand", "Triple ring", "Sheet"], "answer_index": 0, "explanation": "Watson & Crick (1953)."},
+        {"question": "Red blood cells primarily carry…", "options": ["Oxygen", "Hormones", "Antibodies", "Glucose"], "answer_index": 0, "explanation": "Hemoglobin transports O₂."},
+        {"question": "The largest organ of the human body is the…", "options": ["Skin", "Liver", "Brain", "Lungs"], "answer_index": 0, "explanation": "Skin is the largest organ."},
     ],
 }
 
@@ -167,10 +222,11 @@ def _match_static(topic: str, n: int):
     return {"topic": topic, "subject": subject, "questions": qs, "ai": False, "source": "static"}
 
 @app.get("/api/quiz/subjects")
-async def quiz_subjects(): return {"subjects": list(STATIC_QUIZZES.keys())}
+async def quiz_subjects():
+    return {"subjects": list(STATIC_QUIZZES.keys())}
 
 @app.get("/api/quiz/static")
-async def quiz_static(topic: str = "Mathematics", n: int = 4):
+async def quiz_static(user: Annotated[dict, Depends(get_current_user)], topic: str = "Mathematics", n: int = 4):
     return _match_static(topic, max(3, min(5, n)))
 
 def _clean_questions(data, limit: int) -> list:
@@ -182,10 +238,8 @@ def _clean_questions(data, limit: int) -> list:
         except Exception: continue
         if q.get("question") and len(opts) >= 3 and 0 <= idx < len(opts):
             clean.append({
-                "question": str(q["question"]),
-                "options": opts,
-                "answer_index": idx,
-                "explanation": str(q.get("explanation", "—")),
+                "question": str(q["question"]), "options": opts,
+                "answer_index": idx, "explanation": str(q.get("explanation", "—")),
                 "context": str(q.get("context", ""))
             })
     return clean
@@ -193,13 +247,12 @@ def _clean_questions(data, limit: int) -> list:
 QUIZ_SCHEMA = ('{"questions":[{"question":"...","options":["A","B","C","D"],"answer_index":0,"explanation":"...","context":"exact quote from text if pdf"}]}')
 
 @app.post("/api/quiz/ai")
-async def quiz_ai(payload: AIQuizIn):
+async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_user)]):
     messages = [
         {"role": "system", "content": "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — matching exactly this schema: " + QUIZ_SCHEMA + ". Vary the correct answer position."},
         {"role": "user", "content": f"Generate exactly {payload.num_questions} {payload.difficulty} multiple-choice questions about '{payload.topic}' for a student. Each must have 4 plausible options and a one-sentence explanation."},
     ]
     try:
-        # Increase token limit dynamically for larger quizzes
         max_tokens = max(1200, payload.num_questions * 250)
         raw = await groq_chat(messages, temperature=0.7, max_tokens=max_tokens)
         clean = _clean_questions(extract_json(raw), payload.num_questions)
@@ -212,12 +265,11 @@ async def quiz_ai(payload: AIQuizIn):
         return fallback
 
 @app.post("/api/quiz/pdf")
-async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed"), topic: str = Form(""), num_questions: int = Form(0)):
+async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed"), topic: str = Form(""), num_questions: int = Form(0), user: dict = Depends(get_current_user)):
     if not PDF_OCR_ENABLED:
         raise HTTPException(500, "PDF libraries not installed on server.")
     data = await file.read()
     if len(data) > 15 * 1024 * 1024: raise HTTPException(413, "PDF too large (max 15 MB).")
-    
     text = ""
     try:
         doc = fitz.open(stream=data, filetype="pdf")
@@ -235,7 +287,6 @@ async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed")
 
     if len(text) < 200: raise HTTPException(422, "Not enough readable text in this PDF (even with OCR).")
 
-    # Auto-determine number of questions based on text length
     if not num_questions or num_questions == 0:
         if len(text) > 6000: auto_n = 5
         elif len(text) > 2500: auto_n = 4
@@ -246,7 +297,7 @@ async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed")
     excerpt = text[:9000]
     messages = [
         {"role": "system", "content": "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — matching exactly this schema: " + QUIZ_SCHEMA + ". Vary the correct answer position."},
-        {"role": "user", "content": f"Using ONLY the excerpt below from the student's document '{label}', write exactly {num_questions} {difficulty} multiple-choice questions. Make them smart: test conceptual understanding, application, or inference rather than just rote memorization. Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote (max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt},
+        {"role": "user", "content": f"Using ONLY the excerpt below from the student's document '{label}', write exactly {num_questions} {difficulty} multiple-choice questions. Make them smart: test conceptual understanding. Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote (max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt},
     ]
     try:
         raw = await groq_chat(messages, temperature=0.6, max_tokens=2000)
@@ -255,35 +306,38 @@ async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed")
         return {"topic": label, "subject": "PDF", "questions": clean, "ai": True, "source": "pdf"}
     except Exception as e:
         print(f"⚠️ AI PDF Quiz Error: {e}")
-        raise HTTPException(503, "AI is unavailable right now — PDF quizzes need the AI engine. Use the Static Bank meanwhile.")
+        raise HTTPException(503, "AI is unavailable right now.")
 
 @app.post("/api/quiz/submit")
-async def quiz_submit(payload: SubmitIn):
+async def quiz_submit(payload: SubmitIn, user: Annotated[dict, Depends(get_current_user)]):
     if payload.correct > payload.total: raise HTTPException(422, "correct cannot exceed total")
-    result = await db.record_attempt(payload.topic_name, payload.correct, payload.total, payload.source)
+    result = await db.record_attempt(user["id"], payload.topic_name, payload.correct, payload.total, payload.source)
     return {"saved": True, "topic": result}
 
-# ================================================================ scheduler
+# ================================================================ Scheduler
 @app.get("/api/schedule")
-async def schedule(): return await db.get_schedule()
+async def schedule(user: Annotated[dict, Depends(get_current_user)]):
+    return await db.get_schedule(user["id"])
 
 @app.post("/api/tasks")
-async def create_task(payload: TaskIn): return await db.add_task(payload.title, payload.topic, payload.deadline)
+async def create_task(payload: TaskIn, user: Annotated[dict, Depends(get_current_user)]):
+    return await db.add_task(user["id"], payload.title, payload.topic, payload.deadline)
 
 @app.patch("/api/tasks/{task_id}")
-async def toggle(task_id: int): return await db.toggle_task(task_id)
+async def toggle(task_id: int, user: Annotated[dict, Depends(get_current_user)]):
+    return await db.toggle_task(user["id"], task_id)
 
 @app.delete("/api/tasks/{task_id}")
-async def remove(task_id: int):
-    await db.delete_task(task_id)
+async def remove(task_id: int, user: Annotated[dict, Depends(get_current_user)]):
+    await db.delete_task(user["id"], task_id)
     return {"deleted": task_id}
 
-# ================================================================ AI coach
+# ================================================================ AI Coach
 @app.get("/api/coach")
-async def coach():
-    topics = await db.get_topics()
-    sched = await db.get_schedule()
-    recent = await db.recent_attempts(6)
+async def coach(user: Annotated[dict, Depends(get_current_user)]):
+    topics = await db.get_topics(user["id"])
+    sched = await db.get_schedule(user["id"])
+    recent = await db.recent_attempts(user["id"], 6)
     weak = sorted([t for t in topics if t["score"] < 65], key=lambda t: t["score"])[:4]
     if not weak: weak = sorted(topics, key=lambda t: t["score"])[:2]
     pcts = [a["pct"] for a in recent]
@@ -320,17 +374,17 @@ def heuristic_coach(weak, trend) -> dict:
     return {
         "headline": f"Summit plan: shore up {len(weak)} weak ridge(s) before deadlines hit.",
         "focus": focus,
-        "tips": ["Attack your weakest topic first each session — willpower is freshest early.", "Use spaced repetition: retest every weak topic 48h after drilling it.", "Interleave subjects within a session instead of marathon-blocking one.", "Simulate pressure: time your quizzes to match real exam conditions."],
+        "tips": ["Attack your weakest topic first each session.", "Use spaced repetition.", "Interleave subjects.", "Simulate pressure: time your quizzes."],
         "plan": plan,
-        "motivation": "Your trend line is data, not destiny. Every rep on a weak topic raises the whole range." if trend <= 0 else "Momentum is on your side — keep the streak alive and push one tier higher.",
+        "motivation": "Your trend line is data, not destiny. Every rep on a weak topic raises the whole range." if trend <= 0 else "Momentum is on your side — keep the streak alive.",
         "ai": False,
     }
 
 # ================================================================ AI Tutor Chat
 @app.post("/api/ask")
-async def ask_tutor(payload: AskIn):
+async def ask_tutor(payload: AskIn, user: Annotated[dict, Depends(get_current_user)]):
     messages = [
-        {"role": "system", "content": "You are El-Peak, a friendly, sharp AI study tutor. Explain concepts clearly. Use markdown for formatting (bold, italics, bullet points, code blocks). Keep answers concise but thorough. Be encouraging!"},
+        {"role": "system", "content": "You are El-Peak, a friendly, sharp AI study tutor. Explain concepts clearly. Use markdown for formatting. Keep answers concise but thorough."},
         *payload.history,
         {"role": "user", "content": payload.question}
     ]
@@ -339,28 +393,21 @@ async def ask_tutor(payload: AskIn):
         return {"reply": reply}
     except Exception as e:
         print(f"⚠️ Tutor Chat Error: {e}")
-        raise HTTPException(503, "El-Peak is thinking too hard right now. Try again in a moment.")
+        raise HTTPException(503, "El-Peak is thinking too hard right now.")
 
-# ================================================================ Groq core
+# ================================================================ Groq Core
 async def groq_chat(messages: list, temperature: float = 0.6, max_tokens: int = 1200) -> str:
     key = os.getenv("GROQ_API_KEY")
-    if not key:
-        raise RuntimeError("Missing GROQ_API_KEY. Did you create a .env file?")
-    
+    if not key: raise RuntimeError("Missing GROQ_API_KEY.")
     payload = {"model": GROQ_MODEL, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    
     async with httpx.AsyncClient(timeout=45) as client:
         r = await client.post(GROQ_URL, headers=headers, json=payload)
         if r.status_code != 200:
-            try:
-                err_data = r.json()
-                err_msg = err_data.get("error", {}).get("message", str(err_data))
-            except Exception:
-                err_msg = r.text
+            try: err_msg = r.json().get("error", {}).get("message", str(r.json()))
+            except: err_msg = r.text
             print(f"\n❌ GROQ API ERROR ({r.status_code}): {err_msg}\n")
             raise RuntimeError(f"Groq API Error: {err_msg}")
-            
         return r.json()["choices"][0]["message"]["content"]
 
 def extract_json(text: str):
