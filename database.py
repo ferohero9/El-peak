@@ -1,22 +1,21 @@
 """
-El-Peak — data layer v4 (Multi-User).
+El-Peak — data layer v5 (PostgreSQL Multi-User).
 """
 import datetime as dt
-from contextlib import asynccontextmanager
-from pathlib import Path
-import aiosqlite
+import os
+import asyncpg
 
-DB_PATH = Path(__file__).parent / "elpeak.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost/el-peak")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     email      TEXT NOT NULL UNIQUE,
     password   TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS topics (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id),
     name       TEXT NOT NULL,
     subject    TEXT DEFAULT 'General',
@@ -26,7 +25,7 @@ CREATE TABLE IF NOT EXISTS topics (
     UNIQUE(user_id, name)
 );
 CREATE TABLE IF NOT EXISTS attempts (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id),
     topic_id   INTEGER NOT NULL REFERENCES topics(id),
     correct    INTEGER NOT NULL,
@@ -36,7 +35,7 @@ CREATE TABLE IF NOT EXISTS attempts (
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS tasks (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id),
     title      TEXT NOT NULL,
     topic      TEXT,
@@ -46,6 +45,14 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at);
 """
+
+_pool = None
+
+async def get_pool():
+    global _pool
+    if _pool is None:
+        _pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
+    return _pool
 
 def now_str() -> str:
     return dt.datetime.now().isoformat(timespec="seconds")
@@ -60,64 +67,47 @@ def parse_dt(s: str) -> dt.datetime:
     except Exception:
         return dt.datetime.now() + dt.timedelta(days=7)
 
-@asynccontextmanager
-async def db():
-    conn = await aiosqlite.connect(DB_PATH)
-    conn.row_factory = aiosqlite.Row
-    try:
-        yield conn
-    finally:
-        await conn.close()
-
 async def init_db():
-    async with db() as c:
-        # Migration check: If the old 'topics' table lacks 'user_id', wipe and recreate
-        cur = await c.execute("PRAGMA table_info(topics)")
-        columns = [row[1] for row in await cur.fetchall()]
-        if "user_id" not in columns:
-            print("⚠️ Old database schema detected. Wiping and rebuilding...")
-            await c.executescript("DROP TABLE IF EXISTS topics; DROP TABLE IF EXISTS attempts; DROP TABLE IF EXISTS tasks;")
-        
-        await c.executescript(SCHEMA)
-        await c.commit()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(SCHEMA)
 
 # ---------------------------------------------------------------- AUTH
 async def create_user(email: str, hashed_pw: str) -> dict:
-    async with db() as c:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
         try:
-            cur = await c.execute(
-                "INSERT INTO users(email, password, created_at) VALUES (?,?,?)",
-                (email, hashed_pw, now_str()))
-            await c.commit()
-            return {"id": cur.lastrowid, "email": email}
-        except aiosqlite.IntegrityError:
+            row = await conn.fetchrow(
+                "INSERT INTO users(email, password, created_at) VALUES ($1, $2, $3) RETURNING id, email",
+                email, hashed_pw, now_str())
+            return dict(row) if row else None
+        except asyncpg.UniqueViolationError:
             return None
 
 async def get_user_by_email(email: str) -> dict:
-    async with db() as c:
-        cur = await c.execute("SELECT * FROM users WHERE lower(email)=lower(?)", (email,))
-        row = await cur.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM users WHERE lower(email)=lower($1)", email)
         return dict(row) if row else None
 
 # ---------------------------------------------------------------- TOPICS
 async def ensure_topic(user_id: int, name: str, subject: str = "General") -> dict:
     name = name.strip()
-    async with db() as c:
-        cur = await c.execute("SELECT * FROM topics WHERE user_id=? AND lower(name)=lower(?)", (user_id, name))
-        row = await cur.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM topics WHERE user_id=$1 AND lower(name)=lower($2)", user_id, name)
         if row:
             return dict(row)
-        await c.execute(
-            "INSERT INTO topics(user_id, name, subject, score, attempts, updated_at) VALUES (?,?,?,?,?,?)",
-            (user_id, name, subject, 50.0, 0, now_str()))
-        await c.commit()
-        cur = await c.execute("SELECT * FROM topics WHERE user_id=? AND lower(name)=lower(?)", (user_id, name))
-        return dict(await cur.fetchone())
+        row = await conn.fetchrow(
+            "INSERT INTO topics(user_id, name, subject, score, attempts, updated_at) VALUES ($1, $2, $3, 50.0, 0, $4) RETURNING *",
+            user_id, name, subject, now_str())
+        return dict(row) if row else None
 
 async def get_topics(user_id: int) -> list[dict]:
-    async with db() as c:
-        cur = await c.execute("SELECT * FROM topics WHERE user_id=? ORDER BY name", (user_id,))
-        return [dict(r) for r in await cur.fetchall()]
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("SELECT * FROM topics WHERE user_id=$1 ORDER BY name", user_id)
+        return [dict(r) for r in rows]
 
 # ---------------------------------------------------------------- ATTEMPTS
 async def record_attempt(user_id: int, topic_name: str, correct: int, total: int, source: str) -> dict:
@@ -126,32 +116,35 @@ async def record_attempt(user_id: int, topic_name: str, correct: int, total: int
     old = topic["score"]
     new = pct if topic["attempts"] == 0 else round(0.55 * old + 0.45 * pct, 1)
     new = max(0.0, min(100.0, new))
-    async with db() as c:
-        await c.execute(
-            "UPDATE topics SET score=?, attempts=attempts+1, updated_at=? WHERE id=?",
-            (new, now_str(), topic["id"]))
-        await c.execute(
-            "INSERT INTO attempts(user_id, topic_id, correct, total, pct, source, created_at) VALUES (?,?,?,?,?,?,?)",
-            (user_id, topic["id"], correct, total, pct, source, now_str()))
-        await c.commit()
+    
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE topics SET score=$1, attempts=attempts+1, updated_at=$2 WHERE id=$3",
+            new, now_str(), topic["id"])
+        await conn.execute(
+            "INSERT INTO attempts(user_id, topic_id, correct, total, pct, source, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            user_id, topic["id"], correct, total, pct, source, now_str())
     return {"name": topic["name"], "old": old, "new": new, "delta": round(new - old, 1), "pct": pct}
 
 async def recent_attempts(user_id: int, limit: int = 20) -> list[dict]:
-    async with db() as c:
-        cur = await c.execute(
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
             "SELECT a.pct, a.source, a.created_at, t.name topic "
             "FROM attempts a JOIN topics t ON t.id=a.topic_id "
-            "WHERE a.user_id=? ORDER BY a.created_at DESC LIMIT ?", (user_id, limit,))
-        return [dict(r) for r in await cur.fetchall()]
+            "WHERE a.user_id=$1 ORDER BY a.created_at DESC LIMIT $2", user_id, limit)
+        return [dict(r) for r in rows]
 
 async def heatmap(user_id: int, days: int = 84) -> list[dict]:
     start = (dt.datetime.now() - dt.timedelta(days=days - 1)).date()
     counts = {start + dt.timedelta(days=i): 0 for i in range(days)}
-    async with db() as c:
-        cur = await c.execute(
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
             "SELECT date(created_at) d, COUNT(*) n FROM attempts "
-            "WHERE user_id=? AND created_at >= ? GROUP BY d", (user_id, start.isoformat()))
-        async for row in cur:
+            "WHERE user_id=$1 AND created_at >= $2 GROUP BY d", user_id, start.isoformat())
+        for row in rows:
             key = dt.date.fromisoformat(row["d"])
             if key in counts:
                 counts[key] = row["n"]
@@ -159,30 +152,28 @@ async def heatmap(user_id: int, days: int = 84) -> list[dict]:
 
 # ---------------------------------------------------------------- STATS
 async def get_stats(user_id: int) -> dict:
-    async with db() as c:
-        cur = await c.execute("SELECT * FROM topics WHERE user_id=?", (user_id,))
-        topics = [dict(r) for r in await cur.fetchall()]
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        topics = [dict(r) for r in await conn.fetch("SELECT * FROM topics WHERE user_id=$1", user_id)]
         total = sum(t["attempts"] for t in topics)
         if topics:
             w_sum = sum((1 + t["attempts"]) for t in topics)
             w_avg = sum(t["score"] * (1 + t["attempts"]) for t in topics) / w_sum
         else:
             w_avg = 0.0
+            
         week_ago = (dt.datetime.now() - dt.timedelta(days=7)).isoformat(timespec="seconds")
-        cur = await c.execute("SELECT COUNT(*) n FROM attempts WHERE user_id=? AND created_at >= ?", (user_id, week_ago))
-        attempts_7d = (await cur.fetchone())["n"]
-        cur = await c.execute("SELECT AVG(pct) a FROM attempts WHERE user_id=?", (user_id,))
-        avg_pct = (await cur.fetchone())["a"] or 0.0
+        attempts_7d = await conn.fetchval("SELECT COUNT(*) FROM attempts WHERE user_id=$1 AND created_at >= $2", user_id, week_ago)
+        avg_pct = await conn.fetchval("SELECT AVG(pct) FROM attempts WHERE user_id=$1", user_id) or 0.0
         peak = int(round(min(100, max(0, 0.75 * w_avg + 0.25 * min(1.0, attempts_7d / 8) * 100))))
         best = max(topics, key=lambda t: t["score"]) if topics else None
         weak = [t for t in topics if t["score"] < 60]
         
-        cur = await c.execute("SELECT DISTINCT date(created_at) d FROM attempts WHERE user_id=?", (user_id,))
-        days = {r["d"] for r in await cur.fetchall()}
+        days_set = {r["d"] for r in await conn.fetch("SELECT DISTINCT date(created_at) d FROM attempts WHERE user_id=$1", user_id)}
         streak, day = 0, dt.date.today()
-        if day.isoformat() not in days:
+        if day.isoformat() not in days_set:
             day -= dt.timedelta(days=1)
-        while day.isoformat() in days:
+        while day.isoformat() in days_set:
             streak += 1
             day -= dt.timedelta(days=1)
             
@@ -198,31 +189,32 @@ async def get_stats(user_id: int) -> dict:
 async def add_task(user_id: int, title: str, topic: str | None, deadline: str) -> dict:
     if topic:
         await ensure_topic(user_id, topic)
-    async with db() as c:
-        cur = await c.execute(
-            "INSERT INTO tasks(user_id, title, topic, deadline, created_at) VALUES (?,?,?,?,?)",
-            (user_id, title.strip(), topic or None, deadline, now_str()))
-        await c.commit()
-        row = await (await c.execute("SELECT * FROM tasks WHERE id=?", (cur.lastrowid,))).fetchone()
-        return dict(row)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "INSERT INTO tasks(user_id, title, topic, deadline, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+            user_id, title.strip(), topic or None, deadline, now_str())
+        return dict(row) if row else None
 
 async def toggle_task(user_id: int, task_id: int) -> dict:
-    async with db() as c:
-        await c.execute("UPDATE tasks SET done = 1 - done WHERE id=? AND user_id=?", (task_id, user_id))
-        await c.commit()
-        row = await (await c.execute("SELECT * FROM tasks WHERE id=? AND user_id=?", (task_id, user_id))).fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE tasks SET done = 1 - done WHERE id=$1 AND user_id=$2", task_id, user_id)
+        row = await conn.fetchrow("SELECT * FROM tasks WHERE id=$1 AND user_id=$2", task_id, user_id)
         return dict(row) if row else {}
 
 async def delete_task(user_id: int, task_id: int):
-    async with db() as c:
-        await c.execute("DELETE FROM tasks WHERE id=? AND user_id=?", (task_id, user_id))
-        await c.commit()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM tasks WHERE id=$1 AND user_id=$2", task_id, user_id)
 
 async def get_schedule(user_id: int) -> dict:
     now = dt.datetime.now()
-    async with db() as c:
-        tasks = [dict(r) for r in await (await c.execute("SELECT * FROM tasks WHERE user_id=?", (user_id,))).fetchall()]
-        topics = {t["name"].lower(): t for t in [dict(r) for r in await (await c.execute("SELECT * FROM topics WHERE user_id=?", (user_id,))).fetchall()]}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        tasks = [dict(r) for r in await conn.fetch("SELECT * FROM tasks WHERE user_id=$1", user_id)]
+        topics = {t["name"].lower(): t for t in [dict(r) for r in await conn.fetch("SELECT * FROM topics WHERE user_id=$1", user_id)]}
+        
         queue, cleared = [], []
         for t in tasks:
             dl = parse_dt(t["deadline"])
@@ -240,6 +232,7 @@ async def get_schedule(user_id: int) -> dict:
             queue.append(t)
         queue.sort(key=lambda t: t["priority"], reverse=True)
         cleared.sort(key=lambda t: t["deadline"], reverse=True)
+        
         busy = {(t.get("topic") or "").lower() for t in tasks if not t["done"]}
         suggestions = [
             {"topic": tp["name"], "score": tp["score"]}
