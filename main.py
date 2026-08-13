@@ -137,11 +137,11 @@ TIER_LIMITS = {
     "pro": {"ai_questions": 2000, "pdf_uploads": 200}
 }
 
-# Models per tier (Free uses 8B to save resources, Plus/Pro use 70B)
+# Models per tier
 TIER_MODELS = {
     "free": "llama-3.1-8b-instant",
-    "plus": "llama-3.3-70b-versatile",
-    "pro": "llama-3.3-70b-versatile"
+    "plus": "openai/gpt-oss-20b",       # Slightly stronger model for Plus
+    "pro": "llama-3.3-70b-versatile"    # Most powerful model for Pro
 }
 # ================================================================ AUTH ROUTES
 class SignupIn(BaseModel):
@@ -544,7 +544,13 @@ async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed")
     if usage["pdf_uploads_used"] >= limits["pdf_uploads"]:
         raise HTTPException(403, f"You have reached your monthly PDF upload limit ({limits['pdf_uploads']}). Please upgrade to Plus.")
 
-    data = await file.read()
+        data = await file.read()
+    file_size_mb = len(data) / (1024 * 1024)
+    
+    # Free users are limited to 1MB PDFs to save server storage/processing
+    if tier == "free" and file_size_mb > 1.0:
+        raise HTTPException(413, "Free tier limit: PDFs must be under 1MB. Please upgrade to Plus for larger files (up to 15MB).")
+        
     if len(data) > 15 * 1024 * 1024: 
         raise HTTPException(413, "PDF too large (max 15 MB).")
     
