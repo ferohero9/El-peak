@@ -55,15 +55,11 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 .auth-logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:24px;margin-bottom:4px;justify-content:center}
 .auth-logo svg{width:28px;height:28px}
 .auth-sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:24px}
-
-/* Google Button */
 .google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,0.1);border:none;margin-bottom:20px;padding:12px 24px;border-radius:100px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .2s var(--spring)}
 .google-btn:hover{transform:translateY(-2px)}
 .google-btn svg{width:18px;height:18px}
-
 .auth-divider{width:100%;display:flex;align-items:center;gap:12px;margin-bottom:20px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em}
 .auth-divider::before, .auth-divider::after{content:"";flex:1;height:1px;background:var(--glass-border)}
-
 .auth-tabs{display:flex;width:100%;background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:100px;padding:4px;margin-bottom:24px}
 .auth-tab{flex:1;padding:10px;border-radius:100px;font-weight:600;font-size:13px;color:var(--muted);transition:all .3s var(--smooth);text-align:center;cursor:pointer}
 .auth-tab.active{background:var(--accent);color:var(--accent-text);box-shadow:0 4px 15px var(--accent-glow)}
@@ -97,6 +93,8 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24
 .view.active > *:not([hidden]){animation:staggerIn 0.6s var(--smooth) backwards}
 .view.active > *:not([hidden]):nth-child(1){animation-delay:0.05s}
 .view.active > *:not([hidden]):nth-child(2){animation-delay:0.15s}
+.view.active > *:not([hidden]):nth-child(3){animation-delay:0.25s}
+.view.active > *:not([hidden]):nth-child(4){animation-delay:0.35s}
 @keyframes staggerIn{from{opacity:0;transform:translateY(20px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .view-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
 .view-header .text-block{flex:1;min-width:250px}
@@ -350,6 +348,26 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
           <h2 class="sec" style="margin-top:32px">Recent Attempts</h2><div id="recentList"></div>
         </div>
       </div>
+      
+      <!-- Usage & Billing Card -->
+      <div class="card" style="margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h2 class="sec" style="margin:0">Usage & Billing</h2>
+          <span class="badge" id="tierBadge" style="text-transform:capitalize">Free</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)">AI Questions</span><span id="aiUsageText" style="font-weight:600">0 / 30</span></div>
+            <div class="qbar" style="margin-bottom:0"><i id="aiUsageBar" style="width:0%;background:var(--accent)"></i></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)">PDF Uploads</span><span id="pdfUsageText" style="font-weight:600">0 / 3</span></div>
+            <div class="qbar" style="margin-bottom:0"><i id="pdfUsageBar" style="width:0%;background:var(--sky)"></i></div>
+          </div>
+        </div>
+        <button class="btn" id="btnUpgradeNav" style="margin-top:20px">Upgrade to Plus / Pro →</button>
+      </div>
+
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <h2 class="sec" style="margin:0">Ascent Log</h2>
@@ -475,6 +493,30 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
   <footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
 </div>
 
+<!-- Upgrade Modal -->
+<div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px">
+  <div class="auth-card" style="max-width:450px">
+    <div class="auth-logo">El-Peak Premium</div>
+    <div class="auth-sub">Unlock unlimited AI quizzes, PDF uploads, and the powerful Llama 3.3 70B model.</div>
+    <div style="display:flex;gap:12px;width:100%;margin-bottom:20px">
+      <div class="upgrade-box" id="plusBox" style="flex:1;padding:20px;border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;text-align:center">
+        <div style="font-family:var(--disp);font-weight:700;font-size:18px">Plus</div>
+        <div style="font-size:24px;font-weight:800;margin:8px 0">99 EGP</div>
+        <div style="font-size:11px;color:var(--muted)">/ month</div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted)">500 AI Questions<br>50 PDF Uploads</div>
+      </div>
+      <div class="upgrade-box" id="proBox" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
+        <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
+        <div style="font-size:24px;font-weight:800;margin:8px 0">199 EGP</div>
+        <div style="font-size:11px;color:var(--muted)">/ month</div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted)">2000 AI Questions<br>200 PDF Uploads<br><b>70B Model</b></div>
+      </div>
+    </div>
+    <button class="btn auth-btn" id="btnCheckout">Proceed to Payment →</button>
+    <button class="btn outline auth-btn" id="btnCloseUpgrade" style="margin-top:8px">Maybe Later</button>
+  </div>
+</div>
+
 <div id="toasts"></div><div id="tip"></div>
 
 <script>
@@ -496,23 +538,19 @@ document.documentElement.dataset.theme = savedTheme;
     localStorage.setItem("ep-theme", next);
 };
 
-/* === AUTH LOGIC === */
 let token = localStorage.getItem("ep-token");
 
 async function api(p, o={}) {
   let r;
   let headers = o.headers || {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  
   let body = o.body;
   if (body && typeof body === "object" && !(body instanceof FormData)) {
       headers["Content-Type"] = "application/json";
       body = JSON.stringify(body);
   }
-  
   try { r = await fetch(p, {...o, headers, body}); }
   catch(e) { throw new Error("Cannot connect to server."); }
-  
   if (r.status === 401) {
       logout();
       throw new Error("Session expired. Please log in again.");
@@ -528,7 +566,9 @@ async function api(p, o={}) {
 function showApp() {
     $("#authView").style.display = "none";
     $("#appView").style.display = "block";
-    initApp();
+    const activeLink = $(".navlinks a.active");
+    if (activeLink) moveSlider(activeLink);
+    loadDashboard();
 }
 
 function logout() {
@@ -538,23 +578,15 @@ function logout() {
     $("#authView").style.display = "flex";
 }
 
-function initApp() {
-    const activeLink = $(".navlinks a.active");
-    if (activeLink) moveSlider(activeLink);
-    loadDashboard();
-}
-
 if (token) {
     showApp();
 } else {
     $("#authView").style.display = "flex";
 }
 
-// Auth Tabs
  $("#tabLogin").onclick = () => { $("#tabLogin").classList.add("active"); $("#tabSignup").classList.remove("active"); $("#formLogin").classList.add("active"); $("#formSignup").classList.remove("active"); };
  $("#tabSignup").onclick = () => { $("#tabSignup").classList.add("active"); $("#tabLogin").classList.remove("active"); $("#formSignup").classList.add("active"); $("#formLogin").classList.remove("active"); };
 
-// Login Submit
  $("#btnLogin").onclick = async () => {
     const btn = $("#btnLogin"); btn.classList.add("loading"); btn.disabled = true;
     const email = $("#loginEmail").value.trim();
@@ -577,7 +609,6 @@ if (token) {
     btn.classList.remove("loading"); btn.disabled = false;
 };
 
-// Signup Submit
  $("#btnSignup").onclick = async () => {
     const btn = $("#btnSignup"); btn.classList.add("loading"); btn.disabled = true;
     const email = $("#signupEmail").value.trim();
@@ -600,10 +631,6 @@ if (token) {
     btn.classList.remove("loading"); btn.disabled = false;
 };
 
-// Logout Button
- $("#logoutBtn").onclick = () => logout();
-
-// Google Login Logic
  $("#btnGoogle").onclick = async () => {
     try {
         const r = await fetch("/api/auth/google");
@@ -616,7 +643,6 @@ if (token) {
     }
 };
 
-// Handle Google OAuth Redirect (if token is in URL)
 const urlParams = new URLSearchParams(window.location.search);
 const googleToken = urlParams.get('token');
 if (googleToken) {
@@ -625,7 +651,9 @@ if (googleToken) {
     window.history.replaceState({}, document.title, "/");
     showApp();
 }
-/* === UI LOGIC === */
+
+ $("#logoutBtn").onclick = () => logout();
+
 function moveSlider(activeLink) {
   const slider = $("#navSlider");
   if (!slider || !activeLink) return;
@@ -656,7 +684,17 @@ window.addEventListener('resize', () => { const activeLink = $(".navlinks a.acti
 
 async function loadDashboard(){
   try{
-    const [stats,topics,recent,heat]=await Promise.all([api("/api/stats"),api("/api/topics"),api("/api/recent?limit=20"),api("/api/heatmap")]);
+    const [stats,topics,recent,heat,usage]=await Promise.all([api("/api/stats"),api("/api/topics"),api("/api/recent?limit=20"),api("/api/heatmap"),api("/api/usage")]);
+    
+    // Update Usage UI
+    if(usage) {
+      $("#tierBadge").textContent = usage.tier;
+      $("#aiUsageText").textContent = `${usage.ai_used} / ${usage.ai_limit}`;
+      $("#aiUsageBar").style.width = `${Math.min(100, (usage.ai_used / usage.ai_limit) * 100)}%`;
+      $("#pdfUsageText").textContent = `${usage.pdf_used} / ${usage.pdf_limit}`;
+      $("#pdfUsageBar").style.width = `${Math.min(100, (usage.pdf_used / usage.pdf_limit) * 100)}%`;
+    }
+    
     $("#streakChip").textContent=stats.streak+" days";
     count($("#peakVal"),stats.peak);count($("#streakVal"),stats.streak);count($("#reps7"),stats.attempts_7d);
     count($("#avgAcc"),Math.round(stats.avg_pct),"%");count($("#weakN"),stats.weak_count);
@@ -750,7 +788,13 @@ const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
     }
     qi=0;correct=0;$("#setupCard").hidden=true;$("#resultCard").hidden=true;$("#playCard").hidden=false;renderQ();
     if(quiz.note)toast(quiz.note);
-  }catch(e){toast("⚠ "+e.message)}
+  } catch(e) {
+      if (e.message.toLowerCase().includes("limit")) {
+          showUpgradeModal();
+      } else {
+          toast("⚠ " + e.message);
+      }
+  }
   btn.classList.remove("loading");btn.disabled=false;
 };
 function renderQ(){
@@ -854,9 +898,12 @@ async function sendChat() {
 }
  $("#chatSend").onclick = sendChat;
  $("#chatInput").onkeydown = e => { if(e.key === "Enter") sendChat(); };
-// Upgrade Modal Logic
-let selectedTier = "pro"; // Default to Pro
 
+// Upgrade Modal Logic
+let selectedTier = "pro";
+function showUpgradeModal() { $("#upgradeModal").style.display = "flex"; }
+ $("#btnUpgradeNav").onclick = showUpgradeModal;
+ $("#btnCloseUpgrade").onclick = () => $("#upgradeModal").style.display = "none";
  $$(".upgrade-box").forEach(box => {
     box.onclick = () => {
         $$(".upgrade-box").forEach(b => b.style.border = "1px solid var(--glass-border)");
@@ -864,9 +911,6 @@ let selectedTier = "pro"; // Default to Pro
         selectedTier = box.id === "plusBox" ? "plus" : "pro";
     }
 });
-
- $("#btnCloseUpgrade").onclick = () => $("#upgradeModal").style.display = "none";
-
  $("#btnCheckout").onclick = async () => {
     const btn = $("#btnCheckout");
     btn.classList.add("loading");
@@ -874,7 +918,6 @@ let selectedTier = "pro"; // Default to Pro
     try {
         const r = await api("/api/payment/checkout", {method: "POST", body: {tier: selectedTier}});
         if (r.checkout_url) {
-            // Redirect user to Paymob secure payment page
             window.location.href = r.checkout_url;
         }
     } catch (e) {
@@ -883,11 +926,6 @@ let selectedTier = "pro"; // Default to Pro
     btn.classList.remove("loading");
     btn.disabled = false;
 };
-
-// Function to open modal (call this when user hits limit)
-function showUpgradeModal() {
-    $("#upgradeModal").style.display = "flex";
-}
 </script>
 </body>
 </html>
