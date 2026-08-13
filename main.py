@@ -99,7 +99,7 @@ async def heatmap(): return await db.heatmap()
 
 @app.get("/manifest.json", include_in_schema=False)
 async def manifest():
-    return JSONResponse({
+    return {
         "name": "El-Peak Study Compass",
         "short_name": "El-Peak",
         "start_url": "/",
@@ -118,7 +118,7 @@ async def manifest():
                 "type": "image/png"
             }
         ]
-    })
+    }
 # ================================================================ quiz engine
 STATIC_QUIZZES = {
     "Mathematics": [
