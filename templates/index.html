@@ -71,11 +71,11 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 .auth-btn{width:100%;margin-top:8px;justify-content:center}
 
 /* Nav */
-nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:blur(var(--blur));background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--shadow-sm);width:calc(100% - 48px);max-width:1000px;height:60px}
+nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:blur(var(--blur));background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--shadow-sm);width:calc(100% - 48px);max-width:1100px;height:60px}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;padding-left:8px}
 .logo svg{width:20px;height:20px}
 .navlinks{position:relative;display:flex;align-items:center;gap:4px;background:var(--glass-strong);padding:4px;border-radius:100px;border:1px solid var(--glass-border)}
-.navlinks a{padding:8px 16px;border-radius:100px;color:var(--muted);text-decoration:none;font-weight:500;font-size:13px;transition:color .3s;position:relative;z-index:2}
+.navlinks a{padding:8px 14px;border-radius:100px;color:var(--muted);text-decoration:none;font-weight:500;font-size:12.5px;transition:color .3s;position:relative;z-index:2;white-space:nowrap}
 .navlinks a:hover{color:var(--ink)}
 .navlinks a.active{color:var(--accent-text)}
 .nav-slider{position:absolute;top:4px;height:calc(100% - 8px);background:var(--accent);border-radius:100px;z-index:1;transition:all .4s var(--spring);box-shadow:0 4px 15px var(--accent-glow)}
@@ -240,12 +240,17 @@ input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border
 @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
 #tip{position:fixed;z-index:98;background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s}
 .mobilenav{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:100px;padding:6px;gap:4px;backdrop-filter:blur(var(--blur))}
-.mobilenav a{padding:8px 12px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase}
+.mobilenav a{padding:8px 10px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase}
 .mobilenav a.active{background:var(--accent);color:#fff}
 footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
+
 /* Base styles for the new profile classes */
 .profile-grid { grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .profile-upgrade-boxes { display:flex; gap:12px; margin-bottom:20px; }
+
+/* Settings Form specific */
+.settings-grid { display:grid; gap: 24px; grid-template-columns: 1fr 1fr; align-items: start; }
+.settings-card .field { margin-bottom: 20px; }
 
 @media(max-width:860px){
   nav{display:flex;justify-content:space-between;width:calc(100% - 32px);padding:8px 20px}
@@ -256,6 +261,7 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
   .profile-grid { grid-template-columns: 1fr !important; }
   /* Stack the upgrade boxes vertically on mobile */
   .profile-upgrade-boxes { flex-direction: column; }
+  .settings-grid { grid-template-columns: 1fr !important; }
   
   main{padding:100px 16px 120px}
   .view-header{flex-direction:column;align-items:flex-start;gap:20px;margin-bottom:30px}
@@ -263,6 +269,14 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
   .mobilenav{display:flex;justify-content:center;align-items:center;bottom:16px;max-width:calc(100% - 32px)}
   .chat-win{bottom:80px;right:12px;height:60vh}.chat-fab{bottom:80px;right:20px}
 }
+
+/* RTL Support for Arabic */
+html[dir="rtl"] body { font-family: 'Tajawal', 'Cairo', var(--body); }
+html[dir="rtl"] .auth-form .field input,
+html[dir="rtl"] .field input,
+html[dir="rtl"] .field select { text-align: right; }
+html[dir="rtl"] .opt:hover:not(:disabled) { transform: translateX(-6px); }
+html[dir="rtl"] .task:hover { transform: translateX(-4px); }
 </style>
 </head>
 <body>
@@ -278,28 +292,28 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
       <svg viewBox="0 0 20 20" fill="none"><path d="M2 18 L7 4 L10 12 L13 6 L18 18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       El-Peak
     </div>
-    <div class="auth-sub">Sign in to sync your ascent</div>
+    <div class="auth-sub" data-i18n="auth_sub">Sign in to sync your ascent</div>
     
     <button class="google-btn" id="btnGoogle">
       <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      Continue with Google
+      <span data-i18n="google_btn">Continue with Google</span>
     </button>
 
-    <div class="auth-divider">OR</div>
+    <div class="auth-divider" data-i18n="or">OR</div>
 
     <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin">Log In</button>
-      <button class="auth-tab" id="tabSignup">Sign Up</button>
+      <button class="auth-tab active" id="tabLogin" data-i18n="login">Log In</button>
+      <button class="auth-tab" id="tabSignup" data-i18n="signup">Sign Up</button>
     </div>
     <div class="auth-form active" id="formLogin">
       <div class="field"><input type="email" id="loginEmail" placeholder="Email"></div>
-      <div class="field"><input type="password" id="loginPass" placeholder="Password"></div>
-      <button class="btn auth-btn" id="btnLogin">Log In →</button>
+      <div class="field"><input type="password" id="loginPass" placeholder="Password" data-i18n-ph="password"></div>
+      <button class="btn auth-btn" id="btnLogin"><span data-i18n="login">Log In</span> →</button>
     </div>
     <div class="auth-form" id="formSignup">
       <div class="field"><input type="email" id="signupEmail" placeholder="Email"></div>
-      <div class="field"><input type="password" id="signupPass" placeholder="Create Password (min 6 chars)"></div>
-      <button class="btn auth-btn" id="btnSignup">Create Account →</button>
+      <div class="field"><input type="password" id="signupPass" placeholder="Create Password (min 6 chars)" data-i18n-ph="create_pass"></div>
+      <button class="btn auth-btn" id="btnSignup"><span data-i18n="signup">Sign Up</span> →</button>
     </div>
   </div>
 </div>
@@ -313,11 +327,12 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
     </div>
     <div class="navlinks" id="navlinks">
       <div class="nav-slider" id="navSlider"></div>
-      <a href="#" data-view="dashboard" class="active">Dashboard</a>
-      <a href="#" data-view="quiz">Quiz</a>
-      <a href="#" data-view="scheduler">Scheduler</a>
-      <a href="#" data-view="coach">Coach</a>
-      <a href="#" data-view="profile">Profile</a>
+      <a href="#" data-view="dashboard" class="active" data-i18n="dashboard">Dashboard</a>
+      <a href="#" data-view="quiz" data-i18n="quiz">Quiz</a>
+      <a href="#" data-view="scheduler" data-i18n="scheduler">Scheduler</a>
+      <a href="#" data-view="coach" data-i18n="coach">Coach</a>
+      <a href="#" data-view="profile" data-i18n="profile">Profile</a>
+      <a href="#" data-view="settings" data-i18n="settings">Settings</a>
     </div>
     <div class="navright">
       <div class="chip"><span class="flame">▲</span><span id="streakChip">0 days</span></div>
@@ -331,9 +346,9 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
     <section class="view active" id="view-dashboard">
       <div class="view-header">
         <div class="text-block">
-          <div class="kicker">Dashboard</div>
-          <h1 class="big">Your Ascent</h1>
-          <p class="sub">Track your mastery, analyze recent attempts, and keep your streak alive. Every quiz updates your Peak Score.</p>
+          <div class="kicker" data-i18n="dashboard">Dashboard</div>
+          <h1 class="big" data-i18n="ascent_title">Your Ascent</h1>
+          <p class="sub" data-i18n="dash_sub">Track your mastery, analyze recent attempts, and keep your streak alive. Every quiz updates your Peak Score.</p>
         </div>
         <div class="ringwrap">
           <svg class="ring-svg" viewBox="0 0 80 80">
@@ -342,28 +357,28 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
           </svg>
           <div>
             <div class="peak-num" id="peakVal">0</div>
-            <div class="peak-lbl">Peak Score</div>
+            <div class="peak-lbl" data-i18n="peak_score">Peak Score</div>
           </div>
         </div>
       </div>
       <div class="grid stats">
-        <div class="card stat"><div class="num" id="streakVal">0</div><div class="lbl">Day Streak</div></div>
-        <div class="card stat"><div class="num" id="reps7">0</div><div class="lbl">7-Day Reps</div></div>
-        <div class="card stat"><div class="num" id="avgAcc">0%</div><div class="lbl">Avg Accuracy</div></div>
-        <div class="card stat"><div class="num" id="weakN">0</div><div class="lbl">Weak Topics</div></div>
-        <div class="card stat"><div class="num" id="bestRidge" style="font-size:16px">—</div><div class="lbl">Best Topic</div></div>
+        <div class="card stat"><div class="num" id="streakVal">0</div><div class="lbl" data-i18n="day_streak">Day Streak</div></div>
+        <div class="card stat"><div class="num" id="reps7">0</div><div class="lbl" data-i18n="reps_7">7-Day Reps</div></div>
+        <div class="card stat"><div class="num" id="avgAcc">0%</div><div class="lbl" data-i18n="avg_acc">Avg Accuracy</div></div>
+        <div class="card stat"><div class="num" id="weakN">0</div><div class="lbl" data-i18n="weak_topics">Weak Topics</div></div>
+        <div class="card stat"><div class="num" id="bestRidge" style="font-size:16px">—</div><div class="lbl" data-i18n="best_topic">Best Topic</div></div>
       </div>
       <div class="grid dash-grid">
-        <div class="card"><h2 class="sec">Mastery Radar</h2><div id="radarBox" style="display:grid;place-items:center;min-height:280px"></div></div>
+        <div class="card"><h2 class="sec" data-i18n="mastery_radar">Mastery Radar</h2><div id="radarBox" style="display:grid;place-items:center;min-height:280px"></div></div>
         <div class="card">
-          <h2 class="sec">Score Trend</h2><div id="trendBox" style="min-height:140px"></div>
-          <h2 class="sec" style="margin-top:32px">Recent Attempts</h2><div id="recentList"></div>
+          <h2 class="sec" data-i18n="score_trend">Score Trend</h2><div id="trendBox" style="min-height:140px"></div>
+          <h2 class="sec" style="margin-top:32px" data-i18n="recent_attempts">Recent Attempts</h2><div id="recentList"></div>
         </div>
       </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-          <h2 class="sec" style="margin:0">Ascent Log</h2>
-          <span class="kicker"><span id="heatSessions">0</span> sessions</span>
+          <h2 class="sec" style="margin:0" data-i18n="ascent_log">Ascent Log</h2>
+          <span class="kicker"><span id="heatSessions">0</span> <span data-i18n="sessions">sessions</span></span>
         </div>
         <div class="heat" id="heatGrid"></div>
       </div>
@@ -372,41 +387,41 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
     <!-- QUIZ -->
     <section class="view" id="view-quiz">
       <div class="view-header">
-        <div class="text-block"><div class="kicker">Quiz Engine</div><h1 class="big">Expedition</h1></div>
+        <div class="text-block"><div class="kicker" data-i18n="quiz_engine">Quiz Engine</div><h1 class="big" data-i18n="expedition">Expedition</h1></div>
         <span class="badge ai" id="quizModelBadge">⚡ GROQ</span>
       </div>
       <div class="card" id="setupCard">
         <div class="src-seg">
-          <button class="src-card on" data-src="static"><div class="t">Static Bank <span class="badge static">OFFLINE</span></div><div class="d">Curated question banks for 5 core subjects.</div></button>
-          <button class="src-card" data-src="ai"><div class="t">AI Generated <span class="badge ai">AI</span></div><div class="d">Type any topic — the AI writes fresh MCQs.</div></button>
-          <button class="src-card" data-src="pdf"><div class="t">Upload PDF <span class="badge pdf">AI</span></div><div class="d">Drop your book/notes. AI reads it & quizzes you.</div></button>
+          <button class="src-card on" data-src="static"><div class="t" data-i18n="static_bank">Static Bank</div><div class="d" data-i18n="static_desc">Curated question banks for 5 core subjects.</div></button>
+          <button class="src-card" data-src="ai"><div class="t" data-i18n="ai_generated">AI Generated</div><div class="d" data-i18n="ai_desc">Type any topic — the AI writes fresh MCQs.</div></button>
+          <button class="src-card" data-src="pdf"><div class="t" data-i18n="upload_pdf">Upload PDF</div><div class="d" data-i18n="pdf_desc">Drop your book/notes. AI reads it & quizzes you.</div></button>
         </div>
         <div class="panel on grid" id="panel-static">
           <div class="field">
-            <label>Subject</label>
+            <label data-i18n="subject">Subject</label>
             <div class="custom-select" id="staticTopicSelect">
               <div class="select-trigger"><span class="select-text">Loading…</span><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
               <div class="select-menu" id="staticTopicMenu"></div>
             </div>
           </div>
-          <div class="field"><label>Length</label><div class="seg" id="lenStatic"><button data-n="3">3</button><button data-n="4" class="on">4</button><button data-n="5">5</button></div></div>
+          <div class="field"><label data-i18n="length">Length</label><div class="seg" id="lenStatic"><button data-n="3">3</button><button data-n="4" class="on">4</button><button data-n="5">5</button></div></div>
         </div>
         <div class="panel grid" id="panel-ai">
-          <div class="field"><label>Any topic</label><input id="aiTopic" placeholder="e.g. Photosynthesis, Cold War…"></div>
-          <div class="field"><label>Difficulty</label><div class="seg" id="diffSeg"><button data-d="easy">Easy</button><button data-d="mixed" class="on">Mixed</button><button data-d="hard">Hard</button></div></div>
-          <div class="field"><label>Length</label><div class="slider-container"><input type="range" min="1" max="30" value="4" class="custom-range" id="lenAiSlider"><div class="slider-val" id="lenAiVal">4</div></div></div>
+          <div class="field"><label data-i18n="any_topic">Any topic</label><input id="aiTopic" placeholder="e.g. Photosynthesis, Cold War…" data-i18n-ph="any_topic_ph"></div>
+          <div class="field"><label data-i18n="difficulty">Difficulty</label><div class="seg" id="diffSeg"><button data-d="easy" data-i18n="easy">Easy</button><button data-d="mixed" class="on" data-i18n="mixed">Mixed</button><button data-d="hard" data-i18n="hard">Hard</button></div></div>
+          <div class="field"><label data-i18n="length">Length</label><div class="slider-container"><input type="range" min="1" max="30" value="4" class="custom-range" id="lenAiSlider"><div class="slider-val" id="lenAiVal">4</div></div></div>
         </div>
         <div class="panel grid" id="panel-pdf">
-          <div class="field"><label>Your PDF book / notes</label><div class="drop" id="drop">⬆ Drop PDF here or click to browse<br><span id="fileName" style="font-size:11px"></span></div><input type="file" id="fileInput" accept="application/pdf" hidden></div>
+          <div class="field"><label data-i18n="your_pdf">Your PDF book / notes</label><div class="drop" id="drop" data-i18n="drop_pdf">⬆ Drop PDF here or click to browse<br><span id="fileName" style="font-size:11px"></span></div><input type="file" id="fileInput" accept="application/pdf" hidden></div>
           <div class="grid" style="gap:14px">
-            <div class="field"><label>Topic label (optional)</label><input id="pdfTopic" placeholder="defaults to file name"></div>
+            <div class="field"><label data-i18n="topic_label">Topic label (optional)</label><input id="pdfTopic" placeholder="defaults to file name" data-i18n-ph="topic_label_ph"></div>
             <div class="field" style="display:flex;align-items:center;justify-content:center;flex-direction:column;background:var(--glass-strong);border-radius:16px;padding:14px;border:1px solid var(--glass-border);margin-top:8px">
-              <span style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase">Auto-Optimized Length</span>
-              <span style="font-size:12px;color:var(--accent);font-weight:600;margin-top:4px">AI decides the best amount</span>
+              <span style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase" data-i18n="auto_length">Auto-Optimized Length</span>
+              <span style="font-size:12px;color:var(--accent);font-weight:600;margin-top:4px" data-i18n="ai_decides">AI decides the best amount</span>
             </div>
           </div>
         </div>
-        <div style="margin-top:24px;text-align:center"><button class="btn" id="beginBtn"><span class="spin"></span>Begin Ascent →</button></div>
+        <div style="margin-top:24px;text-align:center"><button class="btn" id="beginBtn"><span class="spin"></span><span data-i18n="begin_ascent">Begin Ascent</span> →</button></div>
       </div>
       <div class="card qcard" id="playCard" hidden>
         <div class="qtop"><span id="qMeta">Q 1/4</span><span id="qBadge"></span></div>
@@ -414,37 +429,37 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
         <div class="qtext" id="qText"></div>
         <div id="qOpts"></div>
         <div id="qExplain"></div>
-        <div style="display:flex;justify-content:space-between;margin-top:20px"><button class="btn outline" id="exitBtn">← Exit</button><button class="btn" id="qNext" hidden>Next →</button></div>
+        <div style="display:flex;justify-content:space-between;margin-top:20px"><button class="btn outline" id="exitBtn">← <span data-i18n="exit">Exit</span></button><button class="btn" id="qNext" hidden><span data-i18n="next">Next</span> →</button></div>
       </div>
       <div class="card qcard res" id="resultCard" hidden>
-        <div class="kicker" style="text-align:center">Ascent Complete</div>
+        <div class="kicker" style="text-align:center" data-i18n="ascent_complete">Ascent Complete</div>
         <div class="num" id="resPct">0%</div>
         <div id="resDelta" style="margin:10px 0 4px"></div>
         <div id="resTopic" class="sub" style="margin:0 auto 30px;text-align:center"></div>
-        <div style="display:flex;gap:12px;justify-content:center"><button class="btn outline" id="againBtn">↺ Again</button><button class="btn" id="homeBtn">Dashboard ▲</button></div>
+        <div style="display:flex;gap:12px;justify-content:center"><button class="btn outline" id="againBtn">↺ <span data-i18n="again">Again</span></button><button class="btn" id="homeBtn"><span data-i18n="dashboard">Dashboard</span> ▲</button></div>
       </div>
     </section>
 
     <!-- SCHEDULER -->
     <section class="view" id="view-scheduler">
       <div class="view-header">
-        <div class="text-block"><div class="kicker">Scheduler</div><h1 class="big">Priority Queue</h1><p class="sub">Tasks are ranked automatically based on deadline urgency and your current topic weakness.</p></div>
+        <div class="text-block"><div class="kicker" data-i18n="scheduler">Scheduler</div><h1 class="big" data-i18n="priority_queue">Priority Queue</h1><p class="sub" data-i18n="sched_sub">Tasks are ranked automatically based on deadline urgency and your current topic weakness.</p></div>
       </div>
       <div class="grid sched">
         <div class="card">
-          <h2 class="sec">New Objective</h2>
+          <h2 class="sec" data-i18n="new_objective">New Objective</h2>
           <div class="grid" style="gap:14px">
-            <div class="field"><label>Title</label><input id="taskTitle" placeholder="e.g. Chemistry lab report"></div>
-            <div class="field"><label>Linked topic (optional)</label><input id="taskTopic" placeholder="e.g. Integration"></div>
-            <div class="field"><label>Deadline</label><input id="taskDue" type="datetime-local"></div>
-            <button class="btn" id="addTaskBtn">+ Add to Queue</button>
+            <div class="field"><label data-i18n="title">Title</label><input id="taskTitle" placeholder="e.g. Chemistry lab report" data-i18n-ph="title_ph"></div>
+            <div class="field"><label data-i18n="linked_topic">Linked topic (optional)</label><input id="taskTopic" placeholder="e.g. Integration" data-i18n-ph="linked_topic_ph"></div>
+            <div class="field"><label data-i18n="deadline">Deadline</label><input id="taskDue" type="datetime-local"></div>
+            <button class="btn" id="addTaskBtn">+ <span data-i18n="add_queue">Add to Queue</span></button>
           </div>
-          <h2 class="sec" style="margin-top:32px">Radar Blips <span class="kicker">weak & unscheduled</span></h2>
+          <h2 class="sec" style="margin-top:32px"><span data-i18n="radar_blips">Radar Blips</span> <span class="kicker"><span data-i18n="weak_unscheduled">weak & unscheduled</span></span></h2>
           <div id="sugRow"></div>
         </div>
         <div class="card">
-          <h2 class="sec">Queue</h2><div id="queueList"></div>
-          <h2 class="sec" style="margin-top:32px">Cleared</h2><div id="clearedList"></div>
+          <h2 class="sec" data-i18n="queue">Queue</h2><div id="queueList"></div>
+          <h2 class="sec" style="margin-top:32px" data-i18n="cleared">Cleared</h2><div id="clearedList"></div>
         </div>
       </div>
     </section>
@@ -453,10 +468,10 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
     <section class="view" id="view-coach">
       <div class="view-header" style="justify-content:center;text-align:center">
         <div class="text-block">
-          <div class="kicker" style="text-align:center">AI Coach</div>
-          <h1 class="big">Summit Plan</h1>
-          <p class="sub" style="margin-left:auto;margin-right:auto">Powered by Groq. It analyses weak topics, deadlines and your accuracy trend, then builds a 7-day revision plan.</p>
-          <button class="btn" id="coachBtn" style="margin-top:24px"><span class="spin"></span>⚡ Generate Revision Plan</button>
+          <div class="kicker" style="text-align:center" data-i18n="ai_coach">AI Coach</div>
+          <h1 class="big" data-i18n="summit_plan">Summit Plan</h1>
+          <p class="sub" style="margin-left:auto;margin-right:auto" data-i18n="coach_sub">Powered by Groq. It analyses weak topics, deadlines and your accuracy trend, then builds a 7-day revision plan.</p>
+          <button class="btn" id="coachBtn" style="margin-top:24px"><span class="spin"></span>⚡ <span data-i18n="generate_plan">Generate Revision Plan</span></button>
           <div id="coachBadge" style="margin-top:16px"></div>
         </div>
       </div>
@@ -467,63 +482,116 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
     <section class="view" id="view-profile">
       <div class="view-header">
         <div class="text-block">
-          <div class="kicker">Account</div>
-          <h1 class="big">Your Profile</h1>
-          <p class="sub">Manage your subscription, track your usage limits, and view your recent quiz activity.</p>
+          <div class="kicker" data-i18n="account">Account</div>
+          <h1 class="big" data-i18n="your_profile">Your Profile</h1>
+          <p class="sub" data-i18n="profile_sub">Manage your subscription, track your usage limits, and view your recent quiz activity.</p>
         </div>
       </div>
       
       <div class="grid profile-grid">
-        <!-- Left Col: Usage & Activity -->
         <div class="grid" style="gap: 20px;">
           <div class="card">
-            <h2 class="sec">Account & Usage</h2>
+            <h2 class="sec" data-i18n="account_usage">Account & Usage</h2>
             <div style="display:flex; justify-content:space-between; margin-bottom:24px; align-items:center;">
               <div>
-                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Current Plan</div>
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px" data-i18n="current_plan">Current Plan</div>
                 <div id="profileTier" style="font-family:var(--disp); font-size:24px; font-weight:700; text-transform:capitalize; color:var(--accent)">Free</div>
               </div>
               <span class="badge ai" id="tierBadge" style="text-transform:capitalize">Free</span>
             </div>
-            
             <div style="display:grid; gap:20px;">
               <div>
-                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)">AI Questions (Monthly)</span><span id="aiUsageText" style="font-weight:600">0 / 30</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)" data-i18n="ai_questions_m">AI Questions (Monthly)</span><span id="aiUsageText" style="font-weight:600">0 / 30</span></div>
                 <div class="qbar" style="margin-bottom:0"><i id="aiUsageBar" style="width:0%;background:var(--accent)"></i></div>
               </div>
               <div>
-                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)">PDF Uploads (Monthly)</span><span id="pdfUsageText" style="font-weight:600">0 / 3</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:var(--muted)" data-i18n="pdf_uploads_m">PDF Uploads (Monthly)</span><span id="pdfUsageText" style="font-weight:600">0 / 3</span></div>
                 <div class="qbar" style="margin-bottom:0"><i id="pdfUsageBar" style="width:0%;background:var(--sky)"></i></div>
               </div>
             </div>
           </div>
-
           <div class="card">
-            <h2 class="sec">Recent Activity</h2>
+            <h2 class="sec" data-i18n="recent_activity">Recent Activity</h2>
             <div id="profileRecentList"></div>
           </div>
         </div>
 
-        <!-- Right Col: Upgrade Plans -->
         <div class="card">
-          <h2 class="sec">Upgrade Plan</h2>
-          <p class="sub" style="margin-bottom: 20px;">Unlock higher usage limits and the powerful Llama 3.3 70B model.</p>
-          
+          <h2 class="sec" data-i18n="upgrade_plan">Upgrade Plan</h2>
+          <p class="sub" style="margin-bottom: 20px;" data-i18n="upgrade_sub">Unlock higher usage limits and the powerful Llama 3.3 70B model.</p>
           <div class="profile-upgrade-boxes">
             <div class="upgrade-box" id="plusBox" style="flex:1;padding:20px;border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;text-align:center">
               <div style="font-family:var(--disp);font-weight:700;font-size:18px">Plus</div>
               <div style="font-size:24px;font-weight:800;margin:8px 0">99 EGP</div>
-              <div style="font-size:11px;color:var(--muted)">/ month</div>
+              <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="month">month</span></div>
               <div style="margin-top:12px;font-size:12px;color:var(--muted)">500 AI Questions<br>50 PDF Uploads<br><b>GPT-OSS-20B Model</b></div>
             </div>
             <div class="upgrade-box" id="proBox" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
               <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
               <div style="font-size:24px;font-weight:800;margin:8px 0">199 EGP</div>
-              <div style="font-size:11px;color:var(--muted)">/ month</div>
+              <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="month">month</span></div>
               <div style="margin-top:12px;font-size:12px;color:var(--muted)">2000 AI Questions<br>200 PDF Uploads<br><b>LLAMA-3.3-70B Model</b></div>
             </div>
           </div>
-          <button class="btn auth-btn" id="btnCheckout" style="width:100%; justify-content:center;">Proceed to Payment →</button>
+          <button class="btn auth-btn" id="btnCheckout" style="width:100%; justify-content:center;"><span data-i18n="proceed_payment">Proceed to Payment</span> →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <div class="view-header">
+        <div class="text-block">
+          <div class="kicker" data-i18n="settings">Settings</div>
+          <h1 class="big" data-i18n="preferences">Preferences</h1>
+          <p class="sub" data-i18n="settings_sub">Manage your account details, change your password, and set your preferred language.</p>
+        </div>
+      </div>
+      
+      <div class="settings-grid">
+        <div class="grid" style="gap:20px">
+          <!-- Account Settings -->
+          <div class="card settings-card">
+            <h2 class="sec" data-i18n="account_info">Account Information</h2>
+            <div class="field">
+              <label data-i18n="email">Email</label>
+              <input type="email" id="settingsEmail" disabled style="opacity:0.6; cursor:not-allowed">
+            </div>
+            <div class="field">
+              <label data-i18n="username">Username</label>
+              <input type="text" id="settingsUsername" placeholder="Your name">
+            </div>
+            <div class="field">
+              <label data-i18n="language">Language</label>
+              <div class="custom-select" id="langSelect">
+                <div class="select-trigger">
+                  <span class="select-text">English</span>
+                  <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="select-menu" id="langMenu">
+                  <div class="select-option" data-val="en">English</div>
+                  <div class="select-option" data-val="ar">العربية (Arabic)</div>
+                </div>
+              </div>
+            </div>
+            <button class="btn" id="btnSaveSettings"><span data-i18n="save_changes">Save Changes</span></button>
+          </div>
+        </div>
+
+        <div class="grid" style="gap:20px">
+          <!-- Security Settings -->
+          <div class="card settings-card">
+            <h2 class="sec" data-i18n="security">Security</h2>
+            <div class="field">
+              <label data-i18n="current_pass">Current Password</label>
+              <input type="password" id="oldPass" placeholder="********">
+            </div>
+            <div class="field">
+              <label data-i18n="new_pass">New Password</label>
+              <input type="password" id="newPass" placeholder="********">
+            </div>
+            <button class="btn outline" id="btnChangePass"><span data-i18n="update_password">Update Password</span></button>
+          </div>
         </div>
       </div>
     </section>
@@ -532,21 +600,22 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
   <div class="chat-fab" id="chatFab">✦</div>
   <div class="chat-win" id="chatWin">
     <div class="chat-head">
-      <div><div class="ttl">El-Peak Tutor</div><div class="sub-ttl">Powered by Groq · Online</div></div>
+      <div><div class="ttl" data-i18n="tutor">El-Peak Tutor</div><div class="sub-ttl" data-i18n="powered_groq">Powered by Groq · Online</div></div>
       <button class="iconbtn" id="chatClose" style="width:28px;height:28px;border:none">✕</button>
     </div>
     <div class="chat-body" id="chatBody">
-      <div class="msg ai"><p>Hey! I'm your AI tutor. Ask me anything about your studies.</p></div>
+      <div class="msg ai"><p data-i18n="tutor_welcome">Hey! I'm your AI tutor. Ask me anything about your studies.</p></div>
     </div>
-    <div class="chat-input"><input id="chatInput" placeholder="Ask a question..."><button id="chatSend">➤</button></div>
+    <div class="chat-input"><input id="chatInput" placeholder="Ask a question..." data-i18n-ph="ask_q"><button id="chatSend">➤</button></div>
   </div>
 
   <div class="mobilenav">
-    <a href="#" data-view="dashboard" class="active">Home</a>
-    <a href="#" data-view="quiz">Quiz</a>
-    <a href="#" data-view="scheduler">Plan</a>
-    <a href="#" data-view="coach">Coach</a>
-    <a href="#" data-view="profile">Profile</a>
+    <a href="#" data-view="dashboard" class="active" data-i18n="home">Home</a>
+    <a href="#" data-view="quiz" data-i18n="quiz">Quiz</a>
+    <a href="#" data-view="scheduler" data-i18n="plan">Plan</a>
+    <a href="#" data-view="coach" data-i18n="coach">Coach</a>
+    <a href="#" data-view="profile" data-i18n="profile">Profile</a>
+    <a href="#" data-view="settings" data-i18n="settings">Settings</a>
   </div>
   <footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
 </div>
@@ -554,24 +623,24 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
 <!-- Upgrade Limit Modal -->
 <div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px">
   <div class="auth-card" style="max-width:450px">
-    <div class="auth-logo">Limit Reached</div>
-    <div class="auth-sub">You've used all your free credits for this month. Upgrade to keep your ascent going!</div>
-    <div style="display:flex;gap:12px;width:100%;margin-bottom:20px">
+    <div class="auth-logo" data-i18n="limit_reached">Limit Reached</div>
+    <div class="auth-sub" data-i18n="limit_sub">You've used all your free credits for this month. Upgrade to keep your ascent going!</div>
+    <div class="profile-upgrade-boxes">
       <div class="upgrade-box" id="plusBoxModal" style="flex:1;padding:20px;border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;text-align:center">
         <div style="font-family:var(--disp);font-weight:700;font-size:18px">Plus</div>
         <div style="font-size:24px;font-weight:800;margin:8px 0">99 EGP</div>
-        <div style="font-size:11px;color:var(--muted)">/ month</div>
-        <div style="margin-top:12px;font-size:12px;color:var(--muted)">500 AI Questions<br>50 PDF Uploads<br><b>GPT-OSS-20B Model</b></div>
+        <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="month">month</span></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted)">500 AI Questions<br>50 PDF Uploads</div>
       </div>
       <div class="upgrade-box" id="proBoxModal" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
         <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
         <div style="font-size:24px;font-weight:800;margin:8px 0">199 EGP</div>
-        <div style="font-size:11px;color:var(--muted)">/ month</div>
-        <div style="margin-top:12px;font-size:12px;color:var(--muted)">2000 AI Questions<br>200 PDF Uploads<br><b>LLAMA-3.3-70B Model</b></b></div>
+        <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="month">month</span></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted)">2000 AI Questions<br>200 PDF Uploads<br><b>70B Model</b></div>
       </div>
     </div>
-    <button class="btn auth-btn" id="btnCheckoutModal">Proceed to Payment →</button>
-    <button class="btn outline auth-btn" id="btnCloseUpgrade" style="margin-top:8px">Maybe Later</button>
+    <button class="btn auth-btn" id="btnCheckoutModal"><span data-i18n="proceed_payment">Proceed to Payment</span> →</button>
+    <button class="btn outline auth-btn" id="btnCloseUpgrade" style="margin-top:8px"><span data-i18n="maybe_later">Maybe Later</span></button>
   </div>
 </div>
 
@@ -579,6 +648,87 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
 
 <script>
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+// --- i18n Dictionary ---
+const translations = {
+  en: {
+    auth_sub: "Sign in to sync your ascent", google_btn: "Continue with Google", or: "OR", login: "Log In", signup: "Sign Up", password: "Password",
+    create_pass: "Create Password (min 6 chars)", dashboard: "Dashboard", quiz: "Quiz", scheduler: "Scheduler", coach: "Coach", profile: "Profile",
+    settings: "Settings", ascent_title: "Your Ascent", dash_sub: "Track your mastery, analyze recent attempts, and keep your streak alive. Every quiz updates your Peak Score.",
+    peak_score: "Peak Score", day_streak: "Day Streak", reps_7: "7-Day Reps", avg_acc: "Avg Accuracy", weak_topics: "Weak Topics", best_topic: "Best Topic",
+    mastery_radar: "Mastery Radar", score_trend: "Score Trend", recent_attempts: "Recent Attempts", ascent_log: "Ascent Log", sessions: "sessions",
+    quiz_engine: "Quiz Engine", expedition: "Expedition", static_bank: "Static Bank", static_desc: "Curated question banks for 5 core subjects.",
+    ai_generated: "AI Generated", ai_desc: "Type any topic — the AI writes fresh MCQs.", upload_pdf: "Upload PDF", pdf_desc: "Drop your book/notes. AI reads it & quizzes you.",
+    subject: "Subject", length: "Length", any_topic: "Any topic", any_topic_ph: "e.g. Photosynthesis, Cold War…", difficulty: "Difficulty", easy: "Easy", mixed: "Mixed", hard: "Hard",
+    your_pdf: "Your PDF book / notes", drop_pdf: "⬆ Drop PDF here or click to browse", topic_label: "Topic label (optional)", topic_label_ph: "defaults to file name",
+    auto_length: "Auto-Optimized Length", ai_decides: "AI decides the best amount", begin_ascent: "Begin Ascent", exit: "Exit", next: "Next", ascent_complete: "Ascent Complete",
+    again: "Again", priority_queue: "Priority Queue", sched_sub: "Tasks are ranked automatically based on deadline urgency and your current topic weakness.",
+    new_objective: "New Objective", title: "Title", title_ph: "e.g. Chemistry lab report", linked_topic: "Linked topic (optional)", linked_topic_ph: "e.g. Integration",
+    deadline: "Deadline", add_queue: "Add to Queue", radar_blips: "Radar Blips", weak_unscheduled: "weak & unscheduled", queue: "Queue", cleared: "Cleared",
+    ai_coach: "AI Coach", summit_plan: "Summit Plan", coach_sub: "Powered by Groq. It analyses weak topics, deadlines and your accuracy trend, then builds a 7-day revision plan.",
+    generate_plan: "Generate Revision Plan", account: "Account", your_profile: "Your Profile", profile_sub: "Manage your subscription, track your usage limits, and view your recent quiz activity.",
+    account_usage: "Account & Usage", current_plan: "Current Plan", ai_questions_m: "AI Questions (Monthly)", pdf_uploads_m: "PDF Uploads (Monthly)", recent_activity: "Recent Activity",
+    upgrade_plan: "Upgrade Plan", upgrade_sub: "Unlock higher usage limits and the powerful Llama 3.3 70B model.", month: "month", proceed_payment: "Proceed to Payment",
+    preferences: "Preferences", settings_sub: "Manage your account details, change your password, and set your preferred language.", account_info: "Account Information",
+    email: "Email", username: "Username", language: "Language", save_changes: "Save Changes", security: "Security", current_pass: "Current Password", new_pass: "New Password",
+    update_password: "Update Password", tutor: "El-Peak Tutor", powered_groq: "Powered by Groq · Online", tutor_welcome: "Hey! I'm your AI tutor. Ask me anything about your studies.",
+    ask_q: "Ask a question...", home: "Home", plan: "Plan", limit_reached: "Limit Reached", limit_sub: "You've used all your free credits for this month. Upgrade to keep your ascent going!",
+    maybe_later: "Maybe Later", days: "days"
+  },
+  ar: {
+    auth_sub: "سجل الدخول لمزامنة تقدمك", google_btn: "المتابعة مع جوجل", or: "أو", login: "تسجيل الدخول", signup: "إنشاء حساب", password: "كلمة المرور",
+    create_pass: "إنشاء كلمة مرور (6 أحرف على الأقل)", dashboard: "لوحة التحكم", quiz: "الاختبارات", scheduler: "المجدول", coach: "المدرب", profile: "الملف الشخصي",
+    settings: "الإعدادات", ascent_title: "صعودك", dash_sub: "تتبع إتقانك، وحلل المحاولات الأخيرة، وحافظ على سلسلة دراستك. كل اختبار يحدث درجتك.",
+    peak_score: "درجة الذروة", day_streak: "أيام متتالية", reps_7: "تكرارات الأسبوع", avg_acc: "متوسط الدقة", weak_topics: "مواضيع ضعيفة", best_topic: "أفضل موضوع",
+    mastery_radar: "رادار الإتقان", score_trend: "اتجاه الدرجات", recent_attempts: "المحاولات الأخيرة", ascent_log: "سجل الصعود", sessions: "جلسات",
+    quiz_engine: "محرك الاختبارات", expedition: "البعثة", static_bank: "بنك الأسئلة", static_desc: "بنوك أسئلة منظمة لـ 5 مواد أساسية.",
+    ai_generated: "توليد بالذكاء الاصطناعي", ai_desc: "اكتب أي موضوع — يقوم الذكاء الاصطناعي بكتابة أسئلة اختيار من متعدد.", upload_pdf: "رفع ملف PDF", pdf_desc: "أ drop كتابك/ملاحظاتك. يقرأها الذكاء الاصطناعي ويختبرك.",
+    subject: "المادة", length: "الطول", any_topic: "أي موضوع", any_topic_ph: "مثال: التمثيل الضوئي، الحرب الباردة…", difficulty: "الصعوبة", easy: "سهل", mixed: "مختلط", hard: "صعب",
+    your_pdf: "ملف PDF الخاص بك / ملاحظاتك", drop_pdf: "⬆ أسقط ملف PDF هنا أو انقر للتصفح", topic_label: "اسم الموضوع (اختياري)", topic_label_ph: "افتراضي اسم الملف",
+    auto_length: "طول محسن تلقائياً", ai_decides: "الذكاء الاصطناعي يحدد الكمية المناسبة", begin_ascent: "ابدأ الصعود", exit: "خروج", next: "التالي", ascent_complete: "اكتمل الصعود",
+    again: "مرة أخرى", priority_queue: "قائمة الأولويات", sched_sub: "يتم ترتيب المهام تلقائياً بناءً على إلحاح الموعد النهائي وضعف موضوعك الحالي.",
+    new_objective: "هدف جديد", title: "العنوان", title_ph: "مثال: تقرير مختبر الكيمياء", linked_topic: "موضوع مرتبط (اختياري)", linked_topic_ph: "مثال: التكامل",
+    deadline: "الموعد النهائي", add_queue: "أضف إلى القائمة", radar_blips: "إشارات الرادار", weak_unscheduled: "ضعيف وغير مجدول", queue: "قائمة الانتظار", cleared: "مكتمل",
+    ai_coach: "مدرب الذكاء الاصطناعي", summit_plan: "خطة القمة", coach_sub: "مدعوم بواسطة Groq. يحلل المواضيع الضعيفة والمواعيد النهائية واتجاه دقتك، ثم يبني خطة مراجعة لمدة 7 أيام.",
+    generate_plan: "إنشاء خطة المراجعة", account: "الحساب", your_profile: "ملفك الشخصي", profile_sub: "إدارة اشتراكك، وتتبع حدود الاستخدام، وعرض نشاط الاختبار الأخير.",
+    account_usage: "الحساب والاستخدام", current_plan: "الخطة الحالية", ai_questions_m: "أسئلة الذكاء الاصطناعي (شهرياً)", pdf_uploads_m: "رفع PDF (شهرياً)", recent_activity: "النشاط الأخير",
+    upgrade_plan: "ترقية الخطة", upgrade_sub: "افتح حدود استخدام أعلى ونموذج Llama 3.3 70B القوي.", month: "شهر", proceed_payment: "المتابعة إلى الدفع",
+    preferences: "التفضيلات", settings_sub: "إدارة تفاصيل حسابك، وتغيير كلمة المرور، وضبط لغتك المفضلة.", account_info: "معلومات الحساب",
+    email: "البريد الإلكتروني", username: "اسم المستخدم", language: "اللغة", save_changes: "حفظ التغييرات", security: "الأمان", current_pass: "كلمة المرور الحالية", new_pass: "كلمة مرور جديدة",
+    update_password: "تحديث كلمة المرور", tutor: "مدرس El-Peak", powered_groq: "مدعوم من Groq · متصل", tutor_welcome: "مرحباً! أنا مدرسك الذكي. اسألني أي شيء عن دراستك.",
+    ask_q: "اطرح سؤالاً...", home: "الرئيسية", plan: "الخطة", limit_reached: "تم الوصول للحد", limit_sub: "لقد استخدمت كل أرصتك المجانية لهذا الشهر. قم بالترقية لمواصلة صعودك!",
+    maybe_later: "ربما لاحقاً", days: "أيام"
+  }
+};
+
+function applyLanguage(lang) {
+  const dict = translations[lang] || translations.en;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (dict[key]) el.textContent = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-i18n-ph');
+    if (dict[key]) el.setAttribute('placeholder', dict[key]);
+  });
+  
+  // Set HTML direction for RTL support
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.documentElement.lang = lang;
+
+  // Update streak chip text
+  const streakChip = $("#streakChip");
+  if (streakChip) streakChip.textContent = (streakChip.textContent.split(" ")[0] || "0") + " " + dict.days;
+  
+  // Update Language Dropdown
+  const langText = $("#langSelect .select-text");
+  if (langText) langText.textContent = lang === 'ar' ? "العربية (Arabic)" : "English";
+  const langOptions = $$("#langMenu .select-option");
+  langOptions.forEach(opt => {
+    opt.classList.toggle('selected', opt.dataset.val === lang);
+  });
+}
+
 function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;$("#toasts").appendChild(t);setTimeout(()=>t.remove(),3200)}
 function ago(s){const d=(Date.now()-new Date(s))/1e3;if(d<60)return"just now";if(d<3600)return Math.floor(d/60)+"m ago";if(d<86400)return Math.floor(d/3600)+"h ago";return Math.floor(d/86400)+"d ago"}
 function count(el,to,suf=""){const t0=performance.now(),dur=800;function f(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e)+suf;if(p<1)requestAnimationFrame(f)}requestAnimationFrame(f)}
@@ -597,6 +747,7 @@ document.documentElement.dataset.theme = savedTheme;
 };
 
 let token = localStorage.getItem("ep-token");
+let currentLang = localStorage.getItem("ep-lang") || "en"; // Default English
 
 async function api(p, o={}) {
   let r;
@@ -627,7 +778,9 @@ function showApp() {
     const activeLink = $(".navlinks a.active");
     if (activeLink) moveSlider(activeLink);
     loadDashboard();
-    loadProfile(); // Preload profile data
+    loadProfile();
+    loadSettings(); // Load settings on app show
+    applyLanguage(currentLang); // Apply saved language
 }
 
 function logout() {
@@ -641,6 +794,7 @@ if (token) {
     showApp();
 } else {
     $("#authView").style.display = "flex";
+    applyLanguage(currentLang);
 }
 
  $("#tabLogin").onclick = () => { $("#tabLogin").classList.add("active"); $("#tabSignup").classList.remove("active"); $("#formLogin").classList.add("active"); $("#formSignup").classList.remove("active"); };
@@ -710,12 +864,12 @@ if (googleToken) {
     window.history.replaceState({}, document.title, "/");
     showApp();
 }
-// Check for simulated upgrade success
+
 if (urlParams.get('upgraded') === 'true') {
     window.history.replaceState({}, document.title, "/");
     toast("🎉 Successfully upgraded your account!");
-    loadDashboard();
 }
+
  $("#logoutBtn").onclick = () => logout();
 
 function moveSlider(activeLink) {
@@ -738,6 +892,7 @@ function go(v){
     if(v==="dashboard")loadDashboard();
     if(v==="scheduler")loadSchedule();
     if(v==="profile")loadProfile();
+    if(v==="settings")loadSettings();
 }
 
  $$("[data-view]").forEach(a => {
@@ -751,17 +906,14 @@ async function loadDashboard(){
   try{
     const [stats,topics,recent,heat,usage]=await Promise.all([api("/api/stats"),api("/api/topics"),api("/api/recent?limit=20"),api("/api/heatmap"),api("/api/usage")]);
     
-    // Update the Quiz header to show the actual model being used
     const modelBadge = $("#quizModelBadge");
-    if (usage.tier === 'free') {
-    modelBadge.textContent = '⚡ LLAMA-3.1-8B';
-    } else if (usage.tier === 'plus') {
-    modelBadge.textContent = '⚡ GPT-OSS-20B';
-    } else {
-    modelBadge.textContent = '⚡ LLAMA-3.3-70B';
+    if (usage && usage.tier === 'free') {
+        modelBadge.textContent = '⚡ LLAMA-3.1-8B';
+    } else if (usage) {
+        modelBadge.textContent = '⚡ LLAMA-3.3-70B';
     }
     
-    $("#streakChip").textContent=stats.streak+" days";
+    $("#streakChip").textContent=stats.streak+" "+ (translations[currentLang].days || "days");
     count($("#peakVal"),stats.peak);count($("#streakVal"),stats.streak);count($("#reps7"),stats.attempts_7d);
     count($("#avgAcc"),Math.round(stats.avg_pct),"%");count($("#weakN"),stats.weak_count);
     $("#bestRidge").textContent=stats.best_topic||"—";
@@ -795,6 +947,68 @@ async function loadProfile() {
         toast("Failed to load profile data.");
     }
 }
+
+async function loadSettings() {
+    try {
+        const settings = await api("/api/user/settings");
+        $("#settingsEmail").value = settings.email || "";
+        $("#settingsUsername").value = settings.username || "";
+        currentLang = settings.language || "en";
+        localStorage.setItem("ep-lang", currentLang);
+        applyLanguage(currentLang);
+    } catch (e) {
+        toast("Failed to load settings.");
+    }
+}
+
+ $("#btnSaveSettings").onclick = async () => {
+    const btn = $("#btnSaveSettings");
+    btn.classList.add("loading");
+    btn.disabled = true;
+    try {
+        const username = $("#settingsUsername").value.trim();
+        await api("/api/user/settings", { method: "PUT", body: { username, language: currentLang } });
+        localStorage.setItem("ep-lang", currentLang);
+        applyLanguage(currentLang);
+        toast("✅ Settings saved!");
+    } catch (e) {
+        toast("⚠ " + e.message);
+    }
+    btn.classList.remove("loading");
+    btn.disabled = false;
+};
+
+ $("#btnChangePass").onclick = async () => {
+    const btn = $("#btnChangePass");
+    btn.classList.add("loading");
+    btn.disabled = true;
+    try {
+        const old_password = $("#oldPass").value;
+        const new_password = $("#newPass").value;
+        if (!old_password || !new_password) throw new Error("Please fill in both passwords.");
+        await api("/api/user/password", { method: "PUT", body: { old_password, new_password } });
+        $("#oldPass").value = "";
+        $("#newPass").value = "";
+        toast("✅ Password updated successfully!");
+    } catch (e) {
+        toast("⚠ " + e.message);
+    }
+    btn.classList.remove("loading");
+    btn.disabled = false;
+};
+
+// Language Dropdown
+const langSelect = $("#langSelect");
+const langMenu = $("#langMenu");
+langSelect.querySelector(".select-trigger").onclick = (e) => { e.stopPropagation(); langSelect.classList.toggle("open"); };
+document.addEventListener("click", (e) => { if (!langSelect.contains(e.target)) langSelect.classList.remove("open"); });
+ $$("#langMenu .select-option").forEach(opt => {
+    opt.onclick = () => {
+        currentLang = opt.dataset.val;
+        applyLanguage(currentLang); // Apply immediately for UI preview
+        langSelect.classList.remove("open");
+    }
+});
 
 function renderRadar(topics){
   const t=topics.slice(0,8);if(!t.length){$("#radarBox").innerHTML='<p class="sub">No topics yet.</p>';return}
