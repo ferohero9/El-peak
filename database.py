@@ -1,5 +1,5 @@
 """
-El-Peak — data layer v6 (PostgreSQL Multi-User with Transactions).
+El-Peak — data layer v7 (PostgreSQL Multi-User with Transactions & Usage).
 """
 import datetime as dt
 import os
@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS users (
     pdf_uploads_used  INTEGER DEFAULT 0,
     usage_reset_date  TEXT
 );
-# ... keep topics, attempts, and tasks exactly as they are ...
 CREATE TABLE IF NOT EXISTS topics (
     id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id),
@@ -271,6 +270,7 @@ async def get_schedule(user_id: int) -> dict:
             if tp["score"] < 60 and tp["name"].lower() not in busy
         ][:4]
         return {"queue": queue, "cleared": cleared, "suggestions": suggestions}
+
 # ---------------------------------------------------------------- USAGE & PAYWALL
 async def get_user_usage(user_id: int) -> dict:
     pool = await get_pool()
@@ -282,7 +282,6 @@ async def increment_usage(user_id: int, ai_questions: int = 0, pdf_uploads: int 
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # Reset monthly usage if it's a new month
             await conn.execute("""
                 UPDATE users 
                 SET ai_questions_used = CASE WHEN usage_reset_date IS NULL OR TO_CHAR(NOW(), 'YYYY-MM') != SUBSTR(usage_reset_date, 1, 7) THEN 0 ELSE ai_questions_used END,
