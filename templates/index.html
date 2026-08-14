@@ -326,12 +326,12 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
         <label data-i18n="user_type">User Type</label>
         <div class="custom-select" id="authTypeSelect">
           <div class="select-trigger">
-            <span class="select-text" data-i18n="general">General</span>
+            <span class="select-text">General</span>
             <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
           <div class="select-menu" id="authTypeMenu">
-            <div class="select-option" data-val="general" data-i18n="general">General</div>
-            <div class="select-option" data-val="school" data-i18n="school">School Student</div>
+            <div class="select-option" data-val="general">General</div>
+            <div class="select-option" data-val="school">School Student</div>
           </div>
         </div>
       </div>
@@ -340,13 +340,13 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
         <label data-i18n="grade_level">Grade Level</label>
         <div class="custom-select" id="authGradeSelect">
           <div class="select-trigger">
-            <span class="select-text" data-i18n="g1_6">Primary (1-6)</span>
+            <span class="select-text">Primary (1-6)</span>
             <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
           <div class="select-menu" id="authGradeMenu">
-            <div class="select-option" data-val="g1-6" data-i18n="g1_6">Primary (1-6)</div>
-            <div class="select-option" data-val="g7-9" data-i18n="g7_9">Preparatory (7-9)</div>
-            <div class="select-option" data-val="g10-12" data-i18n="g10_12">Secondary (10-12)</div>
+            <div class="select-option" data-val="g1-6">Primary (1-6)</div>
+            <div class="select-option" data-val="g7-9">Preparatory (7-9)</div>
+            <div class="select-option" data-val="g10-12">Secondary (10-12)</div>
           </div>
         </div>
       </div>
@@ -446,7 +446,7 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
         </div>
         <div class="panel grid" id="panel-ai">
           <div class="field"><label data-i18n="any_topic">Any topic</label><input id="aiTopic" placeholder="e.g. Photosynthesis, Cold War…" data-i18n-ph="any_topic_ph"></div>
-          <div class="field"><label data-i18n="difficulty">Difficulty</label><div class="seg" id="diffSeg"><!-- dynamically populated --></div></div>
+          <div class="field"><label data-i18n="difficulty">Difficulty</label><div class="seg" id="diffSeg"><button data-d="easy" data-i18n="easy">Easy</button><button data-d="mixed" class="on" data-i18n="mixed">Mixed</button><button data-d="hard" data-i18n="hard">Hard</button></div></div>
           <div class="field"><label data-i18n="length">Length</label><div class="slider-container"><input type="range" min="1" max="30" value="4" class="custom-range" id="lenAiSlider"><div class="slider-val" id="lenAiVal">4</div></div></div>
         </div>
         <div class="panel grid" id="panel-pdf">
@@ -617,12 +617,12 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
               <label data-i18n="user_type">User Type</label>
               <div class="custom-select" id="settingsTypeSelect">
                 <div class="select-trigger">
-                  <span class="select-text" data-i18n="general">General</span>
+                  <span class="select-text">General</span>
                   <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                 </div>
                 <div class="select-menu" id="settingsTypeMenu">
-                  <div class="select-option" data-val="general" data-i18n="general">General</div>
-                  <div class="select-option" data-val="school" data-i18n="school">School Student</div>
+                  <div class="select-option" data-val="general">General</div>
+                  <div class="select-option" data-val="school">School Student</div>
                 </div>
               </div>
             </div>
@@ -631,13 +631,13 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
               <label data-i18n="grade_level">Grade Level</label>
               <div class="custom-select" id="settingsGradeSelect">
                 <div class="select-trigger">
-                  <span class="select-text" data-i18n="g1_6">Primary (1-6)</span>
+                  <span class="select-text">Primary (1-6)</span>
                   <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                 </div>
                 <div class="select-menu" id="settingsGradeMenu">
-                  <div class="select-option" data-val="g1-6" data-i18n="g1_6">Primary (1-6)</div>
-                  <div class="select-option" data-val="g7-9" data-i18n="g7_9">Preparatory (7-9)</div>
-                  <div class="select-option" data-val="g10-12" data-i18n="g10_12">Secondary (10-12)</div>
+                  <div class="select-option" data-val="g1-6">Primary (1-6)</div>
+                  <div class="select-option" data-val="g7-9">Preparatory (7-9)</div>
+                  <div class="select-option" data-val="g10-12">Secondary (10-12)</div>
                 </div>
               </div>
             </div>
@@ -777,6 +777,8 @@ function applyLanguage(lang) {
   const dict = translations[lang] || translations.en;
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
+    // Skip select-text spans inside custom dropdowns to prevent overwriting user's selection
+    if (el.classList.contains('select-text') && (el.closest('#settingsGradeSelect') || el.closest('#settingsTypeSelect') || el.closest('#authGradeSelect') || el.closest('#authTypeSelect'))) return;
     if (dict[key]) el.textContent = dict[key];
   });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
@@ -796,6 +798,23 @@ function applyLanguage(lang) {
   langOptions.forEach(opt => {
     opt.classList.toggle('selected', opt.dataset.val === lang);
   });
+  
+  // After applying language, re-sync the settings dropdowns to show the translated version of the selected value
+  syncSettingsDropdowns();
+}
+
+function syncSettingsDropdowns() {
+    // Sync Type
+    const typeOpt = $("#settingsTypeMenu .select-option.selected");
+    if (typeOpt) $("#settingsTypeSelect .select-text").textContent = typeOpt.textContent;
+    const authTypeOpt = $("#authTypeMenu .select-option.selected");
+    if (authTypeOpt) $("#authTypeSelect .select-text").textContent = authTypeOpt.textContent;
+
+    // Sync Grade
+    const gradeOpt = $("#settingsGradeMenu .select-option.selected");
+    if (gradeOpt) $("#settingsGradeSelect .select-text").textContent = gradeOpt.textContent;
+    const authGradeOpt = $("#authGradeMenu .select-option.selected");
+    if (authGradeOpt) $("#authGradeSelect .select-text").textContent = authGradeOpt.textContent;
 }
 
 function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;$("#toasts").appendChild(t);setTimeout(()=>t.remove(),3200)}
@@ -1019,23 +1038,18 @@ window.addEventListener('resize', () => { const activeLink = $(".navlinks a.acti
 // --- Dynamic Difficulty Buttons ---
 function updateDifficultyButtons(grade) {
     const diffSeg = $("#diffSeg");
-    diffSeg.innerHTML = "";
-    let options = [];
-    if (grade === "g1-6") options = ["1-2", "3-4", "5-6"];
-    else if (grade === "g7-9") options = ["7", "8", "9"];
-    else if (grade === "g10-12") options = ["10", "11", "12"];
-    else options = ["Easy", "Mixed", "Hard"]; // general
+    const btns = diffSeg.querySelectorAll("button");
+    let labels = [];
+    if (grade === "g1-6") labels = ["1-2", "3-4", "5-6"];
+    else if (grade === "g7-9") labels = ["7", "8", "9"];
+    else if (grade === "g10-12") labels = ["10", "11", "12"];
+    else labels = ["Easy", "Mixed", "Hard"]; // general
     
-    options.forEach((opt, i) => {
-        const btn = document.createElement("button");
-        btn.dataset.d = opt.toLowerCase();
-        btn.textContent = opt;
-        if (i === 1) btn.classList.add("on"); // Default select middle one
-        diffSeg.appendChild(btn);
+    btns.forEach((btn, i) => {
+        btn.textContent = labels[i];
+        btn.dataset.d = labels[i].toLowerCase();
     });
-    segWire("diffSeg");
 }
-updateDifficultyButtons("general"); // Initialize with general
 
 async function loadDashboard(){
   try{
@@ -1100,15 +1114,13 @@ async function loadSettings() {
         currentGrade = settingsUserGrade; // Update global grade
         updateDifficultyButtons(currentGrade); // Update quiz buttons based on settings
         
-        const typeText = $("#settingsTypeSelect .select-text");
-        typeText.textContent = translations[currentLang][settingsUserType] || settingsUserType;
         $$("#settingsTypeMenu .select-option").forEach(o => o.classList.toggle("selected", o.dataset.val === settingsUserType));
-        
         $("#settingsGradeField").style.display = settingsUserType === "school" ? "block" : "none";
         
-        const gradeText = $("#settingsGradeSelect .select-text");
-        gradeText.textContent = translations[currentLang][settingsUserGrade] || settingsUserGrade;
         $$("#settingsGradeMenu .select-option").forEach(o => o.classList.toggle("selected", o.dataset.val === settingsUserGrade));
+        
+        // Sync the text inside the trigger boxes
+        syncSettingsDropdowns();
         
     } catch (e) {
         toast("Failed to load settings.");
