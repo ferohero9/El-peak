@@ -145,7 +145,7 @@
 
     html { 
       overflow-x: hidden;
-      scroll-behavior: auto;
+      scroll-behavior: auto; /* Prevent conflict with Lenis */
     }
 
     body {
@@ -189,7 +189,7 @@
     .blob {
       position: absolute;
       border-radius: 50%;
-      filter: blur(80px); /* Reduced from 120px for GPU performance */
+      filter: blur(80px); /* Reduced blur for GPU performance */
       opacity: 0.4;
       will-change: transform;
       mix-blend-mode: screen;
