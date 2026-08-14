@@ -66,8 +66,8 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 .auth-form{display:none;flex-direction:column;gap:16px;width:100%}
 .auth-form.active{display:flex}
 .auth-form .field{width:100%}
-.auth-form .field input{width:100%;padding:14px 18px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px}
-.auth-form .field input:focus{border-color:var(--accent)}
+.auth-form .field input,.auth-form .field select{width:100%;padding:14px 18px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px}
+.auth-form .field input:focus,.auth-form .field select:focus{border-color:var(--accent)}
 .auth-btn{width:100%;margin-top:8px;justify-content:center}
 
 /* Nav */
@@ -321,6 +321,36 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
     <div class="auth-form" id="formSignup">
       <div class="field"><input type="email" id="signupEmail" placeholder="Email"></div>
       <div class="field"><input type="password" id="signupPass" placeholder="Create Password (min 6 chars)" data-i18n-ph="create_pass"></div>
+      
+      <div class="field">
+        <label data-i18n="user_type">User Type</label>
+        <div class="custom-select" id="authTypeSelect">
+          <div class="select-trigger">
+            <span class="select-text" data-i18n="general">General</span>
+            <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="select-menu" id="authTypeMenu">
+            <div class="select-option" data-val="general" data-i18n="general">General</div>
+            <div class="select-option" data-val="school" data-i18n="school">School Student</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field" id="authGradeField" style="display:none">
+        <label data-i18n="grade_level">Grade Level</label>
+        <div class="custom-select" id="authGradeSelect">
+          <div class="select-trigger">
+            <span class="select-text" data-i18n="g1_6">Primary (1-6)</span>
+            <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="select-menu" id="authGradeMenu">
+            <div class="select-option" data-val="g1-6" data-i18n="g1_6">Primary (1-6)</div>
+            <div class="select-option" data-val="g7-9" data-i18n="g7_9">Preparatory (7-9)</div>
+            <div class="select-option" data-val="g10-12" data-i18n="g10_12">Secondary (10-12)</div>
+          </div>
+        </div>
+      </div>
+
       <button class="btn auth-btn" id="btnSignup"><span data-i18n="signup">Sign Up</span> →</button>
     </div>
   </div>
@@ -582,6 +612,36 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
                 </div>
               </div>
             </div>
+            
+            <div class="field">
+              <label data-i18n="user_type">User Type</label>
+              <div class="custom-select" id="settingsTypeSelect">
+                <div class="select-trigger">
+                  <span class="select-text" data-i18n="general">General</span>
+                  <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="select-menu" id="settingsTypeMenu">
+                  <div class="select-option" data-val="general" data-i18n="general">General</div>
+                  <div class="select-option" data-val="school" data-i18n="school">School Student</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="field" id="settingsGradeField" style="display:none">
+              <label data-i18n="grade_level">Grade Level</label>
+              <div class="custom-select" id="settingsGradeSelect">
+                <div class="select-trigger">
+                  <span class="select-text" data-i18n="g1_6">Primary (1-6)</span>
+                  <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="select-menu" id="settingsGradeMenu">
+                  <div class="select-option" data-val="g1-6" data-i18n="g1_6">Primary (1-6)</div>
+                  <div class="select-option" data-val="g7-9" data-i18n="g7_9">Preparatory (7-9)</div>
+                  <div class="select-option" data-val="g10-12" data-i18n="g10_12">Secondary (10-12)</div>
+                </div>
+              </div>
+            </div>
+
             <button class="btn" id="btnSaveSettings"><span data-i18n="save_changes">Save Changes</span></button>
           </div>
         </div>
@@ -679,7 +739,10 @@ const translations = {
     email: "Email", username: "Username", language: "Language", save_changes: "Save Changes", security: "Security", current_pass: "Current Password", new_pass: "New Password",
     update_password: "Update Password", tutor: "El-Peak Tutor", powered_groq: "Powered by Groq · Online", tutor_welcome: "Hey! I'm your AI tutor. Ask me anything about your studies.",
     ask_q: "Ask a question...", home: "Home", plan: "Plan", limit_reached: "Limit Reached", limit_sub: "You've used all your free credits for this month. Upgrade to keep your ascent going!",
-    maybe_later: "Maybe Later", days: "days"
+    maybe_later: "Maybe Later", days: "days",
+    // Edu-specific
+    user_type: "User Type", general: "General", school: "School Student", grade_level: "Grade Level",
+    g1_6: "Primary (1-6)", g7_9: "Preparatory (7-9)", g10_12: "Secondary (10-12)"
   },
   ar: {
     auth_sub: "سجل الدخول لمزامنة تقدمك", google_btn: "المتابعة مع جوجل", or: "أو", login: "تسجيل الدخول", signup: "إنشاء حساب", password: "كلمة المرور",
@@ -703,7 +766,10 @@ const translations = {
     email: "البريد الإلكتروني", username: "اسم المستخدم", language: "اللغة", save_changes: "حفظ التغييرات", security: "الأمان", current_pass: "كلمة المرور الحالية", new_pass: "كلمة مرور جديدة",
     update_password: "تحديث كلمة المرور", tutor: "مدرس El-Peak", powered_groq: "مدعوم من Groq · متصل", tutor_welcome: "مرحباً! أنا مدرسك الذكي. اسألني أي شيء عن دراستك.",
     ask_q: "اطرح سؤالاً...", home: "الرئيسية", plan: "الخطة", limit_reached: "تم الوصول للحد", limit_sub: "لقد استخدمت كل أرصتك المجانية لهذا الشهر. قم بالترقية لمواصلة صعودك!",
-    maybe_later: "ربما لاحقاً", days: "أيام"
+    maybe_later: "ربما لاحقاً", days: "أيام",
+    // Edu-specific
+    user_type: "نوع المستخدم", general: "عام", school: "طالب مدرسة", grade_level: "المرحلة الدراسية",
+    g1_6: "ابتدائية (1-6)", g7_9: "إعدادية (7-9)", g10_12: "ثانوية (10-12)"
   }
 };
 
@@ -824,6 +890,36 @@ if (token) {
     btn.classList.remove("loading"); btn.disabled = false;
 };
 
+// --- Auth Type & Grade Logic ---
+function wireSelect(selectId, menuId, onChange) {
+    const sel = $(`#${selectId}`);
+    if (!sel) return;
+    const menu = $(`#${menuId}`);
+    sel.querySelector(".select-trigger").onclick = (e) => { e.stopPropagation(); sel.classList.toggle("open"); };
+    document.addEventListener("click", (e) => { if (!sel.contains(e.target)) sel.classList.remove("open"); });
+    $$(`#${menuId} .select-option`).forEach(opt => {
+        opt.onclick = () => {
+            const val = opt.dataset.val;
+            sel.querySelector(".select-text").textContent = opt.textContent;
+            $$(`#${menuId} .select-option`).forEach(o => o.classList.remove("selected"));
+            opt.classList.add("selected");
+            sel.classList.remove("open");
+            if (onChange) onChange(val);
+        }
+    });
+}
+
+let authUserType = "general";
+let authUserGrade = "g1-6";
+
+wireSelect("authTypeSelect", "authTypeMenu", (val) => {
+    authUserType = val;
+    $("#authGradeField").style.display = val === "school" ? "block" : "none";
+});
+wireSelect("authGradeSelect", "authGradeMenu", (val) => {
+    authUserGrade = val;
+});
+
  $("#btnSignup").onclick = async () => {
     const btn = $("#btnSignup"); btn.classList.add("loading"); btn.disabled = true;
     const email = $("#signupEmail").value.trim();
@@ -832,7 +928,7 @@ if (token) {
         const r = await fetch("/api/auth/signup", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({email, password})
+            body: JSON.stringify({email, password, user_type: authUserType, grade: authUserType === "school" ? authUserGrade : null})
         });
         if (!r.ok) {
             const err = await r.json();
@@ -891,7 +987,6 @@ function go(v){
       if(activeLink.parentElement.id === "navlinks") moveSlider(activeLink);
     }
     
-    // Toggle settings gear active state
     const settingsBtn = $("#navSettingsBtn");
     if (v === "settings") {
         settingsBtn.classList.add("active");
@@ -904,7 +999,7 @@ function go(v){
     if(v==="scheduler")loadSchedule();
     if(v==="profile")loadProfile();
     if(v==="settings")loadSettings();
-    applyLanguage(currentLang); // Ensure language stays applied on tab switch
+    applyLanguage(currentLang);
 }
 
  $$("[data-view]").forEach(a => {
@@ -961,6 +1056,9 @@ async function loadProfile() {
     }
 }
 
+let settingsUserType = "general";
+let settingsUserGrade = "g1-6";
+
 async function loadSettings() {
     try {
         const settings = await api("/api/user/settings");
@@ -969,21 +1067,43 @@ async function loadSettings() {
         currentLang = settings.language || "en";
         localStorage.setItem("ep-lang", currentLang);
         applyLanguage(currentLang);
+        
+        settingsUserType = settings.user_type || "general";
+        settingsUserGrade = settings.grade || "g1-6";
+        
+        const typeText = $("#settingsTypeSelect .select-text");
+        typeText.textContent = translations[currentLang][settingsUserType] || settingsUserType;
+        $$("#settingsTypeMenu .select-option").forEach(o => o.classList.toggle("selected", o.dataset.val === settingsUserType));
+        
+        $("#settingsGradeField").style.display = settingsUserType === "school" ? "block" : "none";
+        
+        const gradeText = $("#settingsGradeSelect .select-text");
+        gradeText.textContent = translations[currentLang][settingsUserGrade] || settingsUserGrade;
+        $$("#settingsGradeMenu .select-option").forEach(o => o.classList.toggle("selected", o.dataset.val === settingsUserGrade));
+        
     } catch (e) {
         toast("Failed to load settings.");
     }
 }
+
+wireSelect("settingsTypeSelect", "settingsTypeMenu", (val) => {
+    settingsUserType = val;
+    $("#settingsGradeField").style.display = val === "school" ? "block" : "none";
+});
+wireSelect("settingsGradeSelect", "settingsGradeMenu", (val) => {
+    settingsUserGrade = val;
+});
 
  $("#btnSaveSettings").onclick = async () => {
     const btn = $("#btnSaveSettings");
     btn.classList.add("loading");
     btn.disabled = true;
     try {
-        const username = $("#settingsUsername").value.trim() || "Student"; // Prevent empty string 422 error
-        await api("/api/user/settings", { method: "PUT", body: { username, language: currentLang } });
+        const username = $("#settingsUsername").value.trim() || "Student";
+        await api("/api/user/settings", { method: "PUT", body: { username, language: currentLang, user_type: settingsUserType, grade: settingsUserType === "school" ? settingsUserGrade : null } });
         localStorage.setItem("ep-lang", currentLang);
         applyLanguage(currentLang);
-        toast("✅ Settings saved!");
+        toast("✅ Settings saved! Please refresh to see curriculum changes.");
     } catch (e) {
         toast("⚠ " + e.message);
     }
@@ -1110,11 +1230,29 @@ const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
   } catch(e) {
       if (e.message.toLowerCase().includes("limit")) {
           showUpgradeModal();
+      } else if (e.message.toLowerCase().includes("rate limit")) {
+          // Handle Rate Limiting
+          const waitMatch = e.message.match(/\d+/);
+          const waitTime = waitMatch ? parseInt(waitMatch[0]) : 15;
+          toast(`⏳ Please wait ${waitTime}s before generating more AI content.`);
+          let timeLeft = waitTime;
+          const interval = setInterval(() => {
+              btn.textContent = `⏳ ${timeLeft}s...`;
+              timeLeft--;
+              if (timeLeft < 0) {
+                  clearInterval(interval);
+                  btn.innerHTML = `<span class="spin"></span><span data-i18n="begin_ascent">Begin Ascent</span> →`;
+                  applyLanguage(currentLang);
+                  btn.disabled = false;
+                  btn.classList.remove("loading");
+              }
+          }, 1000);
       } else {
           toast("⚠ " + e.message);
       }
   }
-  btn.classList.remove("loading");btn.disabled=false;
+  btn.classList.remove("loading");
+  if(!btn.textContent.includes("s...")) btn.disabled = false;
 };
 function renderQ(){
   const q=quiz.questions[qi];
