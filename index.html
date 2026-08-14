@@ -1,2978 +1,1225 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>El-Peak · Study Companion</title>
-
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#070710" />
-
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 20 L8 6 L12 14 L15 9 L21 20' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
-
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-
-  <style>
-    /* ================================================================
-       LENIS SMOOTH SCROLL CORE — No native scroll-behavior: smooth
-       ================================================================ */
-    html.lenis, html.lenis body { height: auto; }
-    .lenis.lenis-smooth { scroll-behavior: auto !important; }
-    .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
-    .lenis.lenis-stopped { overflow: hidden; }
-
-    /* ================================================================
-       DESIGN TOKENS — Transplanted from Old UI (FILE 1)
-       ================================================================ */
-    :root, [data-theme="dark"] {
-      --bg: #070710;
-      --bg-deep: #070710;
-      --bg-mid: #0a0a12;
-      --bg-soft: #0f0f1a;
-
-      --glass: rgba(255,255,255,0.04);
-      --glass-strong: rgba(255,255,255,0.08);
-      --glass-border: rgba(255,255,255,0.08);
-      --glass-bg: rgba(12,12,20,0.6);
-      --glass-bg-hover: rgba(20,20,30,0.8);
-      --glass-bg-strong: rgba(8,8,14,0.9);
-      --glass-border-strong: rgba(255,255,255,0.12);
-      --glass-popover: rgba(20,20,30,0.75);
-
-      --accent: #6366f1;
-      --accent-2: #06b6d4;
-      --accent-glow: rgba(99,102,241,0.4);
-      --accent-text: #ffffff;
-
-      --neon-cyan: #00f0ff;
-      --neon-indigo: #4f46e5;
-      --neon-purple: #a855f7;
-
-      --gradient-primary: linear-gradient(90deg, #6366f1, #06b6d4);
-      --gradient-text: linear-gradient(135deg, #ffffff 0%, #a0a0b0 100%);
-
-      --ink: #f8fafc;
-      --text: #f8fafc;
-      --text-soft: #d1d5db;
-      --muted: #94a3b8;
-      --muted-light: #9ca3af;
-
-      --mint: #34d399;
-      --coral: #fb7185;
-      --amber: #fbbf24;
-      --sky: #38bdf8;
-
-      --ok: #10b981;
-      --warn: #f59e0b;
-      --bad: #ef4444;
-
-      --r: 20px;
-      --r-md: 12px;
-      --r-lg: 16px;
-      --r-xl: 24px;
-      --blur: 20px;
-
-      --font-display: 'Outfit', system-ui, sans-serif;
-      --font-ui: 'Inter', system-ui, sans-serif;
-      --disp: 'Outfit', system-ui, sans-serif;
-      --body: 'Inter', system-ui, sans-serif;
-
-      --shadow-sm: 0 4px 12px rgba(0,0,0,0.3);
-      --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
-      --shadow-hover: 0 12px 32px rgba(0,0,0,0.4);
-      --shadow-glow: 0 0 20px rgba(99,102,241,0.4);
-
-      --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-      --smooth: cubic-bezier(0.16, 1, 0.3, 1);
-      --ease: cubic-bezier(0.4, 0, 0.2, 1);
-      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-      --wobble: cubic-bezier(0.68, -0.6, 0.32, 1.6);
-    }
-
-    body.light, [data-theme="light"] {
-      --bg: #eef2f7;
-      --bg-deep: #eef2f7;
-      --bg-mid: #ffffff;
-      --bg-soft: #f8fafc;
-
-      --glass: rgba(255,255,255,0.55);
-      --glass-strong: rgba(255,255,255,0.75);
-      --glass-border: rgba(15,23,42,0.05);
-      --glass-bg: rgba(255,255,255,0.8);
-      --glass-bg-hover: rgba(255,255,255,0.95);
-      --glass-bg-strong: rgba(255,255,255,0.95);
-      --glass-border-strong: rgba(0,0,0,0.15);
-      --glass-popover: rgba(255,255,255,0.85);
-
-      --accent: #4f46e5;
-      --accent-glow: rgba(79,70,229,0.25);
-
-      --ink: #0f172a;
-      --text: #0f172a;
-      --text-soft: #334155;
-      --muted: #64748b;
-      --muted-light: #475569;
-
-      --shadow-sm: 0 4px 12px rgba(0,0,0,0.05);
-      --shadow-md: 0 8px 24px rgba(0,0,0,0.1);
-      --shadow-hover: 0 12px 32px rgba(79,70,229,0.1);
-    }
-
-    /* ================================================================
-       RESET & BASE
-       ================================================================ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html {
-      overflow-x: hidden;
-      scroll-behavior: auto; /* CRITICAL: No native smooth scroll — Lenis handles it */
-    }
-
-    body {
-      font-family: var(--font-ui);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
-      transition: background 0.5s var(--smooth), color 0.5s var(--smooth);
-    }
-
-    button, input, select, textarea {
-      font: inherit;
-      color: inherit;
-    }
-
-    a { color: inherit; text-decoration: none; }
-
-    h1, h2, h3, h4 {
-      font-family: var(--font-display);
-      letter-spacing: -0.02em;
-      margin: 0;
-    }
-
-    ::selection { background: var(--accent); color: #fff; }
-
-    .hidden { display: none !important; }
-
-    /* ================================================================
-       AURORA LIQUID BACKGROUND (from FILE 1)
-       ================================================================ */
-    .aurora, .ambient {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    .blob {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(120px);
-      opacity: 0.4;
-      animation: float 25s var(--smooth) infinite;
-      transition: opacity 0.5s var(--smooth);
-      will-change: transform;
-      transform: translateZ(0);
-    }
-
-    body.light .blob { opacity: 0.15; }
-
-    .blob.b1 { width: 600px; height: 600px; background: #6366f1; top: -200px; left: -100px; }
-    .blob.b2 { width: 500px; height: 500px; background: #22d3ee; bottom: -150px; right: -50px; animation-delay: -8s; }
-    .blob.b3 { width: 450px; height: 450px; background: #a855f7; top: 30%; right: 20%; animation-delay: -16s; }
-
-    @keyframes float {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      50% { transform: translate(40px, 30px) scale(1.1); }
-    }
-
-    /* ================================================================
-       FUTURISTIC GLASS SCROLLBARS (8px, glowing indigo)
-       ================================================================ */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(99, 102, 241, 0.5);
-      border-radius: 10px;
-      box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(99, 102, 241, 0.8);
-      box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
-    }
-    ::-webkit-scrollbar-corner { background: transparent; }
-
-    /* Firefox */
-    * { scrollbar-width: thin; scrollbar-color: rgba(99, 102, 241, 0.5) transparent; }
-
-    /* ================================================================
-       LAYOUT
-       ================================================================ */
-    .app {
-      width: min(1080px, calc(100% - 32px));
-      margin: 0 auto;
-      position: relative;
-      z-index: 1;
-      will-change: transform;
-      transform: translateZ(0);
-    }
-
-    /* ================================================================
-       GLASS CARD (FILE 1 aesthetic) + Wobbly Hover + Sheen Sweep
-       ================================================================ */
-    .card {
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--r);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      padding: 20px;
-      box-shadow: var(--shadow-sm);
-      transition: transform 0.4s var(--wobble), box-shadow 0.4s var(--smooth), background 0.4s var(--smooth), border-color 0.4s var(--smooth);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .card::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    /* Interactive light-refraction hover sweep */
-    .card::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
-      transition: left 0.6s var(--smooth);
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .card:hover {
-      transform: translateY(-3px) scale(1.01);
-      box-shadow: var(--shadow-hover);
-      border-color: var(--glass-border-strong);
-    }
-
-    .card:hover::after {
-      left: 100%;
-    }
-
-    /* ================================================================
-       TYPOGRAPHY & UTILITIES
-       ================================================================ */
-    .muted { color: var(--muted); }
-    .small { font-size: 12px; }
-
-    .gradient-text {
-      background: var(--gradient-text);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .kicker {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-    }
-
-    /* ================================================================
-       BUTTONS — Glowing gradient pills + Springy Interactions
-       ================================================================ */
-    .btn {
-      position: relative;
-      overflow: hidden;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      border: 1px solid transparent;
-      border-radius: 100px;
-      padding: 10px 20px;
-      cursor: pointer;
-      background: linear-gradient(90deg, #6366f1, #06b6d4);
-      color: #ffffff;
-      font-weight: 600;
-      font-size: 13px;
-      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
-      transition: transform 0.3s var(--wobble), box-shadow 0.3s var(--smooth), filter 0.2s var(--ease);
-      white-space: nowrap;
-    }
-
-    .btn:hover {
-      transform: scale(1.04) translateY(-3px);
-      box-shadow: 0 12px 28px rgba(99, 102, 241, 0.5);
-      filter: brightness(1.1);
-    }
-
-    .btn:active {
-      transform: scale(0.95);
-    }
-
-    .btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      transform: none !important;
-      filter: grayscale(0.5);
-      pointer-events: none;
-    }
-
-    .btn.secondary {
-      background: var(--glass-strong);
-      color: var(--text);
-      border: 1px solid var(--glass-border);
-      box-shadow: none;
-    }
-
-    .btn.secondary:hover {
-      background: var(--glass);
-      border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
-      transform: scale(1.04) translateY(-3px);
-    }
-    
-    .btn.secondary:active {
-      transform: scale(0.95);
-    }
-
-    .btn.danger {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--bad);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      box-shadow: none;
-    }
-
-    .btn.danger:hover {
-      background: rgba(239, 68, 68, 0.2);
-      border-color: var(--bad);
-      box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
-      transform: scale(1.04) translateY(-3px);
-    }
-
-    .btn.small {
-      padding: 6px 14px;
-      font-size: 11px;
-    }
-
-    /* ================================================================
-       FORM ELEMENTS — Custom glass dropdowns & inputs
-       ================================================================ */
-    input, select, textarea {
-      width: 100%;
-      background: var(--glass-strong);
-      color: var(--text);
-      border: 1px solid var(--glass-border);
-      border-radius: 14px;
-      padding: 12px 18px;
-      outline: none;
-      font-size: 14px;
-      font-weight: 500;
-      font-family: var(--font-ui);
-      transition: all 0.3s var(--smooth);
-    }
-
-    body.light input,
-    body.light select,
-    body.light textarea {
-      background: rgba(255, 255, 255, 0.6);
-      border-color: rgba(15, 23, 42, 0.08);
-    }
-
-    input::placeholder, textarea::placeholder { color: var(--muted); }
-
-    input:focus, select:focus, textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-      background: var(--glass);
-    }
-
-    body.light input:focus,
-    body.light select:focus,
-    body.light textarea:focus {
-      background: #ffffff;
-    }
-
-    input[type="file"] {
-      padding: 10px;
-      cursor: pointer;
-    }
-
-    input[type="file"]::file-selector-button {
-      padding: 8px 16px;
-      border-radius: 100px;
-      border: 1px solid var(--glass-border);
-      background: var(--glass-strong);
-      color: var(--text);
-      cursor: pointer;
-      margin-right: 12px;
-      font-weight: 600;
-      font-size: 12px;
-      transition: all 0.2s var(--smooth);
-    }
-
-    input[type="file"]::file-selector-button:hover {
-      border-color: var(--accent);
-      box-shadow: 0 0 10px var(--accent-glow);
-    }
-
-    /* ===== FULLY STYLED LIQUID GLASS DROPDOWN (<select>) ===== */
-    select {
-      appearance: none;
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 16px center;
-      padding-right: 42px;
-      cursor: pointer;
-    }
-
-    select option {
-      background: #0c0d1a;
-      color: #f1f5f9;
-      padding: 12px 16px;
-      border: none;
-      outline: none;
-      border-radius: 8px;
-    }
-
-    select option:checked,
-    select option:hover {
-      background: #1a1b2e;
-      color: var(--accent);
-    }
-
-    select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-
-    body.light select option {
-      background: #ffffff;
-      color: #0f172a;
-    }
-
-    input[type="range"] {
-      -webkit-appearance: none;
-      appearance: none;
-      height: 6px;
-      background: var(--glass-border);
-      border-radius: 999px;
-      padding: 0;
-      border: none;
-    }
-
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--accent);
-      cursor: pointer;
-      box-shadow: 0 0 10px var(--accent-glow);
-      transition: transform 0.2s var(--spring);
-    }
-
-    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-
-    input[type="range"]::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--accent);
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 0 10px var(--accent-glow);
-    }
-
-    label {
-      display: block;
-      margin: 12px 0 6px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    /* ================================================================
-       AUTH VIEW
-       ================================================================ */
-    .auth-wrap {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .auth-card {
-      width: min(400px, 100%);
-      padding: 32px;
-      background: var(--glass-bg-strong);
-      border: 1px solid var(--glass-border-strong);
-      border-radius: var(--r-xl);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    }
-
-    .brand {
-      font-family: var(--font-display);
-      font-size: 28px;
-      font-weight: 700;
-      margin: 0;
-      background: linear-gradient(135deg, #fff, #06b6d4);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .brand-sub {
-      margin: 8px 0 24px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: var(--muted);
-      margin: 20px 0;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    .divider::before, .divider::after {
-      content: "";
-      height: 1px;
-      flex: 1;
-      background: var(--glass-border);
-    }
-
-    .tabs {
-      display: flex;
-      gap: 4px;
-      margin: 16px 0;
-      padding: 4px;
-      background: var(--glass-strong);
-      border: 1px solid var(--glass-border);
-      border-radius: 100px;
-    }
-
-    .tab {
-      flex: 1;
-      padding: 8px;
-      text-align: center;
-      border-radius: 100px;
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 13px;
-      transition: all 0.3s var(--smooth);
-    }
-
-    .tab.active {
-      background: var(--gradient-primary);
-      color: #ffffff;
-      box-shadow: 0 4px 12px var(--accent-glow);
-    }
-
-    /* ================================================================
-       UNIFIED FLOATING GLASS HEADER & NAVIGATION (CLEAN & COMPACT)
-       ================================================================ */
-    header.topbar {
-      position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 6px;
-      background: var(--glass-popover);
-      backdrop-filter: blur(24px) saturate(180%);
-      -webkit-backdrop-filter: blur(24px) saturate(180%);
-      border: 1px solid var(--glass-border);
-      border-radius: 100px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      max-width: calc(100% - 32px);
-      width: fit-content;
-      height: 52px;
-    }
-
-    body.light header.topbar {
-      background: rgba(255, 255, 255, 0.85);
-    }
-
-    .logo {
-      font-family: var(--font-display);
-      font-weight: 700;
-      font-size: 14px;
-      letter-spacing: -0.02em;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding-left: 12px;
-    }
-    
-    .logo svg {
-      width: 18px;
-      height: 18px;
-      color: var(--accent);
-    }
-
-    .top-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      padding-right: 8px;
-    }
-
-    .pill {
-      padding: 5px 12px;
-      border-radius: 100px;
-      background: var(--glass-strong);
-      border: 1px solid var(--glass-border);
-      color: var(--text-soft);
-      font-size: 11px;
-      font-weight: 600;
-      transition: transform 0.3s var(--wobble);
-    }
-
-    .pill:hover {
-      transform: scale(1.05);
-    }
-
-    #streakPill {
-      background: rgba(251, 191, 36, 0.1);
-      border-color: rgba(251, 191, 36, 0.3);
-      color: var(--amber);
-    }
-
-    #tierPill {
-      background: rgba(99, 102, 241, 0.1);
-      border-color: rgba(99, 102, 241, 0.3);
-      color: var(--accent);
-    }
-
-    .main-nav {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
-      padding: 4px;
-      background: rgba(0,0,0,0.2);
-      border: 1px solid var(--glass-border);
-      border-radius: 100px;
-      height: 100%;
-    }
-
-    body.light .main-nav {
-      background: rgba(0,0,0,0.05);
-    }
-
-    .nav-slider {
-      position: absolute;
-      top: 4px;
-      left: 4px;
-      height: calc(100% - 8px);
-      width: 0px;
-      background: var(--gradient-primary);
-      border-radius: 100px;
-      z-index: 0;
-      transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 2px 8px var(--accent-glow);
-      pointer-events: none;
-    }
-
-    .nav-btn {
-      position: relative;
-      z-index: 1;
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      border-radius: 100px;
-      padding: 6px 14px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 12px;
-      transition: color 0.3s var(--smooth);
-      height: 100%;
-    }
-
-    .nav-btn:hover {
-      color: var(--text);
-    }
-
-    .nav-btn.active {
-      color: #ffffff;
-    }
-
-    /* ================================================================
-       MAIN & GRID
-       ================================================================ */
-    main {
-      padding-top: 90px;
-      padding-bottom: 60px;
-      position: relative;
-      z-index: 1;
-      will-change: transform;
-      transform: translateZ(0);
-    }
-
-    .grid {
-      display: grid;
-      gap: 16px;
-    }
-
-    .grid.stats {
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      margin-bottom: 16px;
-    }
-
-    .grid.two {
-      grid-template-columns: 1.2fr 0.8fr;
-    }
-
-    .grid.stats .card {
-      padding: 16px;
-      background: var(--glass);
-    }
-
-    .stat-label {
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-
-    .stat-value {
-      font-family: var(--font-display);
-      font-size: 26px;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.04em;
-    }
-
-    .section-title {
-      margin: 0 0 14px;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
-      font-family: var(--font-display);
-      letter-spacing: -0.02em;
-    }
-
-    /* ================================================================
-       VIEW SWITCHING ANIMATIONS (CLEAN FADE & SLIDE)
-       ================================================================ */
-    section[id^="view-"]:not(.hidden) {
-      animation: viewEnter 0.4s var(--smooth);
-    }
-
-    @keyframes viewEnter {
-      from { opacity: 0; transform: translateY(12px) scale(0.99); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    /* ================================================================
-       PROGRESS BARS — Gradient fill fix
-       ================================================================ */
-    .bar {
-      height: 6px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.05);
-      overflow: hidden;
-    }
-    body.light .bar { background: rgba(0,0,0,0.05); }
-
-    .bar-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #6366f1, #06b6d4);
-      box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
-      transition: width 0.5s var(--smooth);
-      will-change: width;
-    }
-
-    .usage-bar { margin: 12px 0; }
-
-    /* ================================================================
-       HEATMAP
-       ================================================================ */
-    .heatmap {
-      display: grid;
-      grid-template-columns: repeat(14, 1fr);
-      gap: 4px;
-    }
-
-    .heat-cell {
-      aspect-ratio: 1;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.03);
-      transition: transform 0.2s var(--spring);
-    }
-    body.light .heat-cell { background: rgba(0,0,0,0.03); }
-
-    .heat-cell:hover { transform: scale(1.3); }
-    .heat-cell.l1 { background: rgba(99, 102, 241, 0.2); }
-    .heat-cell.l2 { background: rgba(99, 102, 241, 0.5); }
-    .heat-cell.l3 { background: var(--accent-2); box-shadow: 0 0 8px rgba(6, 182, 212, 0.6); }
-
-    /* ================================================================
-       QUIZ & TASKS
-       ================================================================ */
-    .quiz-options { display: grid; gap: 8px; margin-top: 16px; }
-
-    .option-btn {
-      text-align: left;
-      padding: 14px 18px;
-      border-radius: 14px;
-      border: 1px solid var(--glass-border);
-      background: var(--glass);
-      color: var(--text-soft);
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      transition: all 0.2s var(--wobble);
-    }
-    body.light .option-btn { background: rgba(0,0,0,0.02); }
-
-    .option-btn:hover {
-      border-color: var(--accent);
-      background: var(--glass-strong);
-      transform: translateX(6px) scale(1.01);
-    }
-
-    .option-btn.selected {
-      border-color: var(--accent);
-      background: rgba(99, 102, 241, 0.08);
-      color: var(--text);
-      box-shadow: inset 0 0 0 1px var(--accent), 0 0 12px var(--accent-glow);
-    }
-
-    #questionText {
-      font-family: var(--font-display);
-      margin-top: 16px;
-      font-size: 20px;
-      font-weight: 600;
-      line-height: 1.35;
-      letter-spacing: -0.02em;
-    }
-
-    #quizResultText {
-      font-family: var(--font-display);
-      background: linear-gradient(135deg, #ffffff, #06b6d4);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .task-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 14px;
-      margin-bottom: 8px;
-      border-radius: 14px;
-      border: 1px solid var(--glass-border);
-      background: var(--glass);
-      transition: transform 0.3s var(--wobble), background 0.3s var(--smooth), border-color 0.3s var(--smooth);
-    }
-
-    .task-item:hover {
-      transform: scale(1.02) translateX(4px);
-      background: var(--glass-strong);
-      border-color: var(--accent);
-    }
-
-    .task-title { font-weight: 600; font-size: 14px; }
-    .task-actions { display: flex; gap: 8px; }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
-      border-radius: 100px;
-      font-size: 11px;
-      font-weight: 600;
-      border: 1px solid var(--glass-border);
-      background: var(--glass-strong);
-      color: var(--muted);
-      transition: transform 0.3s var(--wobble);
-    }
-    .badge:hover { transform: scale(1.1); }
-    .badge.ok { color: var(--mint); background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.3); }
-    .badge.warn { color: var(--amber); background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3); }
-    .badge.bad { color: var(--coral); background: rgba(251, 113, 133, 0.1); border-color: rgba(251, 113, 133, 0.3); }
-
-    .list-item {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--glass-border);
-      font-size: 13px;
-      transition: transform 0.2s var(--wobble);
-    }
-    .list-item:hover { transform: translateX(4px); }
-    .list-item:last-child { border-bottom: 0; }
-
-    /* Topic rows in dashboard */
-    .topic-row { margin-bottom: 12px; }
-    .topic-row-head {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 6px;
-      font-size: 13px;
-    }
-
-    /* ================================================================
-       PLANS
-       ================================================================ */
-    .plans {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-top: 16px;
-    }
-
-    .plan-card {
-      padding: 20px;
-      border-radius: var(--r);
-      border: 1px solid var(--glass-border);
-      background: var(--glass);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      transition: all 0.3s var(--wobble);
-    }
-    body.light .plan-card { background: rgba(255, 255, 255, 0.6); }
-
-    .plan-card:hover {
-      border-color: var(--accent);
-      box-shadow: 0 0 20px var(--accent-glow);
-      transform: translateY(-3px) scale(1.02);
-    }
-
-    .plan-card ul {
-      list-style: none;
-      padding: 0;
-      margin: 12px 0;
-    }
-
-    .plan-card ul li {
-      padding: 4px 0;
-      font-size: 13px;
-      color: var(--text-soft);
-    }
-
-    /* ================================================================
-       TUTOR & MODALS
-       ================================================================ */
-    .tutor-toggle {
-      position: fixed;
-      right: 24px;
-      bottom: 24px;
-      width: 52px;
-      height: 52px;
-      border-radius: 50%;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-      background: var(--gradient-primary);
-      color: #fff;
-      box-shadow: 0 10px 30px var(--accent-glow);
-      z-index: 70;
-      transition: all 0.3s var(--wobble);
-    }
-
-    .tutor-toggle:hover {
-      transform: scale(1.1) rotate(5deg);
-      box-shadow: 0 12px 36px var(--accent-glow);
-    }
-
-    .tutor-toggle:active {
-      transform: scale(0.95);
-    }
-
-    .tutor-panel {
-      position: fixed;
-      right: 24px;
-      bottom: 88px;
-      width: 360px;
-      max-width: calc(100vw - 48px);
-      height: 480px;
-      max-height: calc(100vh - 120px);
-      z-index: 75;
-      display: flex;
-      flex-direction: column;
-      background: var(--glass-popover);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--r);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-      overflow: hidden;
-      transform: scale(0.8) translateY(40px);
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.4s var(--spring);
-    }
-
-    .tutor-panel:not(.hidden) {
-      transform: scale(1) translateY(0);
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .tutor-panel > div:first-child {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--glass-border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .tutor-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      will-change: transform;
-      transform: translateZ(0);
-    }
-
-    .msg {
-      max-width: 85%;
-      padding: 12px 16px;
-      border-radius: 16px;
-      font-size: 13.5px;
-      line-height: 1.5;
-      animation: msgIn 0.3s var(--spring);
-    }
-
-    @keyframes msgIn {
-      from { opacity: 0; transform: translateY(10px) scale(0.9); }
-      to { opacity: 1; transform: none; }
-    }
-
-    .msg.user {
-      align-self: flex-end;
-      background: var(--gradient-primary);
-      color: #fff;
-      border-bottom-right-radius:4px;
-    }
-
-    .msg.assistant {
-      align-self: flex-start;
-      background: var(--glass);
-      color: var(--text-soft);
-      border: 1px solid var(--glass-border);
-      border-bottom-left-radius: 4px;
-    }
-
-    .tutor-input {
-      padding: 12px;
-      border-top: 1px solid var(--glass-border);
-      display: flex;
-      gap: 8px;
-    }
-
-    .tutor-input input {
-      flex: 1;
-      border: 1px solid var(--glass-border);
-      background: var(--glass);
-      padding: 10px 14px;
-      border-radius: 12px;
-      font-size: 13px;
-    }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      display: grid;
-      place-items: center;
-      z-index: 90;
-      padding: 20px;
-    }
-
-    .modal-card {
-      width: min(600px, 100%);
-      max-height: 90vh;
-      overflow: auto;
-      background: var(--glass-bg-strong);
-      border: 1px solid var(--glass-border-strong);
-      border-radius: var(--r-xl);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      padding: 28px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-      will-change: transform;
-      transform: translateZ(0);
-    }
-
-    .toast-wrap {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      align-items: center;
-      width: min(400px, calc(100% - 32px));
-    }
-
-    .toast {
-      padding: 12px 24px;
-      border-radius: 100px;
-      background: var(--glass-popover);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      border: 1px solid var(--glass-border);
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 500;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      animation: toastIn 0.4s var(--spring);
-    }
-
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateY(14px) scale(0.9); }
-      to { opacity: 1; transform: none; }
-    }
-
-    .toast.success { border-left: 3px solid var(--mint); }
-    .toast.error { border-left: 3px solid var(--coral); }
-
-    /* ================================================================
-       RESPONSIVE
-       ================================================================ */
-    @media (max-width: 900px) {
-      .grid.two { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 768px) {
-      header.topbar {
-        gap: 8px;
-        padding: 6px;
-        height: 48px;
-      }
-      .logo { display: none; }
-      .top-actions .pill { display: none; }
-      .nav-btn { padding: 6px 10px; font-size: 11px; }
-    }
-
-    @media (max-width: 600px) {
-      .app { width: calc(100% - 16px); }
-
-      header.topbar {
-        max-width: calc(100% - 16px);
-      }
-
-      main {
-        padding-top: 80px;
-        padding-bottom: 80px;
-      }
-
-      .stat-value { font-size: 22px; }
-      .tutor-panel { width: calc(100% - 16px); right: 8px; }
-      .tutor-toggle { right: 16px; bottom: 16px; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#070710">
+<link rel="manifest" href="manifest.json">
+<title>El-Peak · Study Companion</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 20 L8 6 L12 14 L15 9 L21 20' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<!-- Lenis for buttery smooth scrolling -->
+<script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
+<style>
+/* ============ CLEAN THEME VARIABLES ============ */
+:root, [data-theme="dark"] {
+  --bg:#070710; --ink:#f8fafc; --muted:#94a3b8; 
+  --glass:rgba(255,255,255,0.04); --glass-strong:rgba(255,255,255,0.08); --glass-border:rgba(255,255,255,0.08);
+  --glass-popover:rgba(20,20,30,0.85); /* True liquid glass for dropdowns */
+  --accent:#6366f1; --accent-2:#06b6d4; --accent-glow:rgba(99,102,241,0.4); --accent-text:#ffffff;
+  --mint:#34d399; --coral:#fb7185; --amber:#fbbf24; --sky:#38bdf8;
+  --r:24px; --blur:40px;
+  --disp:'Outfit',sans-serif; --body:'Inter',sans-serif;
+  --shadow-sm:0 4px 12px rgba(0,0,0,0.1);
+  --shadow-hover:0 16px 40px rgba(0,0,0,0.3);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --wobble: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+}
+[data-theme="light"] {
+  --bg:#eef2f7; --ink:#0f172a; --muted:#64748b;
+  --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.75); --glass-border:rgba(15,23,42,0.05);
+  --glass-popover:rgba(255,255,255,0.9);
+  --accent:#4f46e5; --accent-glow:rgba(79,70,229,0.25); --accent-text:#ffffff;
+  --shadow-sm:0 4px 12px rgba(79,70,229,0.05);
+  --shadow-hover:0 16px 40px rgba(79,70,229,0.1);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100vh;overflow-x:hidden;transition:background .5s var(--smooth), color .5s var(--smooth)}
+button{font-family:inherit;cursor:pointer;outline:none;border:none;background:none;color:inherit}
+input,select{font-family:inherit;outline:none;background:none;color:inherit}
+::selection{background:var(--accent);color:#fff}
+.hidden { display: none !important; }
+
+/* Custom Minimal Scrollbar */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--glass-strong);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+/* Aurora Liquid Background */
+.aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.4;animation:float 25s var(--smooth) infinite;transition:opacity .5s var(--smooth);will-change:transform;transform:translateZ(0)}
+[data-theme="light"] .blob{opacity:0.15}
+.blob.b1{width:600px;height:600px;background:#6366f1;top:-200px;left:-100px}
+.blob.b2{width:500px;height:500px;background:#22d3ee;bottom:-150px;right:-50px;animation-delay:-8s}
+.blob.b3{width:450px;height:450px;background:#a855f7;top:30%;right:20%;animation-delay:-16s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.1)}}
+
+/* Nav */
+nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--shadow-sm);width:calc(100% - 48px);max-width:1000px;height:60px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;justify-self:start;padding-left:8px}
+.logo svg{width:20px;height:20px}
+.navlinks{position:relative;display:flex;align-items:center;gap:4px;background:var(--glass-strong);padding:4px;border-radius:100px;border:1px solid var(--glass-border);justify-self:center}
+.navlinks a{padding:8px 18px;border-radius:100px;color:var(--muted);text-decoration:none;font-weight:500;font-size:13px;transition:color .3s var(--smooth);position:relative;z-index:2;cursor:pointer}
+.navlinks a:hover{color:var(--ink)}
+.navlinks a.active{color:var(--accent-text)}
+.nav-slider{position:absolute;top:4px;height:calc(100% - 8px);background:linear-gradient(90deg, var(--accent), var(--accent-2));border-radius:100px;z-index:1;transition:all .4s var(--spring);box-shadow:0 4px 15px var(--accent-glow)}
+.navright{display:flex;align-items:center;gap:12px;justify-self:end;padding-right:8px}
+.chip{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--glass-strong);padding:6px 12px;border-radius:100px;border:1px solid var(--glass-border)}
+.chip .flame{color:var(--amber)}
+.iconbtn{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:14px;color:var(--muted);background:var(--glass-strong);border:1px solid var(--glass-border);transition:all .3s var(--spring)}
+.iconbtn:hover{color:var(--ink);transform:rotate(20deg) scale(1.1)}
+
+/* Layout */
+main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24px 100px}
+.view{display:none}
+.view.active{display:block}
+.view.active > *:not([hidden]){animation:staggerIn 0.6s var(--smooth) backwards}
+.view.active > *:not([hidden]):nth-child(1){animation-delay:0.05s}
+.view.active > *:not([hidden]):nth-child(2){animation-delay:0.15s}
+.view.active > *:not([hidden]):nth-child(3){animation-delay:0.25s}
+.view.active > *:not([hidden]):nth-child(4){animation-delay:0.35s}
+@keyframes staggerIn{from{opacity:0;transform:translateY(20px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+.view-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
+.view-header .text-block{flex:1;min-width:250px}
+.view-header .kicker{font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.15em}
+h1.big{font-family:var(--disp);font-weight:700;font-size:clamp(36px,5vw,56px);letter-spacing:-0.04em;line-height:1.1;margin:12px 0 0}
+h2.sec{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:20px;letter-spacing:-0.02em}
+.sub{color:var(--muted);font-size:14px;max-width:560px;line-height:1.6;margin-top:14px}
+.grid{display:grid;gap:20px}
+.card{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--r);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));padding:28px;box-shadow:var(--shadow-sm);transition:transform .4s var(--wobble), box-shadow .4s var(--smooth), background .4s var(--smooth)}
+.card:hover{transform:translateY(-4px) scale(1.005);box-shadow:var(--shadow-hover)}
+
+/* Controls */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;background:linear-gradient(90deg, var(--accent), var(--accent-2));color:var(--accent-text);font-weight:600;font-size:13px;box-shadow:0 8px 20px var(--accent-glow);transition:transform .3s var(--wobble), box-shadow .3s var(--smooth);cursor:pointer;border:none}
+.btn:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 12px 24px var(--accent-glow)}
+.btn:active{transform:scale(0.98)}
+.btn.outline{background:var(--glass-strong);color:var(--ink);border:1px solid var(--glass-border);box-shadow:none}
+.btn.outline:hover{background:var(--glass)}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn .spin{width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:rot .8s linear infinite;display:none}
+.btn.loading .spin{display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;letter-spacing:0.05em}
+.field input,.field select{width:100%;padding:14px 20px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px;font-weight:500;transition:all .3s var(--smooth);color:var(--ink)}
+.field input:focus,.field select:focus{border-color:var(--accent);background:var(--glass)}
+.seg{display:inline-flex;border:1px solid var(--glass-border);border-radius:100px;overflow:hidden;background:var(--glass-strong)}
+.seg button{padding:10px 16px;color:var(--muted);font-weight:600;font-size:13px;transition:all .2s var(--smooth)}
+.seg button.on{background:var(--accent);color:var(--accent-text)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:11px;font-weight:600;border:1px solid var(--glass-border);background:var(--glass-strong)}
+.badge.ai{color:var(--sky);border-color:rgba(56,189,248,0.3)}
+.badge.static{color:var(--mint);border-color:rgba(52,211,153,0.3)}
+.badge.pdf{color:var(--coral);border-color:rgba(251,113,133,0.3)}
+
+/* Custom Glass Dropdown */
+.custom-select{position:relative;width:100%;z-index:10}
+.select-trigger{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px;font-weight:500;cursor:pointer;transition:all .3s var(--smooth)}
+.select-trigger:hover{border-color:var(--accent)}
+.select-trigger .arrow{width:16px;height:16px;transition:transform .3s var(--spring);opacity:0.7}
+.custom-select.open .select-trigger .arrow{transform:rotate(180deg)}
+.select-menu{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:16px;padding:8px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--shadow-hover);opacity:0;transform:translateY(-10px) scale(0.95);pointer-events:none;transition:all .3s var(--spring);max-height:200px;overflow-y:auto}
+.custom-select.open .select-menu{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.select-option{padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s}
+.select-option:hover{background:var(--glass-strong)}
+.select-option.selected{color:var(--accent);font-weight:600}
+
+select.native-select { width: 100%; padding: 14px 20px; border-radius: 16px; border: 1px solid var(--glass-border); background: var(--glass-strong); font-size: 14px; font-weight: 500; color: var(--ink); outline: none; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; cursor: pointer; }
+select.native-select option { background: #0c0d1a; color: #f8fafc; }
+
+/* Custom Range Slider (Fixed bounds) */
+.slider-container{display:flex;align-items:center;gap:16px;width:100%;padding:14px 10px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong)}
+.slider-val{font-family:var(--disp);font-weight:700;font-size:20px;min-width:35px;text-align:center;color:var(--accent);margin-right:6px}
+input[type="range"].custom-range{-webkit-appearance:none;appearance:none;flex:1;height:6px;border-radius:99px;background:var(--glass-border);outline:none;cursor:pointer;margin:0 5px}
+input[type="range"].custom-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);cursor:pointer;transition:transform .2s var(--spring)}
+input[type="range"].custom-range::-webkit-slider-thumb:hover{transform:scale(1.2)}
+input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);cursor:pointer;border:none}
+
+/* Dashboard */
+.ringwrap{display:flex;align-items:center;gap:20px;padding:16px 28px;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--r);backdrop-filter:blur(var(--blur))}
+.ring-svg{width:70px;height:70px;transform:rotate(-90deg)}
+.ring-bg{stroke:var(--glass-border);fill:none;stroke-width:6}
+.ring-arc{stroke:var(--accent);fill:none;stroke-width:6;stroke-linecap:round;filter:drop-shadow(0 0 8px var(--accent-glow));transition:stroke-dashoffset 1.5s var(--smooth)}
+.peak-num{font-family:var(--disp);font-size:28px;font-weight:700;letter-spacing:-0.04em}
+.peak-lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase}
+.stats{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:24px}
+.stat .num{font-family:var(--disp);font-size:32px;font-weight:700;letter-spacing:-0.04em}
+.stat .lbl{font-size:11px;font-weight:600;color:var(--muted);margin-top:4px;text-transform:uppercase}
+.dash-grid{grid-template-columns:1fr 1fr;margin-bottom:24px}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,12px);grid-auto-columns:12px;gap:5px;overflow-x:auto;padding:4px 0;scrollbar-width:none}
+.heat i{border-radius:3px;background:var(--glass-border);transition:transform .2s var(--spring)}
+.heat i:hover{transform:scale(1.3)}
+.heat i.l1{background:color-mix(in srgb,var(--accent) 30%, transparent)}
+.heat i.l2{background:color-mix(in srgb,var(--accent) 60%, transparent)}
+.heat i.l3{background:var(--accent)}
+
+.rowline{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--glass-border);font-size:13px}
+.rowline:last-child{border:none}
+.rowline .r-topic{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rowline .r-time{color:var(--muted);font-size:12px}
+.pctpill{padding:2px 8px;border-radius:6px;font-weight:700;font-size:11px;border:1px solid currentColor}
+
+/* Quiz */
+.src-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.src-card{border:1px solid var(--glass-border);border-radius:20px;padding:22px;background:var(--glass);text-align:left;cursor:pointer;transition:all .3s var(--spring)}
+.src-card:hover{background:var(--glass-strong);transform:translateY(-3px) scale(1.01)}
+.src-card.on{border-color:var(--accent);background:var(--glass-strong);box-shadow:0 0 0 2px var(--accent-glow)}
+.src-card .t{font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.src-card .d{color:var(--muted);font-size:12.5px;line-height:1.5}
+.panel{display:none}
+.panel.on{display:grid;gap:16px}
+.drop{border:1.5px dashed var(--glass-border);border-radius:20px;padding:32px;text-align:center;color:var(--muted);font-weight:500;font-size:14px;background:var(--glass);transition:all .2s var(--smooth)}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--ink)}
+.qcard{max-width:680px;margin:0 auto}
+.qtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted)}
+.qbar{height:4px;border-radius:99px;background:var(--glass-strong);overflow:hidden;margin-bottom:28px}
+.qbar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .4s var(--smooth);box-shadow:0 0 10px var(--accent-glow)}
+.qtext{font-family:var(--disp);font-size:24px;font-weight:600;line-height:1.35;margin-bottom:24px;letter-spacing:-0.02em}
+.opt{display:block;width:100%;text-align:left;padding:16px 20px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass);font-size:14.5px;font-weight:500;color:var(--ink);margin-bottom:10px;transition:all .2s var(--spring)}
+.opt:hover:not(:disabled){border-color:var(--accent);background:var(--glass-strong);transform:translateX(6px)}
+.opt.right{border-color:var(--mint);background:rgba(52,211,153,0.1);color:var(--mint)}
+.opt.wrong{border-color:var(--coral);background:rgba(251,113,133,0.1);color:var(--coral)}
+.explain{border-left:2px solid var(--mint);padding:14px 18px;border-radius:0 12px 12px 0;background:rgba(52,211,153,0.05);font-size:13px;line-height:1.6;margin:16px 0;animation:staggerIn .4s var(--smooth)}
+.context-box{border-left:2px solid var(--sky);padding:14px 18px;border-radius:0 12px 12px 0;background:rgba(56,189,248,0.05);font-size:13px;line-height:1.5;margin:12px 0 16px 0;font-style:italic;animation:staggerIn .4s var(--smooth)}
+.res{text-align:center;padding:48px 20px}
+.res .num{font-family:var(--disp);font-size:64px;font-weight:700;letter-spacing:-0.04em}
+
+/* Scheduler */
+.sched{grid-template-columns:1fr 1fr;align-items:start}
+.task{display:flex;align-items:center;gap:14px;padding:16px 18px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass);margin-bottom:12px;transition:all .3s var(--spring)}
+.task:hover{background:var(--glass-strong);transform:translateX(4px) scale(1.01)}
+.task .rank{font-weight:700;font-size:14px;color:var(--muted);width:24px}
+.task .tt{font-weight:600;font-size:14px}
+.task .meta{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.task .grow{flex:1}
+.tier{padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase}
+.tier.OVERDUE{background:var(--coral);color:#000}
+.tier.CRITICAL{background:rgba(251,113,133,0.2);color:var(--coral)}
+.tier.HIGH{background:rgba(251,191,36,0.2);color:var(--amber)}
+.tier.THISWEEK{background:rgba(56,189,248,0.2);color:var(--sky)}
+.tier.PLANNED{background:var(--glass-strong);color:var(--muted)}
+.tier.DONE{background:rgba(52,211,153,0.2);color:var(--mint);text-decoration:line-through}
+.check{width:28px;height:28px;border-radius:50%;border:1px solid var(--glass-border);background:transparent;color:var(--ink);display:grid;place-items:center;font-size:14px;transition:all .2s var(--spring)}
+.check:hover{border-color:var(--mint);color:var(--mint);transform:scale(1.1)}
+.del{color:var(--muted);font-size:14px;transition:color .2s}
+.del:hover{color:var(--coral)}
+.sug{display:inline-flex;align-items:center;gap:6px;margin:0 8px 8px 0;padding:8px 12px;border-radius:100px;border:1px solid var(--glass-border);background:var(--glass);color:var(--muted);font-weight:600;font-size:12px;transition:all .2s var(--spring)}
+.sug:hover{border-color:var(--accent);color:var(--ink);background:var(--glass-strong);transform:scale(1.05)}
+
+/* Coach */
+.coach-hero{text-align:center;padding:48px 24px;margin-bottom:32px;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--r)}
+.plan{position:relative;padding-left:24px}
+.plan:before{content:"";position:absolute;left:5px;top:8px;bottom:8px;width:1px;background:var(--glass-border)}
+.plan .day{position:relative;margin-bottom:16px}
+.plan .day:before{content:"";position:absolute;left:-22px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--glass-strong);border:2px solid var(--accent)}
+.plan .dname{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em}
+.plan .dtask{font-weight:500;font-size:14px;margin-top:2px}
+.tipbox{border-left:2px solid var(--amber);background:rgba(251,191,36,0.05);padding:14px 18px;border-radius:0 12px 12px 0;margin-bottom:10px;font-size:13px;line-height:1.6}
+.quote{font-family:var(--disp);font-size:20px;font-style:italic;text-align:center;padding:24px;color:var(--muted)}
+
+/* AI Chat Widget */
+.chat-fab{position:fixed;bottom:30px;right:30px;width:56px;height:56px;background:var(--accent);color:#fff;border-radius:50%;display:grid;place-items:center;font-size:22px;cursor:pointer;box-shadow:0 10px 30px var(--accent-glow);z-index:100;transition:all .3s var(--spring)}
+.chat-fab:hover{transform:scale(1.1) rotate(5deg)}
+.chat-win{position:fixed;bottom:100px;right:30px;width:380px;max-width:calc(100vw - 48px);height:550px;max-height:calc(100vh - 140px);background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3);z-index:100;display:flex;flex-direction:column;overflow:hidden;transform:scale(0.8) translateY(40px);opacity:0;pointer-events:none;transition:all .4s var(--spring);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
+.chat-win.open{transform:scale(1) translateY(0);opacity:1;pointer-events:auto}
+.chat-head{padding:18px 24px;border-bottom:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center}
+.chat-head .ttl{font-family:var(--disp);font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
+.chat-head .ttl::before{content:'';width:8px;height:8px;background:var(--mint);border-radius:50%;box-shadow:0 0 8px var(--mint)}
+.chat-head .sub-ttl{font-size:11px;color:var(--muted)}
+.chat-body{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:14px;scrollbar-width:thin}
+.msg{max-width:85%;padding:12px 16px;border-radius:16px;font-size:13.5px;line-height:1.5;animation:msgIn .3s var(--spring)}
+.msg p{margin:0 0 8px 0} .msg p:last-child{margin:0}
+.msg pre{background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);padding:10px;border-radius:8px;overflow-x:auto;font-size:12px;margin:8px 0}
+.msg code{font-family:monospace}
+.msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:var(--glass);border:1px solid var(--glass-border);border-bottom-left-radius:4px}
+.msg.loading span{display:inline-block;width:5px;height:5px;background:var(--muted);border-radius:50%;margin:0 2px;animation:bounce 1s infinite}
+.msg.loading span:nth-child(2){animation-delay:.2s} .msg.loading span:nth-child(3){animation-delay:.4s}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(0.9)}to{opacity:1;transform:none}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.chat-input{padding:14px;border-top:1px solid var(--glass-border);display:flex;gap:10px}
+.chat-input input{flex:1;border:1px solid var(--glass-border);background:var(--glass);padding:12px 16px;border-radius:12px;font-size:13px;transition:all .2s var(--smooth);color:var(--ink)}
+.chat-input input:focus{border-color:var(--accent)}
+.chat-input button{background:var(--accent);color:#fff;padding:0 18px;border-radius:12px;font-weight:600;cursor:pointer;transition:transform .2s var(--spring)}
+.chat-input button:hover{transform:scale(1.05)}
+
+/* Auth View */
+.auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; position: fixed; inset: 0; z-index: 200; backdrop-filter: blur(20px); background: rgba(0,0,0,0.5); }
+.auth-card { width: min(400px, 100%); padding: 32px; background: var(--glass-popover); border: 1px solid var(--glass-border); border-radius: var(--r); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.brand { font-family: var(--disp); font-size: 28px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #fff, var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.brand-sub { margin: 8px 0 24px; color: var(--muted); font-size: 14px; }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--muted); margin: 20px 0; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.divider::before, .divider::after { content: ""; height: 1px; flex: 1; background: var(--glass-border); }
+.tabs { display: flex; gap: 4px; margin: 16px 0; padding: 4px; background: var(--glass-strong); border: 1px solid var(--glass-border); border-radius: 100px; }
+.tab { flex: 1; padding: 8px; text-align: center; border-radius: 100px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.3s var(--smooth); }
+.tab.active { background: var(--accent); color: var(--accent-text); box-shadow: 0 4px 12px var(--accent-glow); }
+
+/* Toast & Mobile */
+#toasts{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));color:var(--ink);padding:12px 24px;border-radius:100px;font-weight:500;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,0.2);animation:toastIn .4s var(--spring)}
+@keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
+#tip{position:fixed;z-index:98;background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s}
+.mobilenav{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:100px;padding:6px;gap:4px;backdrop-filter:blur(var(--blur))}
+.mobilenav a{padding:8px 14px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer}
+.mobilenav a.active{background:var(--accent);color:#fff}
+footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
+@media(max-width:860px){.dash-grid,.sched{grid-template-columns:1fr}.navlinks{display:none}.mobilenav{display:flex}.chat-win{bottom:90px;right:12px;height:60vh}.chat-fab{bottom:90px;right:20px}}
+</style>
 </head>
 <body>
-  <!-- Aurora liquid background -->
-  <div class="aurora" aria-hidden="true">
-    <div class="blob b1"></div>
-    <div class="blob b2"></div>
-    <div class="blob b3"></div>
-  </div>
 
-  <!-- ======================== AUTH VIEW ======================== -->
-  <div id="authView" class="auth-wrap hidden">
-    <div class="auth-card">
-      <h1 class="brand">El-Peak ▲</h1>
-      <p class="brand-sub" data-i18n="tagline">Sign in to sync your ascent.</p>
+<div class="aurora">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+</div>
 
-      <button id="googleBtn" class="btn" style="width:100%" data-i18n="continueGoogle">Continue with Google</button>
-
-      <div class="divider" data-i18n="or">OR</div>
-
-      <div class="tabs">
-        <button class="tab active" id="showLogin" data-i18n="logIn">Log In</button>
-        <button class="tab" id="showSignup" data-i18n="signUp">Sign Up</button>
-      </div>
-
-      <form id="loginForm">
-        <label for="loginEmail" data-i18n="email">Email</label>
-        <input id="loginEmail" type="email" autocomplete="email" required />
-
-        <label for="loginPassword" data-i18n="password">Password</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" required />
-
-        <button class="btn" style="width:100%; margin-top:16px" data-i18n="logIn">Log In</button>
-      </form>
-
-      <form id="signupForm" class="hidden">
-        <label for="signupEmail" data-i18n="email">Email</label>
-        <input id="signupEmail" type="email" autocomplete="email" required />
-
-        <label for="signupPassword" data-i18n="password">Password</label>
-        <input id="signupPassword" type="password" minlength="6" autocomplete="new-password" required />
-
-        <label for="signupUserType" data-i18n="userType">User Type</label>
-        <select id="signupUserType">
-          <option value="general" data-i18n="general">General</option>
-          <option value="school" data-i18n="schoolStudent">School Student</option>
-        </select>
-
-        <label for="signupGrade" data-i18n="grade">Grade Level</label>
-        <select id="signupGrade">
-          <option value="general" data-i18n="general">General</option>
-          <option value="g1-6">Primary (1-6)</option>
-          <option value="g7-9">Preparatory (7-9)</option>
-          <option value="g10-12">Secondary (10-12)</option>
-        </select>
-
-        <button class="btn" style="width:100%; margin-top:16px" data-i18n="signUp">Sign Up</button>
-      </form>
+<!-- ======================== AUTH VIEW ======================== -->
+<div id="authView" class="auth-wrap hidden">
+  <div class="auth-card">
+    <h1 class="brand">El-Peak ▲</h1>
+    <p class="brand-sub" data-i18n="tagline">Sign in to sync your ascent.</p>
+    <button id="googleBtn" class="btn" style="width:100%" data-i18n="continueGoogle">Continue with Google</button>
+    <div class="divider" data-i18n="or">OR</div>
+    <div class="tabs">
+      <button class="tab active" id="showLogin" data-i18n="logIn">Log In</button>
+      <button class="tab" id="showSignup" data-i18n="signUp">Sign Up</button>
     </div>
+    <form id="loginForm">
+      <div class="field"><label for="loginEmail" data-i18n="email">Email</label><input id="loginEmail" type="email" autocomplete="email" required /></div>
+      <div class="field"><label for="loginPassword" data-i18n="password">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required /></div>
+      <button class="btn" style="width:100%; margin-top:16px" data-i18n="logIn">Log In</button>
+    </form>
+    <form id="signupForm" class="hidden">
+      <div class="field"><label for="signupEmail" data-i18n="email">Email</label><input id="signupEmail" type="email" autocomplete="email" required /></div>
+      <div class="field"><label for="signupPassword" data-i18n="password">Password</label><input id="signupPassword" type="password" minlength="6" autocomplete="new-password" required /></div>
+      <button class="btn" style="width:100%; margin-top:16px" data-i18n="signUp">Sign Up</button>
+    </form>
   </div>
+</div>
 
-  <!-- ======================== MAIN VIEW ======================== -->
-  <div id="mainView" class="app hidden">
-    <header class="topbar">
-      <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 20 L8 6 L12 14 L15 9 L21 20" />
+<!-- ======================== MAIN VIEW ======================== -->
+<div id="mainView">
+  <nav>
+    <div class="logo">
+      <svg viewBox="0 0 20 20" fill="none"><path d="M2 18 L7 4 L10 12 L13 6 L18 18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      El-Peak
+    </div>
+    <div class="navlinks" id="navlinks">
+      <div class="nav-slider" id="navSlider"></div>
+      <a data-view="dashboard" class="active" data-i18n="dashboard">Dashboard</a>
+      <a data-view="quiz" data-i18n="quiz">Quiz</a>
+      <a data-view="scheduler" data-i18n="scheduler">Scheduler</a>
+      <a data-view="coach" data-i18n="coach">Coach</a>
+      <a data-view="profile" data-i18n="profile">Profile</a>
+    </div>
+    <div class="navright">
+      <div class="chip"><span class="flame">▲</span><span id="streakChip">0 days</span></div>
+      <div class="chip" id="tierPill">Free</div>
+      <button class="iconbtn" id="themeBtn" title="Toggle theme">◐</button>
+      <button class="btn outline small" id="logoutBtn" data-i18n="logout">Logout</button>
+    </div>
+  </nav>
+
+  <main>
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="view-header">
+      <div class="text-block">
+        <div class="kicker" data-i18n="dashboard">Dashboard</div>
+        <h1 class="big">Your Ascent</h1>
+        <p class="sub">Track your mastery, analyze recent attempts, and keep your streak alive. Every quiz updates your Peak Score.</p>
+      </div>
+      <div class="ringwrap">
+        <svg class="ring-svg" viewBox="0 0 80 80">
+          <circle class="ring-bg" cx="40" cy="40" r="34"/>
+          <circle class="ring-arc" id="peakArc" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="213.6"/>
         </svg>
-        El-Peak
+        <div>
+          <div class="peak-num" id="peakVal">0</div>
+          <div class="peak-lbl">Peak Score</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid stats">
+      <div class="card stat"><div class="num" id="streakVal">0</div><div class="lbl">Day Streak</div></div>
+      <div class="card stat"><div class="num" id="reps7">0</div><div class="lbl">7-Day Reps</div></div>
+      <div class="card stat"><div class="num" id="avgAcc">0%</div><div class="lbl">Avg Accuracy</div></div>
+      <div class="card stat"><div class="num" id="weakN">0</div><div class="lbl">Weak Topics</div></div>
+      <div class="card stat"><div class="num" id="bestRidge" style="font-size:16px">—</div><div class="lbl">Best Topic</div></div>
+    </div>
+
+    <div class="grid dash-grid">
+      <div class="card">
+        <h2 class="sec">Mastery Radar</h2>
+        <div id="radarBox" style="display:grid;place-items:center;min-height:280px"></div>
+      </div>
+      <div class="card">
+        <h2 class="sec">Score Trend</h2>
+        <div id="trendBox" style="min-height:140px"></div>
+        <h2 class="sec" style="margin-top:32px">Recent Attempts</h2>
+        <div id="recentList"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 class="sec" style="margin:0">Ascent Log</h2>
+        <span class="kicker"><span id="heatSessions">0</span> sessions</span>
+      </div>
+      <div class="heat" id="heatGrid"></div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section class="view" id="view-quiz">
+    <div class="view-header">
+      <div class="text-block">
+        <div class="kicker">Quiz Engine</div>
+        <h1 class="big">Expedition</h1>
+      </div>
+      <span class="badge ai">⚡ GROQ · LLAMA-3.3-70B</span>
+    </div>
+
+    <div class="card" id="setupCard">
+      <div class="src-seg">
+        <button class="src-card on" data-src="static">
+          <div class="t">Static Bank <span class="badge static">OFFLINE</span></div>
+          <div class="d">Curated question banks for 5 core subjects. Works with zero internet.</div>
+        </button>
+        <button class="src-card" data-src="ai">
+          <div class="t">AI Generated <span class="badge ai">AI</span></div>
+          <div class="d">Type any topic — the AI writes fresh multiple-choice questions on demand.</div>
+        </button>
+        <button class="src-card" data-src="pdf">
+          <div class="t">Upload PDF <span class="badge pdf">AI</span></div>
+          <div class="d">Drop your book or notes. The AI reads it (even scanned!) and quizzes you.</div>
+        </button>
       </div>
 
-      <nav class="main-nav">
-        <div class="nav-slider" id="navSlider"></div>
-        <button class="nav-btn active" data-view="dashboard" data-i18n="dashboard">Dashboard</button>
-        <button class="nav-btn" data-view="quiz" data-i18n="quiz">Quiz</button>
-        <button class="nav-btn" data-view="scheduler" data-i18n="scheduler">Scheduler</button>
-        <button class="nav-btn" data-view="coach" data-i18n="coach">Coach</button>
-        <button class="nav-btn" data-view="profile" data-i18n="profile">Profile</button>
-      </nav>
-
-      <div class="top-actions">
-        <div class="pill" id="streakPill">0 days</div>
-        <div class="pill" id="tierPill">Free</div>
-        <button class="btn secondary small" id="themeBtn">◐</button>
-        <button class="btn secondary small" id="logoutBtn" data-i18n="logout">Logout</button>
+      <!-- Static Panel with Custom Dropdown -->
+      <div class="panel on grid" id="panel-static" style="grid-template-columns:1fr 1fr">
+        <div class="field">
+          <label>Subject</label>
+          <div class="custom-select" id="staticTopicSelect">
+            <div class="select-trigger">
+              <span class="select-text">Loading…</span>
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="select-menu" id="staticTopicMenu"></div>
+          </div>
+        </div>
+        <div class="field"><label>Length</label>
+          <div class="seg" id="lenStatic"><button data-n="3">3</button><button data-n="4" class="on">4</button><button data-n="5">5</button></div></div>
       </div>
-    </header>
 
-    <main>
-      <!-- DASHBOARD -->
-      <section id="view-dashboard">
-        <div class="grid stats">
-          <div class="card">
-            <div class="stat-label" data-i18n="peakScore">Peak Score</div>
-            <div class="stat-value" id="statPeak">0</div>
-          </div>
-
-          <div class="card">
-            <div class="stat-label" data-i18n="dayStreak">Day Streak</div>
-            <div class="stat-value" id="statStreak">0</div>
-          </div>
-
-          <div class="card">
-            <div class="stat-label" data-i18n="reps7">7-Day Reps</div>
-            <div class="stat-value" id="statReps">0</div>
-          </div>
-
-          <div class="card">
-            <div class="stat-label" data-i18n="avgAccuracy">Avg Accuracy</div>
-            <div class="stat-value" id="statAvg">0%</div>
-          </div>
-
-          <div class="card">
-            <div class="stat-label" data-i18n="weakTopics">Weak Topics</div>
-            <div class="stat-value" id="statWeak">0</div>
-          </div>
-
-          <div class="card">
-            <div class="stat-label" data-i18n="bestTopic">Best Topic</div>
-            <div class="stat-value" id="statBest" style="font-size:14px; line-height:1.35;">—</div>
+      <!-- AI Panel with Custom Slider -->
+      <div class="panel grid" id="panel-ai" style="grid-template-columns:2fr 1fr 1fr">
+        <div class="field"><label>Any topic</label><input id="aiTopic" placeholder="e.g. Photosynthesis, Cold War, Recursion…"></div>
+        <div class="field"><label>Difficulty</label>
+          <div class="seg" id="diffSeg"><button data-d="easy">Easy</button><button data-d="mixed" class="on">Mixed</button><button data-d="hard">Hard</button></div></div>
+        <div class="field">
+          <label>Length</label>
+          <div class="slider-container">
+            <input type="range" min="1" max="30" value="4" class="custom-range" id="lenAiSlider">
+            <div class="slider-val" id="lenAiVal">4</div>
           </div>
         </div>
+      </div>
 
-        <div class="grid two">
-          <div class="card">
-            <h3 class="section-title" data-i18n="masteryTopics">Mastery Topics</h3>
-            <div id="topicList"></div>
-          </div>
-
-          <div class="card">
-            <h3 class="section-title" data-i18n="recentAttempts">Recent Attempts</h3>
-            <div id="recentList"></div>
+      <!-- PDF Panel -->
+      <div class="panel grid" id="panel-pdf" style="grid-template-columns:1fr 1fr">
+        <div class="field"><label>Your PDF book / notes</label>
+          <div class="drop" id="drop">⬆ Drop PDF here or click to browse<br><span id="fileName" style="font-size:11px"></span></div>
+          <input type="file" id="fileInput" accept="application/pdf" hidden></div>
+        <div class="grid" style="gap:14px">
+          <div class="field"><label>Topic label (optional)</label><input id="pdfTopic" placeholder="defaults to file name"></div>
+          <div class="field" style="display:flex;align-items:center;justify-content:center;flex-direction:column;background:var(--glass-strong);border-radius:16px;padding:14px;border:1px solid var(--glass-border);margin-top:8px">
+            <span style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase">Auto-Optimized Length</span>
+            <span style="font-size:12px;color:var(--accent);font-weight:600;margin-top:4px">AI decides the best amount</span>
           </div>
         </div>
+      </div>
 
-        <div class="card" style="margin-top:16px">
-          <h3 class="section-title" data-i18n="activityHeatmap">Activity Heatmap</h3>
-          <div id="heatmap" class="heatmap"></div>
+      <div style="margin-top:24px;text-align:center">
+        <button class="btn" id="beginBtn"><span class="spin"></span>Begin Ascent →</button>
+      </div>
+    </div>
+
+    <div class="card qcard" id="playCard" hidden>
+      <div class="qtop"><span id="qMeta">Q 1/4</span><span id="qBadge"></span></div>
+      <div class="qbar"><i id="qBar" style="width:0%"></i></div>
+      <div class="qtext" id="qText"></div>
+      <div id="qOpts"></div>
+      <div id="qExplain"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:20px">
+        <button class="btn outline" id="exitBtn">← Exit</button>
+        <button class="btn" id="qNext" hidden>Next →</button>
+      </div>
+    </div>
+
+    <div class="card qcard res" id="resultCard" hidden>
+      <div class="kicker" style="text-align:center">Ascent Complete</div>
+      <div class="num" id="resPct">0%</div>
+      <div id="resDelta" style="margin:10px 0 4px"></div>
+      <div id="resTopic" class="sub" style="margin:0 auto 30px;text-align:center"></div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button class="btn outline" id="againBtn">↺ Again</button>
+        <button class="btn" id="homeBtn">Dashboard ▲</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCHEDULER -->
+  <section class="view" id="view-scheduler">
+    <div class="view-header">
+      <div class="text-block">
+        <div class="kicker">Scheduler</div>
+        <h1 class="big">Priority Queue</h1>
+        <p class="sub">Tasks are ranked automatically based on deadline urgency and your current topic weakness.</p>
+      </div>
+    </div>
+    
+    <div class="grid sched">
+      <div class="card">
+        <h2 class="sec">New Objective</h2>
+        <div class="grid" style="gap:14px">
+          <div class="field"><label>Title</label><input id="taskTitle" placeholder="e.g. Chemistry lab report"></div>
+          <div class="field"><label>Linked topic (optional)</label><input id="taskTopic" placeholder="e.g. Integration"></div>
+          <div class="field"><label>Deadline</label><input id="taskDue" type="datetime-local"></div>
+          <button class="btn" id="addTaskBtn">+ Add to Queue</button>
         </div>
-      </section>
+        <h2 class="sec" style="margin-top:32px">Radar Blips <span class="kicker">weak & unscheduled</span></h2>
+        <div id="sugRow"></div>
+      </div>
+      <div class="card">
+        <h2 class="sec">Queue</h2>
+        <div id="queueList"></div>
+        <h2 class="sec" style="margin-top:32px">Cleared</h2>
+        <div id="clearedList"></div>
+      </div>
+    </div>
+  </section>
 
-      <!-- QUIZ -->
-      <section id="view-quiz" class="hidden">
-        <div class="card" id="quizConfigCard">
-          <h3 class="section-title" data-i18n="quizEngine">Quiz Engine</h3>
+  <!-- COACH -->
+  <section class="view" id="view-coach">
+    <div class="view-header" style="justify-content:center;text-align:center">
+      <div class="text-block">
+        <div class="kicker" style="text-align:center">AI Coach</div>
+        <h1 class="big">Summit Plan</h1>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Powered by Groq. It analyses weak topics, deadlines and your accuracy trend, then builds a 7-day revision plan.</p>
+        <button class="btn" id="coachBtn" style="margin-top:24px"><span class="spin"></span>⚡ Generate Revision Plan</button>
+        <div id="coachBadge" style="margin-top:16px"></div>
+      </div>
+    </div>
+    <div id="coachOut"></div>
+  </section>
 
-          <label for="quizSource" data-i18n="source">Source</label>
-          <select id="quizSource">
-            <option value="static" data-i18n="staticBank">Static Bank</option>
-            <option value="ai" data-i18n="aiGenerated">AI Generated</option>
-            <option value="pdf" data-i18n="pdfUpload">PDF Upload</option>
+  <!-- PROFILE -->
+  <section class="view" id="view-profile">
+    <div class="view-header">
+      <div class="text-block">
+        <div class="kicker" data-i18n="profile">Profile</div>
+        <h1 class="big">Account & Settings</h1>
+      </div>
+    </div>
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+      <div class="card">
+        <h2 class="sec" data-i18n="accountUsage">Account & Usage</h2>
+        <div id="usageSummary"></div>
+        <div class="field" style="margin: 14px 0;">
+          <label id="aiUsageLabel">AI Questions</label>
+          <div class="qbar" style="height: 6px;"><i id="aiUsageBar" style="width: 0%;"></i></div>
+        </div>
+        <div class="field" style="margin: 14px 0;">
+          <label id="pdfUsageLabel">PDF Uploads</label>
+          <div class="qbar" style="height: 6px;"><i id="pdfUsageBar" style="width: 0%;"></i></div>
+        </div>
+        <h2 class="sec" style="margin-top: 24px;" data-i18n="upgradePlan">Upgrade Plan</h2>
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="card" id="plusBox" style="padding: 20px;">
+            <h3 style="font-family: var(--disp); font-size: 20px;">Plus</h3>
+            <div style="font-size: 24px; font-weight: 700; margin: 8px 0;">99 EGP <span style="font-size: 12px; color: var(--muted);">/ month</span></div>
+            <button class="btn" data-tier="plus" style="width: 100%;" data-i18n="proceedPayment">Proceed to Payment</button>
+          </div>
+          <div class="card" id="proBox" style="padding: 20px;">
+            <h3 style="font-family: var(--disp); font-size: 20px;">Pro</h3>
+            <div style="font-size: 24px; font-weight: 700; margin: 8px 0;">199 EGP <span style="font-size: 12px; color: var(--muted);">/ month</span></div>
+            <button class="btn" data-tier="pro" style="width: 100%;" data-i18n="proceedPayment">Proceed to Payment</button>
+          </div>
+        </div>
+        <h2 class="sec" style="margin-top: 24px;" data-i18n="recentPayments">Recent Payments</h2>
+        <div id="paymentsList"></div>
+      </div>
+      <div class="card">
+        <h2 class="sec" data-i18n="settings">Settings</h2>
+        <div class="field"><label data-i18n="email">Email</label><input id="settingsEmail" disabled></div>
+        <div class="field"><label data-i18n="username">Username</label><input id="settingsUsername"></div>
+        <div class="field"><label data-i18n="language">Language</label>
+          <select class="native-select" id="settingsLanguage">
+            <option value="en">English</option>
+            <option value="ar">العربية (Arabic)</option>
           </select>
-
-          <div id="staticConfig">
-            <label for="staticSubject" data-i18n="subject">Subject</label>
-            <select id="staticSubject"></select>
-
-            <label for="staticDifficulty" data-i18n="difficulty">Difficulty</label>
-            <select id="staticDifficulty">
-              <option value="easy" data-i18n="easy">Easy</option>
-              <option value="mixed" selected data-i18n="mixed">Mixed</option>
-              <option value="hard" data-i18n="hard">Hard</option>
-            </select>
-
-            <label for="staticLength" data-i18n="length">Length</label>
-            <select id="staticLength">
-              <option value="3">3</option>
-              <option value="4" selected>4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="8">8</option>
-              <option value="10">10</option>
-            </select>
-          </div>
-
-          <div id="aiConfig" class="hidden">
-            <label for="aiTopic" data-i18n="topic">Topic</label>
-            <input id="aiTopic" placeholder="Algebra, Photosynthesis, French Revolution..." />
-
-            <label for="aiDifficulty" data-i18n="difficulty">Difficulty</label>
-            <select id="aiDifficulty">
-              <option value="easy" data-i18n="easy">Easy</option>
-              <option value="mixed" selected data-i18n="mixed">Mixed</option>
-              <option value="hard" data-i18n="hard">Hard</option>
-            </select>
-
-            <label for="aiLength" data-i18n="length">Length</label>
-            <select id="aiLength">
-              <option value="3">3</option>
-              <option value="4" selected>4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="8">8</option>
-            </select>
-          </div>
-
-          <div id="pdfConfig" class="hidden">
-            <label for="pdfFile" data-i18n="pdfFile">PDF File</label>
-            <input id="pdfFile" type="file" accept="application/pdf" />
-
-            <label for="pdfTopic" data-i18n="topicLabelOptional">Topic label (optional)</label>
-            <input id="pdfTopic" placeholder="Biology Chapter 2" />
-
-            <label for="pdfDifficulty" data-i18n="difficulty">Difficulty</label>
-            <select id="pdfDifficulty">
-              <option value="easy" data-i18n="easy">Easy</option>
-              <option value="mixed" selected data-i18n="mixed">Mixed</option>
-              <option value="hard" data-i18n="hard">Hard</option>
-            </select>
-
-            <label for="pdfLength" data-i18n="length">Length</label>
-            <select id="pdfLength">
-              <option value="0" selected data-i18n="autoOptimized">Auto-optimized</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
-          </div>
-
-          <button id="startQuizBtn" class="btn" style="margin-top:20px" data-i18n="beginAscent">Begin Ascent →</button>
         </div>
+        <button class="btn" id="saveSettingsBtn" style="margin-top: 16px;" data-i18n="saveChanges">Save Changes</button>
+        <h2 class="sec" style="margin-top: 24px;" data-i18n="security">Security</h2>
+        <div class="field"><label data-i18n="currentPassword">Current Password</label><input id="oldPassword" type="password"></div>
+        <div class="field"><label data-i18n="newPassword">New Password</label><input id="newPassword" type="password"></div>
+        <button class="btn outline" id="updatePasswordBtn" style="margin-top: 16px;" data-i18n="updatePassword">Update Password</button>
+      </div>
+    </div>
+  </section>
+  </main>
+</div>
 
-        <div class="card hidden" id="quizPlayerCard" style="margin-top:16px">
-          <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
-            <h3 class="section-title" id="quizTitle">Quiz</h3>
-            <button class="btn danger small" id="exitQuizBtn" data-i18n="exit">Exit</button>
-          </div>
-
-          <div class="muted small" id="quizProgress">Q 1/1</div>
-
-          <div id="questionText" style="margin-top:16px; font-size:20px; font-weight:800; line-height:1.45;"></div>
-
-          <div id="questionContext" class="muted small" style="margin-top:8px;"></div>
-
-          <div id="questionOptions" class="quiz-options"></div>
-
-          <div style="display:flex; justify-content:flex-end; margin-top:18px;">
-            <button id="nextQuestionBtn" class="btn" disabled data-i18n="next">Next →</button>
-          </div>
-        </div>
-
-        <div class="card hidden" id="quizResultCard" style="margin-top:16px">
-          <h3 class="section-title" data-i18n="ascentComplete">Ascent Complete</h3>
-          <div id="quizResultText" style="font-size:42px; font-weight:900; margin:10px 0 16px;"></div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="btn secondary" id="againQuizBtn" data-i18n="again">Again</button>
-            <button class="btn" id="dashboardAfterQuizBtn" data-i18n="dashboard">Dashboard</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- SCHEDULER -->
-      <section id="view-scheduler" class="hidden">
-        <div class="card">
-          <h3 class="section-title" data-i18n="newObjective">New Objective</h3>
-
-          <div class="grid" style="grid-template-columns: 2fr 1fr 1fr auto; align-items:end; gap:12px;">
-            <div>
-              <label for="taskTitle" data-i18n="title">Title</label>
-              <input id="taskTitle" placeholder="Physics assignment" />
-            </div>
-
-            <div>
-              <label for="taskTopic" data-i18n="linkedTopic">Linked topic</label>
-              <input id="taskTopic" placeholder="Electricity" />
-            </div>
-
-            <div>
-              <label for="taskDeadline" data-i18n="deadline">Deadline</label>
-              <input id="taskDeadline" type="datetime-local" />
-            </div>
-
-            <button class="btn" id="addTaskBtn" data-i18n="add">Add</button>
-          </div>
-        </div>
-
-        <div class="grid two" style="margin-top:16px">
-          <div class="card">
-            <h3 class="section-title" data-i18n="priorityQueue">Priority Queue</h3>
-            <div id="scheduleQueue"></div>
-          </div>
-
-          <div class="card">
-            <h3 class="section-title" data-i18n="radarBlips">Radar Blips</h3>
-            <div id="scheduleSuggestions"></div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-top:16px">
-          <h3 class="section-title" data-i18n="cleared">Cleared</h3>
-          <div id="scheduleCleared"></div>
-        </div>
-      </section>
-
-      <!-- COACH -->
-      <section id="view-coach" class="hidden">
-        <div class="card">
-          <h3 class="section-title" data-i18n="summitPlan">Summit Plan</h3>
-          <p class="muted" data-i18n="coachDescription">
-            Powered by Groq. It analyzes weak topics, deadlines, and your accuracy trend, then builds a 7-day revision plan.
-          </p>
-
-          <button id="generateCoachBtn" class="btn" data-i18n="generatePlan">Generate Revision Plan</button>
-
-          <div id="coachOutput" style="margin-top:18px"></div>
-        </div>
-      </section>
-
-      <!-- PROFILE -->
-      <section id="view-profile" class="hidden">
-        <div class="grid two">
-          <div class="card">
-            <h3 class="section-title" data-i18n="accountUsage">Account & Usage</h3>
-
-            <div id="usageSummary"></div>
-
-            <div class="usage-bar">
-              <div class="small muted" id="aiUsageLabel">AI Questions</div>
-              <div class="bar"><div class="bar-fill" id="aiUsageBar" style="width:0%;"></div></div>
-            </div>
-
-            <div class="usage-bar">
-              <div class="small muted" id="pdfUsageLabel">PDF Uploads</div>
-              <div class="bar"><div class="bar-fill" id="pdfUsageBar" style="width:0%;"></div></div>
-            </div>
-
-            <h3 class="section-title" style="margin-top:24px" data-i18n="upgradePlan">Upgrade Plan</h3>
-
-            <div class="plans">
-              <div class="plan-card" id="plusBox">
-                <h3>Plus</h3>
-                <div style="font-size:28px; font-weight:900;">99 EGP <span class="muted small">/ month</span></div>
-                <ul class="muted small">
-                  <li>500 AI Questions</li>
-                  <li>50 PDF Uploads</li>
-                  <li>Better AI model</li>
-                </ul>
-                <button class="btn" data-tier="plus" data-i18n="proceedPayment">Proceed to Payment</button>
-              </div>
-
-              <div class="plan-card" id="proBox">
-                <h3>Pro</h3>
-                <div style="font-size:28px; font-weight:900;">199 EGP <span class="muted small">/ month</span></div>
-                <ul class="muted small">
-                  <li>2000 AI Questions</li>
-                  <li>200 PDF Uploads</li>
-                  <li>Best AI model</li>
-                </ul>
-                <button class="btn" data-tier="pro" data-i18n="proceedPayment">Proceed to Payment</button>
-              </div>
-            </div>
-
-            <h3 class="section-title" style="margin-top:24px" data-i18n="recentPayments">Recent Payments</h3>
-            <div id="paymentsList"></div>
-          </div>
-
-          <div class="card">
-            <h3 class="section-title" data-i18n="settings">Settings</h3>
-
-            <label for="settingsEmail" data-i18n="email">Email</label>
-            <input id="settingsEmail" disabled />
-
-            <label for="settingsUsername" data-i18n="username">Username</label>
-            <input id="settingsUsername" />
-
-            <label for="settingsLanguage" data-i18n="language">Language</label>
-            <select id="settingsLanguage">
-              <option value="en">English</option>
-              <option value="ar">العربية (Arabic)</option>
-            </select>
-
-            <label for="settingsUserType" data-i18n="userType">User Type</label>
-            <select id="settingsUserType">
-              <option value="general" data-i18n="general">General</option>
-              <option value="school" data-i18n="schoolStudent">School Student</option>
-            </select>
-
-            <label for="settingsGrade" data-i18n="grade">Grade Level</label>
-            <select id="settingsGrade">
-              <option value="general" data-i18n="general">General</option>
-              <option value="g1-6">Primary (1-6)</option>
-              <option value="g7-9">Preparatory (7-9)</option>
-              <option value="g10-12">Secondary (10-12)</option>
-            </select>
-
-            <button class="btn" id="saveSettingsBtn" style="margin-top:18px" data-i18n="saveChanges">Save Changes</button>
-
-            <h3 class="section-title" style="margin-top:26px" data-i18n="security">Security</h3>
-
-            <label for="oldPassword" data-i18n="currentPassword">Current Password</label>
-            <input id="oldPassword" type="password" autocomplete="current-password" />
-
-            <label for="newPassword" data-i18n="newPassword">New Password</label>
-            <input id="newPassword" type="password" autocomplete="new-password" />
-
-            <button class="btn secondary" id="updatePasswordBtn" style="margin-top:18px" data-i18n="updatePassword">Update Password</button>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <!-- ======================== TUTOR ======================== -->
-  <button id="tutorToggle" class="tutor-toggle hidden">✦</button>
-
-  <div id="tutorPanel" class="tutor-panel hidden">
+<!-- AI TUTOR CHAT WIDGET -->
+<div class="chat-fab" id="chatFab">✦</div>
+<div class="chat-win" id="chatWin">
+  <div class="chat-head">
     <div>
-      <strong style="font-family: var(--font-display); font-size: 15px;">El-Peak Tutor</strong>
-      <button class="btn secondary small" id="tutorClose">✕</button>
+      <div class="ttl">El-Peak Tutor</div>
+      <div class="sub-ttl">Powered by Groq · Online</div>
     </div>
-    <div id="tutorMessages" class="tutor-messages">
-      <div class="msg assistant">Hey! I'm your AI tutor. Ask me anything.</div>
-    </div>
-    <div class="tutor-input">
-      <input id="tutorInput" placeholder="Ask anything..." />
-      <button class="btn" id="tutorSend">➤</button>
-    </div>
+    <button class="iconbtn" id="chatClose" style="width:28px;height:28px;border:none">✕</button>
   </div>
+  <div class="chat-body" id="chatBody">
+    <div class="msg ai"><p>Hey! I'm your AI tutor. Ask me anything about your studies — concepts, explanations, or code snippets.</p></div>
+  </div>
+  <div class="chat-input">
+    <input id="chatInput" placeholder="Ask a question..."><button id="chatSend">➤</button>
+  </div>
+</div>
 
-  <!-- ======================== UPGRADE MODAL ======================== -->
-  <div id="upgradeModal" class="modal-backdrop hidden">
-    <div class="modal-card">
-      <h2 data-i18n="limitReached">Limit Reached</h2>
-      <p class="muted" data-i18n="limitDescription">
-        You've used all your available credits for this cycle. Upgrade to keep your ascent going.
-      </p>
-
-      <div class="plans">
-        <div class="plan-card" id="plusBoxModal">
-          <h3>Plus</h3>
-          <div style="font-size:26px; font-weight:900;">99 EGP <span class="muted small">/ month</span></div>
-          <ul class="muted small">
-            <li>500 AI Questions</li>
-            <li>50 PDF Uploads</li>
-          </ul>
-          <button class="btn" data-tier="plus" data-i18n="proceedPayment">Proceed to Payment</button>
-        </div>
-
-        <div class="plan-card" id="proBoxModal">
-          <h3>Pro</h3>
-          <div style="font-size:26px; font-weight:900;">199 EGP <span class="muted small">/ month</span></div>
-          <ul class="muted small">
-            <li>2000 AI Questions</li>
-            <li>200 PDF Uploads</li>
-          </ul>
-          <button class="btn" data-tier="pro" data-i18n="proceedPayment">Proceed to Payment</button>
-        </div>
+<!-- ======================== UPGRADE MODAL ======================== -->
+<div id="upgradeModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: grid; place-items: center; z-index: 300; padding: 20px;">
+  <div class="card" style="width: min(600px, 100%); padding: 32px;">
+    <h2 style="font-family: var(--disp); font-size: 24px; margin-bottom: 12px;" data-i18n="limitReached">Limit Reached</h2>
+    <p class="sub" data-i18n="limitDescription">You've used all your available credits. Upgrade to keep your ascent going.</p>
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px;">
+      <div class="card" id="plusBoxModal" style="padding: 20px;">
+        <h3 style="font-family: var(--disp); font-size: 20px;">Plus</h3>
+        <div style="font-size: 24px; font-weight: 700; margin: 8px 0;">99 EGP</div>
+        <button class="btn" data-tier="plus" style="width: 100%;" data-i18n="proceedPayment">Proceed</button>
       </div>
-
-      <div style="margin-top:18px; text-align:right;">
-        <button class="btn secondary" id="maybeLaterBtn" data-i18n="maybeLater">Maybe Later</button>
+      <div class="card" id="proBoxModal" style="padding: 20px;">
+        <h3 style="font-family: var(--disp); font-size: 20px;">Pro</h3>
+        <div style="font-size: 24px; font-weight: 700; margin: 8px 0;">199 EGP</div>
+        <button class="btn" data-tier="pro" style="width: 100%;" data-i18n="proceedPayment">Proceed</button>
       </div>
     </div>
+    <div style="margin-top: 24px; text-align: right;">
+      <button class="btn outline" id="maybeLaterBtn" data-i18n="maybeLater">Maybe Later</button>
+    </div>
   </div>
+</div>
 
-  <!-- ======================== TOASTS ======================== -->
-  <div id="toastWrap" class="toast-wrap"></div>
+<div class="mobilenav">
+  <a data-view="dashboard" class="active">Home</a>
+  <a data-view="quiz">Quiz</a>
+  <a data-view="scheduler">Plan</a>
+  <a data-view="coach">Coach</a>
+  <a data-view="profile">Profile</a>
+</div>
+<div id="toasts"></div><div id="tip"></div>
+<footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
 
-  <script>
-    const $ = (id) => document.getElementById(id);
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 
-    const state = {
-      token: localStorage.getItem("elp_token"),
-      lang: localStorage.getItem("elp_lang") || "en",
-      theme: localStorage.getItem("elp_theme") || "dark",
-      user: null,
-      usage: null,
-      subjects: [],
-      quiz: null,
-      quizIndex: 0,
-      answers: [],
-      tutorHistory: []
-    };
+const state = {
+  token: localStorage.getItem("elp_token"),
+  lang: localStorage.getItem("elp_lang") || "en",
+  theme: localStorage.getItem("elp_theme") || "dark",
+  user: null,
+  usage: null,
+  quiz: null,
+  quizIndex: 0,
+  answers: [],
+  chatHistory: []
+};
 
-    const I18N = {
-      en: {
-        tagline: "Sign in to sync your ascent.",
-        continueGoogle: "Continue with Google",
-        or: "OR",
-        logIn: "Log In",
-        signUp: "Sign Up",
-        email: "Email",
-        password: "Password",
-        userType: "User Type",
-        general: "General",
-        schoolStudent: "School Student",
-        grade: "Grade Level",
-        dashboard: "Dashboard",
-        quiz: "Quiz",
-        scheduler: "Scheduler",
-        coach: "Coach",
-        profile: "Profile",
-        logout: "Logout",
-        peakScore: "Peak Score",
-        dayStreak: "Day Streak",
-        reps7: "7-Day Reps",
-        avgAccuracy: "Avg Accuracy",
-        weakTopics: "Weak Topics",
-        bestTopic: "Best Topic",
-        masteryTopics: "Mastery Topics",
-        recentAttempts: "Recent Attempts",
-        activityHeatmap: "Activity Heatmap",
-        quizEngine: "Quiz Engine",
-        source: "Source",
-        staticBank: "Static Bank",
-        aiGenerated: "AI Generated",
-        pdfUpload: "PDF Upload",
-        subject: "Subject",
-        difficulty: "Difficulty",
-        easy: "Easy",
-        mixed: "Mixed",
-        hard: "Hard",
-        length: "Length",
-        topic: "Topic",
-        pdfFile: "PDF File",
-        topicLabelOptional: "Topic label (optional)",
-        autoOptimized: "Auto-optimized",
-        beginAscent: "Begin Ascent →",
-        exit: "Exit",
-        next: "Next →",
-        finish: "Finish",
-        ascentComplete: "Ascent Complete",
-        again: "Again",
-        newObjective: "New Objective",
-        title: "Title",
-        linkedTopic: "Linked topic",
-        deadline: "Deadline",
-        add: "Add",
-        priorityQueue: "Priority Queue",
-        radarBlips: "Radar Blips",
-        cleared: "Cleared",
-        summitPlan: "Summit Plan",
-        coachDescription: "Powered by Groq. It analyzes weak topics, deadlines, and your accuracy trend, then builds a 7-day revision plan.",
-        generatePlan: "Generate Revision Plan",
-        accountUsage: "Account & Usage",
-        upgradePlan: "Upgrade Plan",
-        proceedPayment: "Proceed to Payment",
-        recentPayments: "Recent Payments",
-        settings: "Settings",
-        username: "Username",
-        language: "Language",
-        saveChanges: "Save Changes",
-        security: "Security",
-        currentPassword: "Current Password",
-        newPassword: "New Password",
-        updatePassword: "Update Password",
-        limitReached: "Limit Reached",
-        limitDescription: "You've used all your available credits for this cycle. Upgrade to keep your ascent going.",
-        maybeLater: "Maybe Later"
-      },
-      ar: {
-        tagline: "سجّل الدخول لمزامنة تقدمك.",
-        continueGoogle: "المتابعة عبر جوجل",
-        or: "أو",
-        logIn: "تسجيل الدخول",
-        signUp: "إنشاء حساب",
-        email: "البريد الإلكتروني",
-        password: "كلمة المرور",
-        userType: "نوع المستخدم",
-        general: "عام",
-        schoolStudent: "طالب مدرسي",
-        grade: "المرحلة الدراسية",
-        dashboard: "لوحة التحكم",
-        quiz: "الاختبارات",
-        scheduler: "المجدول",
-        coach: "المدرب",
-        profile: "الحساب",
-        logout: "خروج",
-        peakScore: "نقاط القمة",
-        dayStreak: "أيام المواظبة",
-        reps7: "تدريبات ٧ أيام",
-        avgAccuracy: "متوسط الدقة",
-        weakTopics: "مواضيع ضعيفة",
-        bestTopic: "أفضل موضوع",
-        masteryTopics: "مستوى الإتقان",
-        recentAttempts: "المحاولات الأخيرة",
-        activityHeatmap: "نشاط التعلم",
-        quizEngine: "محرك الاختبارات",
-        source: "المصدر",
-        staticBank: "بنك الأسئلة",
-        aiGenerated: "أسئلة بالذكاء الاصطناعي",
-        pdfUpload: "رفع PDF",
-        subject: "المادة",
-        difficulty: "الصعوبة",
-        easy: "سهل",
-        mixed: "متوسط",
-        hard: "صعب",
-        length: "عدد الأسئلة",
-        topic: "الموضوع",
-        pdfFile: "ملف PDF",
-        topicLabelOptional: "اسم الموضوع (اختياري)",
-        autoOptimized: "تلقائي",
-        beginAscent: "ابدأ الصعود ←",
-        exit: "خروج",
-        next: "التالي ←",
-        finish: "إنهاء",
-        ascentComplete: "اكتمل الصعود",
-        again: "مرة أخرى",
-        newObjective: "هدف جديد",
-        title: "العنوان",
-        linkedTopic: "موضوع مرتبط",
-        deadline: "الموعد النهائي",
-        add: "إضافة",
-        priorityQueue: "قائمة الأولويات",
-        radarBlips: "نقاط الرادار",
-        cleared: "تم الإنجاز",
-        summitPlan: "خطة القمة",
-        coachDescription: "مدعوم من Groq. يحلل المواضيع الضعيفة والمواعيد النهائية واتجاه الدقة ثم يبني خطة مراجعة لمدة ٧ أيام.",
-        generatePlan: "إنشاء خطة مراجعة",
-        accountUsage: "الحساب والاستخدام",
-        upgradePlan: "ترقية الخطة",
-        proceedPayment: "المتابعة للدفع",
-        recentPayments: "المدفوعات الأخيرة",
-        settings: "الإعدادات",
-        username: "اسم المستخدم",
-        language: "اللغة",
-        saveChanges: "حفظ التغييرات",
-        security: "الأمان",
-        currentPassword: "كلمة المرور الحالية",
-        newPassword: "كلمة المرور الجديدة",
-        updatePassword: "تحديث كلمة المرور",
-        limitReached: "تم الوصول للحد",
-        limitDescription: "لقد استخدمت كل الرصيد المتاح لهذه الدورة. قم بالترقية لمواصلة التقدم.",
-        maybeLater: "لاحقاً"
-      }
-    };
+const I18N = {
+  en: {
+    tagline: "Sign in to sync your ascent.", continueGoogle: "Continue with Google", or: "OR",
+    logIn: "Log In", signUp: "Sign Up", email: "Email", password: "Password",
+    dashboard: "Dashboard", quiz: "Quiz", scheduler: "Scheduler", coach: "Coach", profile: "Profile", logout: "Logout",
+    accountUsage: "Account & Usage", upgradePlan: "Upgrade Plan", proceedPayment: "Proceed to Payment", recentPayments: "Recent Payments",
+    settings: "Settings", username: "Username", language: "Language", saveChanges: "Save Changes",
+    security: "Security", currentPassword: "Current Password", newPassword: "New Password", updatePassword: "Update Password",
+    limitReached: "Limit Reached", limitDescription: "You've used all your available credits. Upgrade to keep your ascent going.", maybeLater: "Maybe Later"
+  },
+  ar: {
+    tagline: "سجّل الدخول لمزامنة تقدمك.", continueGoogle: "المتابعة عبر جوجل", or: "أو",
+    logIn: "تسجيل الدخول", signUp: "إنشاء حساب", email: "البريد الإلكتروني", password: "كلمة المرور",
+    dashboard: "لوحة التحكم", quiz: "الاختبارات", scheduler: "المجدول", coach: "المدرب", profile: "الحساب", logout: "خروج",
+    accountUsage: "الحساب والاستخدام", upgradePlan: "ترقية الخطة", proceedPayment: "المتابعة للدفع", recentPayments: "المدفوعات الأخيرة",
+    settings: "الإعدادات", username: "اسم المستخدم", language: "اللغة", saveChanges: "حفظ التغييرات",
+    security: "الأمان", currentPassword: "كلمة المرور الحالية", newPassword: "كلمة المرور الجديدة", updatePassword: "تحديث كلمة المرور",
+    limitReached: "تم الوصول للحد", limitDescription: "لقد استخدمت كل الرصيد المتاح لهذه الدورة. قم بالترقية لمواصلة التقدم.", maybeLater: "لاحقاً"
+  }
+};
 
-    function t(key) {
-      const dict = I18N[state.lang] || I18N.en;
-      return dict[key] || I18N.en[key] || key;
+function t(key) { const dict = I18N[state.lang] || I18N.en; return dict[key] || I18N.en[key] || key; }
+function applyI18n() {
+  document.documentElement.lang = state.lang;
+  document.documentElement.dir = state.lang === "ar" ? "rtl" : "ltr";
+  document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
+}
+function applyTheme() { document.documentElement.dataset.theme = state.theme; }
+
+async function api(path, { method = "GET", body = null, formData = null, auth = true } = {}) {
+  const headers = {};
+  if (!formData) headers["Content-Type"] = "application/json";
+  if (auth && state.token) headers["Authorization"] = `Bearer ${state.token}`;
+  
+  let res;
+  try {
+    res = await fetch(path, { method, headers, body: formData ? formData : body ? JSON.stringify(body) : undefined });
+  } catch (e) { throw new Error("Cannot connect to server. Is main.py running?"); }
+  
+  if (res.status === 401) { logout(); throw new Error("Session expired. Please log in again."); }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : `Request failed (${res.status})`;
+    if (res.status === 403 && String(detail).toLowerCase().includes("limit")) openUpgradeModal();
+    throw new Error(detail);
+  }
+  return data;
+}
+
+function toast(m) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = m;
+  $("#toasts").appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+function ago(s) {
+  const d = (Date.now() - new Date(s)) / 1e3;
+  if (d < 60) return "just now";
+  if (d < 3600) return Math.floor(d/60) + "m ago";
+  if (d < 86400) return Math.floor(d/3600) + "h ago";
+  return Math.floor(d/86400) + "d ago";
+}
+
+function count(el, to, su="") {
+  const t0 = performance.now(), dur = 800;
+  function f(t) {
+    const p = Math.min(1, (t-t0)/dur), e = 1 - Math.pow(1-p, 3);
+    el.textContent = Math.round(to*e) + su;
+    if (p < 1) requestAnimationFrame(f);
+  }
+  requestAnimationFrame(f);
+}
+
+function showAuth() {
+  $("#authView").classList.remove("hidden");
+  $("#mainView").style.display = "none";
+  $("nav").style.display = "none";
+  $(".mobilenav").style.display = "none";
+  $("#chatFab").style.display = "none";
+}
+function showMain() {
+  $("#authView").classList.add("hidden");
+  $("#mainView").style.display = "block";
+  $("nav").style.display = "grid";
+  $("#chatFab").style.display = "grid";
+}
+function logout() { localStorage.removeItem("elp_token"); state.token = null; location.href = "/"; }
+function setToken(token) { state.token = token; localStorage.setItem("elp_token", token); }
+
+async function handleQueryParams() {
+  const params = new URLSearchParams(location.search);
+  const oauthCode = params.get("oauth_code");
+  if (oauthCode) {
+    try {
+      const data = await api("/api/auth/google/exchange", { method: "POST", body: { code: oauthCode }, auth: false });
+      setToken(data.token); history.replaceState({}, "", "/"); return true;
+    } catch (e) { toast(e.message); history.replaceState({}, "", "/"); }
+  }
+  const legacyToken = params.get("token");
+  if (legacyToken) { setToken(legacyToken); history.replaceState({}, "", "/"); return true; }
+  if (params.get("upgraded") === "true") { toast("Payment successful. Your plan was upgraded."); history.replaceState({}, "", "/"); }
+  return false;
+}
+
+async function boot() {
+  if (!state.token) { showAuth(); return; }
+  try {
+    await Promise.all([loadSettings(), loadUsage()]);
+    showMain(); applyTheme(); applyI18n();
+    await Promise.allSettled([loadDashboard(), loadSubjects(), loadSchedule(), loadPayments()]);
+  } catch (e) { console.error(e); showAuth(); }
+}
+
+/* === Lenis Buttery Smooth Scrolling === */
+const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
+function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+requestAnimationFrame(raf);
+const scrollToTop = () => lenis.scrollTo(0, { immediate: false });
+
+/* Theme Toggle */
+ $("#themeBtn").onclick = () => {
+  const current = document.documentElement.dataset.theme || "dark";
+  const next = current === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem("elp_theme", next);
+  state.theme = next;
+};
+
+/* Sliding Nav Logic */
+function moveSlider(activeLink) {
+  const slider = $("#navSlider");
+  if (!slider || !activeLink) return;
+  slider.style.left = activeLink.offsetLeft + "px";
+  slider.style.width = activeLink.offsetWidth + "px";
+}
+
+/* View Transitions */
+function go(v) {
+  $$(".view").forEach(x => x.classList.remove("active"));
+  const view = $("#view-" + v);
+  view.classList.add("active");
+  
+  const activeLink = $(`.navlinks a[data-view="${v}"]`) || $(`.mobilenav a[data-view="${v}"]`);
+  $$(".navlinks a, .mobilenav a").forEach(a => a.classList.remove("active"));
+  if (activeLink) {
+    activeLink.classList.add("active");
+    if (activeLink.parentElement.id === "navlinks") moveSlider(activeLink);
+  }
+  
+  scrollToTop();
+  if (v === "dashboard") loadDashboard();
+  if (v === "scheduler") loadSchedule();
+}
+
+ $$("[data-view]").forEach(a => {
+  a.onclick = e => { e.preventDefault(); go(a.dataset.view); };
+});
+
+window.addEventListener('load', () => { const a = $(".navlinks a.active"); if(a) moveSlider(a); });
+window.addEventListener('resize', () => { const a = $(".navlinks a.active"); if(a) moveSlider(a); });
+
+/* Dashboard */
+async function loadDashboard() {
+  try {
+    const [stats, topics, recent, heat] = await Promise.all([api("/api/stats"), api("/api/topics"), api("/api/recent?limit=20"), api("/api/heatmap")]);
+    $("#streakChip").textContent = stats.streak + " days";
+    count($("#peakVal"), stats.peak); count($("#streakVal"), stats.streak); count($("#reps7"), stats.attempts_7d);
+    count($("#avgAcc"), Math.round(stats.avg_pct), "%"); count($("#weakN"), stats.weak_count);
+    $("#bestRidge").textContent = stats.best_topic || "—";
+    $("#peakArc").style.strokeDashoffset = 213.6 * (1 - stats.peak / 100);
+    renderRadar(topics); renderTrend(recent); renderHeat(heat); renderRecent(recent);
+  } catch (e) { toast("Dashboard load failed: " + e.message); }
+}
+function renderRadar(topics) {
+  const t = topics.slice(0, 8);
+  if (!t.length) { $("#radarBox").innerHTML = '<p class="sub">No topics yet.</p>'; return; }
+  const S = 280, c = S/2, R = 90, n = t.length; let g = "";
+  for (let ring = 1; ring <= 4; ring++) {
+    let pts = t.map((_, i) => { const a = -Math.PI/2 + i*2*Math.PI/n, r = R*ring/4; return `${c+r*Math.cos(a)},${c+r*Math.sin(a)}`; }).join(" ");
+    g += `<polygon points="${pts}" fill="none" stroke="var(--glass-border)" stroke-width="1"/>`;
+  }
+  t.forEach((tp, i) => {
+    const a = -Math.PI/2 + i*2*Math.PI/n;
+    g += `<line x1="${c}" y1="${c}" x2="${c+R*Math.cos(a)}" y2="${c+R*Math.sin(a)}" stroke="var(--glass-border)"/>`;
+    g += `<text x="${c+(R+20)*Math.cos(a)}" y="${c+(R+20)*Math.sin(a)}" font-size="10" fill="var(--muted)" text-anchor="middle" dominant-baseline="middle" font-family="Inter">${tp.name.length > 12 ? tp.name.slice(0, 11) + "…" : tp.name}</text>`;
+  });
+  const pts = t.map((tp, i) => { const a = -Math.PI/2 + i*2*Math.PI/n, r = R*tp.score/100; return `${c+r*Math.cos(a)},${c+r*Math.sin(a)}`; }).join(" ");
+  g += `<polygon points="${pts}" fill="rgba(99,102,241,0.15)" stroke="var(--accent)" stroke-width="2" style="filter:drop-shadow(0 0 8px var(--accent-glow));transform-origin:${c}px ${c}px;animation:radarIn .8s ease"/>`;
+  $("#radarBox").innerHTML = `<svg viewBox="0 0 ${S} ${S}" style="width:100%;max-width:320px"><style>@keyframes radarIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}</style>${g}</svg>`;
+}
+function renderTrend(recent) {
+  const pts = [...recent].reverse();
+  if (pts.length < 2) { $("#trendBox").innerHTML = '<p class="sub">No attempts logged yet.</p>'; return; }
+  const W = 520, H = 140, P = 12;
+  const xy = pts.map((a, i) => [P + i*(W-2*P)/(pts.length-1), H-P-(a.pct/100)*(H-2*P)]);
+  const d = xy.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const dots = xy.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="var(--accent)" style="filter:drop-shadow(0 0 4px var(--accent-glow))"><title>${pts[i].pct}%</title></circle>`).join("");
+  $("#trendBox").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%"><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" class="trendpath"/>${dots}<style>.trendpath{stroke-dasharray:1000;stroke-dashoffset:1000;animation:draw 1.2s ease forwards}@keyframes draw{to{stroke-dashoffset:0}}</style></svg>`;
+}
+function renderHeat(heat) {
+  const grid = $("#heatGrid"); grid.innerHTML = "";
+  const first = new Date(heat[0].date);
+  for (let i = 0; i < first.getDay(); i++) grid.appendChild(document.createElement("span"));
+  let total = 0;
+  heat.forEach(h => {
+    total += h.count;
+    const c = document.createElement("i");
+    c.className = h.count === 0 ? "" : h.count === 1 ? "l1" : h.count === 2 ? "l2" : "l3";
+    c.dataset.tip = `${h.date} · ${h.count} session${h.count === 1 ? "" : "s"}`;
+    c.onmousemove = e => { const t = $("#tip"); t.textContent = c.dataset.tip; t.style.opacity = 1; t.style.left = e.clientX + 12 + "px"; t.style.top = e.clientY - 30 + "px"; };
+    c.onmouseleave = () => $("#tip").style.opacity = 0;
+    grid.appendChild(c);
+  });
+  $("#heatSessions").textContent = total;
+}
+function renderRecent(recent) {
+  $("#recentList").innerHTML = recent.length ? recent.slice(0, 6).map(a => {
+    const col = a.pct >= 70 ? "var(--mint)" : a.pct >= 50 ? "var(--amber)" : "var(--coral)";
+    return `<div class="rowline"><span class="r-topic">${a.topic}</span><span class="r-time">${ago(a.created_at)}</span><span class="badge ${a.source === "static" ? "static" : "ai"}">${a.source === "static" ? "BANK" : a.source.toUpperCase()}</span><span class="pctpill" style="color:${col}">${a.pct}%</span></div>`;
+  }).join("") : '<p class="sub">No attempts logged yet.</p>';
+}
+
+/* Custom Dropdown Logic */
+const staticSelect = $("#staticTopicSelect");
+const staticMenu = $("#staticTopicMenu");
+let staticTopicValue = "";
+
+staticSelect.querySelector(".select-trigger").onclick = (e) => { e.stopPropagation(); staticSelect.classList.toggle("open"); };
+document.addEventListener("click", (e) => { if (!staticSelect.contains(e.target)) staticSelect.classList.remove("open"); });
+
+async function loadSubjects() {
+  try {
+    const d = await api("/api/quiz/subjects");
+    staticMenu.innerHTML = d.subjects.map(s => `<div class="select-option" data-val="${s}">${s}</div>`).join("");
+    if (d.subjects.length) {
+      staticTopicValue = d.subjects[0];
+      staticSelect.querySelector(".select-text").textContent = staticTopicValue;
+      staticMenu.querySelector(".select-option").classList.add("selected");
     }
-
-    function applyI18n() {
-      document.documentElement.lang = state.lang;
-      document.documentElement.dir = state.lang === "ar" ? "rtl" : "ltr";
-
-      document.querySelectorAll("[data-i18n]").forEach(el => {
-        el.textContent = t(el.dataset.i18n);
-      });
-
-      document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
-        el.placeholder = t(el.dataset.i18nPlaceholder);
-      });
-    }
-
-    function applyTheme() {
-      document.body.classList.toggle("light", state.theme === "light");
-    }
-
-    function toast(message, type = "info") {
-      const wrap = $("toastWrap");
-      const el = document.createElement("div");
-      el.className = `toast ${type}`;
-      el.textContent = message;
-      wrap.appendChild(el);
-
-      setTimeout(() => el.remove(), 4200);
-    }
-
-    async function parseError(res) {
-      try {
-        const data = await res.json();
-        if (typeof data.detail === "string") return data.detail;
-        if (Array.isArray(data.detail)) {
-          return data.detail.map(x => x.msg || JSON.stringify(x)).join(", ");
-        }
-        return "Request failed.";
-      } catch {
-        return "Request failed.";
-      }
-    }
-
-    async function api(path, { method = "GET", body = null, formData = null, auth = true } = {}) {
-      const headers = {};
-
-      if (!formData) {
-        headers["Content-Type"] = "application/json";
-      }
-
-      if (auth && state.token) {
-        headers["Authorization"] = `Bearer ${state.token}`;
-      }
-
-      const res = await fetch(path, {
-        method,
-        headers,
-        body: formData ? formData : body ? JSON.stringify(body) : undefined
-      });
-
-      if (res.status === 401) {
-        logout();
-        throw new Error("Session expired. Please log in again.");
-      }
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        const detail = data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : `Request failed (${res.status})`;
-
-        if (res.status === 403 && String(detail).toLowerCase().includes("limit")) {
-          openUpgradeModal();
-        }
-
-        throw new Error(detail);
-      }
-
-      return data;
-    }
-
-    function showAuth() {
-      $("authView").classList.remove("hidden");
-      $("mainView").classList.add("hidden");
-      $("tutorToggle").classList.add("hidden");
-      $("tutorPanel").classList.add("hidden");
-    }
-
-    function showMain() {
-      $("authView").classList.add("hidden");
-      $("mainView").classList.remove("hidden");
-      $("tutorToggle").classList.remove("hidden");
-    }
-
-    function logout() {
-      localStorage.removeItem("elp_token");
-      state.token = null;
-      location.href = "/";
-    }
-
-    function setToken(token) {
-      state.token = token;
-      localStorage.setItem("elp_token", token);
-    }
-
-    async function handleQueryParams() {
-      const params = new URLSearchParams(location.search);
-
-      const oauthCode = params.get("oauth_code");
-      if (oauthCode) {
-        try {
-          const data = await api("/api/auth/google/exchange", {
-            method: "POST",
-            body: { code: oauthCode },
-            auth: false
-          });
-
-          setToken(data.token);
-          history.replaceState({}, "", "/");
-          return true;
-        } catch (e) {
-          toast(e.message, "error");
-          history.replaceState({}, "", "/");
-        }
-      }
-
-      const legacyToken = params.get("token");
-      if (legacyToken) {
-        setToken(legacyToken);
-        history.replaceState({}, "", "/");
-        return true;
-      }
-
-      if (params.get("upgraded") === "true") {
-        toast("Payment successful. Your plan was upgraded.", "success");
-        history.replaceState({}, "", "/");
-      }
-
-      return false;
-    }
-
-    async function boot() {
-      if (!state.token) {
-        showAuth();
-        return;
-      }
-
-      try {
-        await Promise.all([
-          loadSettings(),
-          loadUsage()
-        ]);
-
-        showMain();
-        applyTheme();
-        applyI18n();
-
-        // Initial slider position
-        const initialActive = document.querySelector('.nav-btn.active');
-        const slider = document.getElementById('navSlider');
-        if (initialActive && slider) {
-          slider.style.width = `${initialActive.offsetWidth}px`;
-          slider.style.left = `${initialActive.offsetLeft}px`;
-        }
-
-        await Promise.allSettled([
-          loadDashboard(),
-          loadSubjects(),
-          loadSchedule(),
-          loadPayments()
-        ]);
-
-        if ("serviceWorker" in navigator) {
-          navigator.serviceWorker.register("/sw.js").catch(() => {});
-        }
-      } catch (e) {
-        console.error(e);
-        showAuth();
-      }
-    }
-
-    function showView(name) {
-      document.querySelectorAll(".nav-btn").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.view === name);
-      });
-
-      // Sliding Navbar Tab Indicator Logic
-      const activeBtn = document.querySelector(`.nav-btn[data-view="${name}"]`);
-      const slider = document.getElementById('navSlider');
-      if (activeBtn && slider) {
-        slider.style.width = `${activeBtn.offsetWidth}px`;
-        slider.style.left = `${activeBtn.offsetLeft}px`;
-      }
-
-      ["dashboard", "quiz", "scheduler", "coach", "profile"].forEach(view => {
-        $(`view-${view}`).classList.toggle("hidden", view !== name);
-      });
-    }
-
-    async function loadSettings() {
-      const user = await api("/api/user/settings");
-      state.user = user;
-
-      state.lang = user.language || state.lang;
-      localStorage.setItem("elp_lang", state.lang);
-
-      $("settingsEmail").value = user.email || "";
-      $("settingsUsername").value = user.username || "";
-      $("settingsLanguage").value = user.language || "en";
-      $("settingsUserType").value = user.user_type || "general";
-      $("settingsGrade").value = user.grade || "general";
-
-      $("tierPill").textContent = (user.effective_tier || "free").toUpperCase();
-      applyI18n();
-    }
-
-    async function loadUsage() {
-      const usage = await api("/api/usage");
-      state.usage = usage;
-
-      $("tierPill").textContent = usage.tier.toUpperCase();
-
-      $("usageSummary").innerHTML = `
-        <div class="small muted">Current Plan: <strong>${usage.tier.toUpperCase()}</strong></div>
-        <div class="small muted">Subscription: <strong>${usage.subscription_status || "inactive"}</strong></div>
-        <div class="small muted">Expires: <strong>${usage.subscription_expires_at || "—"}</strong></div>
-      `;
-
-      const aiPct = usage.ai_limit ? Math.min(100, (usage.ai_used / usage.ai_limit) * 100) : 0;
-      const pdfPct = usage.pdf_limit ? Math.min(100, (usage.pdf_used / usage.pdf_limit) * 100) : 0;
-
-      $("aiUsageLabel").textContent = `AI Questions: ${usage.ai_used} / ${usage.ai_limit}`;
-      $("pdfUsageLabel").textContent = `PDF Uploads: ${usage.pdf_used} / ${usage.pdf_limit}`;
-
-      $("aiUsageBar").style.width = `${aiPct}%`;
-      $("pdfUsageBar").style.width = `${pdfPct}%`;
-    }
-
-    async function loadDashboard() {
-      const [stats, topics, recent, heatmap] = await Promise.all([
-        api("/api/stats"),
-        api("/api/topics"),
-        api("/api/recent?limit=12"),
-        api("/api/heatmap")
-      ]);
-
-      $("statPeak").textContent = stats.peak ?? 0;
-      $("statStreak").textContent = stats.streak ?? 0;
-      $("statReps").textContent = stats.attempts_7d ?? 0;
-      $("statAvg").textContent = `${stats.avg_pct ?? 0}%`;
-      $("statWeak").textContent = stats.weak_count ?? 0;
-      $("statBest").textContent = stats.best_topic || "—";
-
-      $("streakPill").textContent = `${stats.streak ?? 0} days`;
-
-      const topicList = $("topicList");
-      topicList.innerHTML = "";
-
-      if (!topics.length) {
-        topicList.innerHTML = `<div class="muted small">No topics yet. Complete a quiz to start tracking mastery.</div>`;
-      } else {
-        const sorted = [...topics].sort((a, b) => b.score - a.score);
-
-        sorted.forEach(topic => {
-          const score = Math.round(topic.score || 0);
-          const row = document.createElement("div");
-          row.className = "topic-row";
-          row.style.marginBottom = "12px";
-
-          const head = document.createElement("div");
-          head.className = "topic-row-head";
-          head.style.display = "flex";
-          head.style.justifyContent = "space-between";
-          head.style.marginBottom = "6px";
-          head.style.fontSize = "13px";
-
-          const name = document.createElement("div");
-          name.textContent = topic.name;
-
-          const value = document.createElement("div");
-          value.className = "muted";
-          value.textContent = `${score}%`;
-
-          head.appendChild(name);
-          head.appendChild(value);
-
-          const bar = document.createElement("div");
-          bar.className = "bar";
-
-          const fill = document.createElement("div");
-          fill.className = "bar-fill";
-          fill.style.width = `${score}%`;
-
-          if (score < 50) fill.style.background = "linear-gradient(90deg, #ef4444, #fb7185)";
-          else if (score < 75) fill.style.background = "linear-gradient(90deg, #f59e0b, #fbbf24)";
-          else fill.style.background = "linear-gradient(90deg, #6366f1, #06b6d4)";
-
-          bar.appendChild(fill);
-
-          row.appendChild(head);
-          row.appendChild(bar);
-
-          topicList.appendChild(row);
-        });
-      }
-
-      const recentList = $("recentList");
-      recentList.innerHTML = "";
-
-      if (!recent.length) {
-        recentList.innerHTML = `<div class="muted small">No attempts yet.</div>`;
-      } else {
-        recent.forEach(item => {
-          const row = document.createElement("div");
-          row.className = "list-item";
-
-          const left = document.createElement("div");
-          const title = document.createElement("div");
-          title.textContent = item.topic;
-          title.style.fontWeight = "600";
-
-          const meta = document.createElement("div");
-          meta.className = "muted small";
-          meta.textContent = `${item.source} · ${item.created_at}`;
-
-          left.appendChild(title);
-          left.appendChild(meta);
-
-          const right = document.createElement("div");
-          right.textContent = `${item.pct}%`;
-          right.style.fontWeight = "700";
-          right.style.color = "var(--accent-2)";
-
-          row.appendChild(left);
-          row.appendChild(right);
-
-          recentList.appendChild(row);
-        });
-      }
-
-      const heatmapEl = $("heatmap");
-      heatmapEl.innerHTML = "";
-
-      heatmap.forEach(day => {
-        const cell = document.createElement("div");
-        cell.className = "heat-cell";
-
-        if (day.count >= 4) cell.classList.add("l3");
-        else if (day.count >= 2) cell.classList.add("l2");
-        else if (day.count >= 1) cell.classList.add("l1");
-
-        cell.title = `${day.date}: ${day.count} attempts`;
-        heatmapEl.appendChild(cell);
-      });
-    }
-
-    async function loadSubjects() {
-      const data = await api("/api/quiz/subjects");
-      state.subjects = data.subjects || [];
-
-      const select = $("staticSubject");
-      select.innerHTML = "";
-
-      state.subjects.forEach(subject => {
-        const opt = document.createElement("option");
-        opt.value = subject;
-        opt.textContent = subject;
-        select.appendChild(opt);
-      });
-    }
-
-    function updateQuizSourceUI() {
-      const source = $("quizSource").value;
-
-      $("staticConfig").classList.toggle("hidden", source !== "static");
-      $("aiConfig").classList.toggle("hidden", source !== "ai");
-      $("pdfConfig").classList.toggle("hidden", source !== "pdf");
-    }
-
-    async function startQuiz() {
-      const source = $("quizSource").value;
-
-      $("startQuizBtn").disabled = true;
-      $("startQuizBtn").textContent = "Generating...";
-
-      try {
-        let data;
-
-        if (source === "static") {
-          const topic = $("staticSubject").value;
-          const difficulty = $("staticDifficulty").value;
-          const n = $("staticLength").value;
-
-          data = await api(
-            `/api/quiz/static?topic=${encodeURIComponent(topic)}&n=${n}&difficulty=${difficulty}`
-          );
-        } else if (source === "ai") {
-          const topic = $("aiTopic").value.trim();
-
-          if (!topic) {
-            throw new Error("Please enter an AI quiz topic.");
-          }
-
-          data = await api("/api/quiz/ai", {
-            method: "POST",
-            body: {
-              topic,
-              num_questions: parseInt($("aiLength").value, 10),
-              difficulty: $("aiDifficulty").value
-            }
-          });
-        } else {
-          const file = $("pdfFile").files[0];
-
-          if (!file) {
-            throw new Error("Please choose a PDF file.");
-          }
-
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("topic", $("pdfTopic").value.trim());
-          formData.append("difficulty", $("pdfDifficulty").value);
-          formData.append("num_questions", $("pdfLength").value);
-
-          data = await api("/api/quiz/pdf", {
-            method: "POST",
-            formData
-          });
-        }
-
-        if (!data.questions || !data.questions.length) {
-          throw new Error("No questions were generated. Try another topic or source.");
-        }
-
-        state.quiz = data;
-        state.quizIndex = 0;
-        state.answers = Array(data.questions.length).fill(null);
-
-        $("quizConfigCard").classList.add("hidden");
-        $("quizResultCard").classList.add("hidden");
-        $("quizPlayerCard").classList.remove("hidden");
-
-        $("quizTitle").textContent = data.topic || data.subject || "Quiz";
-
-        renderQuestion();
-        loadUsage().catch(() => {});
-      } catch (e) {
-        toast(e.message, "error");
-      } finally {
-        $("startQuizBtn").disabled = false;
-        $("startQuizBtn").textContent = t("beginAscent");
-      }
-    }
-
-    function renderQuestion() {
-      const q = state.quiz.questions[state.quizIndex];
-
-      $("quizProgress").textContent = `Q ${state.quizIndex + 1}/${state.quiz.questions.length}`;
-      $("questionText").textContent = q.question;
-      $("questionContext").textContent = q.context ? `Context: ${q.context}` : "";
-
-      const optionsWrap = $("questionOptions");
-      optionsWrap.innerHTML = "";
-
-      q.options.forEach((opt, i) => {
-        const btn = document.createElement("button");
-        btn.className = "option-btn";
-        btn.textContent = opt;
-
-        if (state.answers[state.quizIndex] === i) {
-          btn.classList.add("selected");
-        }
-
-        btn.onclick = () => {
-          state.answers[state.quizIndex] = i;
-
-          document.querySelectorAll(".option-btn").forEach(b => b.classList.remove("selected"));
-          btn.classList.add("selected");
-
-          $("nextQuestionBtn").disabled = false;
-        };
-
-        optionsWrap.appendChild(btn);
-      });
-
-      const isLast = state.quizIndex === state.quiz.questions.length - 1;
-      $("nextQuestionBtn").textContent = isLast ? t("finish") : t("next");
-      $("nextQuestionBtn").disabled = state.answers[state.quizIndex] === null;
-    }
-
-    async function nextQuestion() {
-      if (state.quizIndex < state.quiz.questions.length - 1) {
-        state.quizIndex += 1;
-        renderQuestion();
-        return;
-      }
-
-      await submitQuiz();
-    }
-
-    async function submitQuiz() {
-      const questions = state.quiz.questions;
-
-      const correct = state.answers.reduce((acc, answer, i) => {
-        return answer === questions[i].answer_index ? acc + 1 : acc;
-      }, 0);
-
-      const total = questions.length;
-      const topic = state.quiz.topic || state.quiz.subject || "General";
-      const source = state.quiz.source || "static";
-
-      try {
-        await api("/api/quiz/submit", {
-          method: "POST",
-          body: {
-            topic_name: topic,
-            correct,
-            total,
-            source,
-            session_id: state.quiz.session_id || null
-          }
-        });
-
-        $("quizPlayerCard").classList.add("hidden");
-        $("quizResultCard").classList.remove("hidden");
-
-        const pct = Math.round((correct / total) * 100);
-        $("quizResultText").textContent = `${pct}%`;
-
-        toast("Quiz saved. Your mastery was updated.", "success");
-
-        loadDashboard().catch(() => {});
-      } catch (e) {
-        toast(e.message, "error");
-      }
-    }
-
-    function resetQuizUI() {
-      state.quiz = null;
-      state.quizIndex = 0;
-      state.answers = [];
-
-      $("quizPlayerCard").classList.add("hidden");
-      $("quizResultCard").classList.add("hidden");
-      $("quizConfigCard").classList.remove("hidden");
-    }
-
-    async function loadSchedule() {
-      const data = await api("/api/schedule");
-
-      const queue = $("scheduleQueue");
-      const cleared = $("scheduleCleared");
-      const suggestions = $("scheduleSuggestions");
-
-      queue.innerHTML = "";
-      cleared.innerHTML = "";
-      suggestions.innerHTML = "";
-
-      if (!data.queue.length) {
-        queue.innerHTML = `<div class="muted small">No tasks yet.</div>`;
-      }
-
-      data.queue.forEach(task => {
-        queue.appendChild(renderTask(task, false));
-      });
-
-      if (!data.cleared.length) {
-        cleared.innerHTML = `<div class="muted small">Nothing cleared yet.</div>`;
-      }
-
-      data.cleared.forEach(task => {
-        cleared.appendChild(renderTask(task, true));
-      });
-
-      if (!data.suggestions.length) {
-        suggestions.innerHTML = `<div class="muted small">No weak unscheduled topics right now.</div>`;
-      }
-
-      data.suggestions.forEach(item => {
-        const row = document.createElement("div");
-        row.className = "list-item";
-
-        const left = document.createElement("div");
-        left.textContent = item.topic;
-        left.style.fontWeight = "600";
-
-        const right = document.createElement("div");
-        right.className = "muted";
-        right.textContent = `${Math.round(item.score)}%`;
-
-        row.appendChild(left);
-        row.appendChild(right);
-
-        suggestions.appendChild(row);
-      });
-    }
-
-    function renderTask(task, done) {
-      const wrap = document.createElement("div");
-      wrap.className = "task-item";
-
-      const left = document.createElement("div");
-
-      const title = document.createElement("div");
-      title.className = "task-title";
-      title.textContent = task.title;
-
-      const meta = document.createElement("div");
-      meta.className = "muted small";
-      meta.textContent = `${task.topic || "No topic"} · ${task.deadline}`;
-
-      const badges = document.createElement("div");
-      badges.style.marginTop = "6px";
-
-      const priority = document.createElement("span");
-      priority.className = "badge";
-      priority.textContent = `Priority ${task.priority ?? 0}`;
-      badges.appendChild(priority);
-
-      const tier = document.createElement("span");
-      tier.className = "badge";
-      tier.textContent = task.tier || "";
-
-      if (["OVERDUE", "CRITICAL"].includes(task.tier)) tier.classList.add("bad");
-      else if (["HIGH", "THIS WEEK"].includes(task.tier)) tier.classList.add("warn");
-      else tier.classList.add("ok");
-
-      badges.appendChild(tier);
-
-      left.appendChild(title);
-      left.appendChild(meta);
-      left.appendChild(badges);
-
-      const actions = document.createElement("div");
-      actions.className = "task-actions";
-
-      const toggleBtn = document.createElement("button");
-      toggleBtn.className = "btn secondary small";
-      toggleBtn.textContent = done ? "Undo" : "Done";
-
-      toggleBtn.onclick = async () => {
-        try {
-          await api(`/api/tasks/${task.id}`, { method: "PATCH" });
-          await loadSchedule();
-        } catch (e) {
-          toast(e.message, "error");
-        }
+    $$(".select-option", staticMenu).forEach(opt => {
+      opt.onclick = () => {
+        staticTopicValue = opt.dataset.val;
+        staticSelect.querySelector(".select-text").textContent = staticTopicValue;
+        $$(".select-option", staticMenu).forEach(o => o.classList.remove("selected"));
+        opt.classList.add("selected");
+        staticSelect.classList.remove("open");
       };
-
-      const deleteBtn = document.createElement("button");
-      deleteBtn.className = "btn danger small";
-      deleteBtn.textContent = "Delete";
-
-      deleteBtn.onclick = async () => {
-        try {
-          await api(`/api/tasks/${task.id}`, { method: "DELETE" });
-          await loadSchedule();
-        } catch (e) {
-          toast(e.message, "error");
-        }
-      };
-
-      actions.appendChild(toggleBtn);
-      actions.appendChild(deleteBtn);
-
-      wrap.appendChild(left);
-      wrap.appendChild(actions);
-
-      return wrap;
-    }
-
-    async function addTask() {
-      const title = $("taskTitle").value.trim();
-      const topic = $("taskTopic").value.trim();
-      const deadlineRaw = $("taskDeadline").value;
-
-      if (!title) {
-        toast("Please enter a task title.", "error");
-        return;
-      }
-
-      if (!deadlineRaw) {
-        toast("Please choose a deadline.", "error");
-        return;
-      }
-
-      const deadline = new Date(deadlineRaw).toISOString();
-
-      try {
-        await api("/api/tasks", {
-          method: "POST",
-          body: {
-            title,
-            topic: topic || null,
-            deadline
-          }
-        });
-
-        $("taskTitle").value = "";
-        $("taskTopic").value = "";
-        $("taskDeadline").value = "";
-
-        await loadSchedule();
-        toast("Task added.", "success");
-      } catch (e) {
-        toast(e.message, "error");
-      }
-    }
-
-    async function loadCoach() {
-      const output = $("coachOutput");
-      const btn = $("generateCoachBtn");
-
-      btn.disabled = true;
-      btn.textContent = "Generating...";
-      output.innerHTML = `<div class="muted small">Analyzing your data...</div>`;
-
-      try {
-        const data = await api("/api/coach");
-
-        let html = "";
-
-        html += `<h2 style="margin:8px 0 10px;"></h2>`;
-        html += `<div class="muted" id="coachHeadline"></div>`;
-
-        if (data.focus && data.focus.length) {
-          html += `<h3 style="margin-top:18px">Focus</h3>`;
-          data.focus.forEach(item => {
-            html += `
-              <div class="card" style="margin-bottom:10px; padding:13px;">
-                <strong class="focus-topic"></strong>
-                <div class="muted small focus-why" style="margin:6px 0;"></div>
-                <div class="small focus-drill"></div>
-              </div>
-            `;
-          });
-        }
-
-        if (data.plan && data.plan.length) {
-          html += `<h3 style="margin-top:18px">7-Day Plan</h3><div id="coachPlan"></div>`;
-        }
-
-        if (data.tips && data.tips.length) {
-          html += `<h3 style="margin-top:18px">Tips</h3><ul id="coachTips" class="muted small"></ul>`;
-        }
-
-        html += `<div class="card" style="margin-top:18px; padding:14px;"><em id="coachMotivation"></em></div>`;
-
-        output.innerHTML = html;
-
-        output.querySelector("#coachHeadline").textContent = data.headline || "Your plan is ready.";
-        output.querySelector("#coachMotivation").textContent = data.motivation || "";
-
-        const focusTopics = output.querySelectorAll(".focus-topic");
-        const focusWhys = output.querySelectorAll(".focus-why");
-        const focusDrills = output.querySelectorAll(".focus-drill");
-
-        (data.focus || []).forEach((item, i) => {
-          if (focusTopics[i]) focusTopics[i].textContent = item.topic || "";
-          if (focusWhys[i]) focusWhys[i].textContent = item.why || "";
-          if (focusDrills[i]) focusDrills[i].textContent = item.drill || "";
-        });
-
-        const planWrap = output.querySelector("#coachPlan");
-        if (planWrap) {
-          (data.plan || []).forEach(day => {
-            const row = document.createElement("div");
-            row.className = "list-item";
-
-            const left = document.createElement("div");
-            left.style.fontWeight = "800";
-            left.textContent = day.day || "";
-
-            const right = document.createElement("div");
-            right.textContent = day.task || "";
-
-            row.appendChild(left);
-            row.appendChild(right);
-
-            planWrap.appendChild(row);
-          });
-        }
-
-        const tipsWrap = output.querySelector("#coachTips");
-        if (tipsWrap) {
-          (data.tips || []).forEach(tip => {
-            const li = document.createElement("li");
-            li.textContent = tip;
-            tipsWrap.appendChild(li);
-          });
-        }
-      } catch (e) {
-        output.innerHTML = "";
-        toast(e.message, "error");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = t("generatePlan");
-      }
-    }
-
-    async function loadPayments() {
-      const payments = await api("/api/payments");
-      const wrap = $("paymentsList");
-
-      wrap.innerHTML = "";
-
-      if (!payments.length) {
-        wrap.innerHTML = `<div class="muted small">No payments yet.</div>`;
-        return;
-      }
-
-      payments.forEach(payment => {
-        const row = document.createElement("div");
-        row.className = "list-item";
-
-        const left = document.createElement("div");
-
-        const top = document.createElement("div");
-        top.style.fontWeight = "700";
-        top.textContent = `${payment.tier.toUpperCase()} · ${payment.status}`;
-
-        const bottom = document.createElement("div");
-        bottom.className = "muted small";
-        bottom.textContent = payment.created_at;
-
-        left.appendChild(top);
-        left.appendChild(bottom);
-
-        const right = document.createElement("div");
-        right.textContent = `${(payment.amount_cents / 100).toFixed(0)} ${payment.currency}`;
-        right.style.fontWeight = "800";
-
-        row.appendChild(left);
-        row.appendChild(right);
-
-        wrap.appendChild(row);
-      });
-    }
-
-    async function upgrade(tier) {
-      try {
-        const data = await api("/api/payment/checkout", {
-          method: "POST",
-          body: { tier }
-        });
-
-        if (data.checkout_url) {
-          location.href = data.checkout_url;
-        }
-      } catch (e) {
-        toast(e.message, "error");
-      }
-    }
-
-    function openUpgradeModal() {
-      $("upgradeModal").classList.remove("hidden");
-    }
-
-    function closeUpgradeModal() {
-      $("upgradeModal").classList.add("hidden");
-    }
-
-    function renderMarkdown(text) {
-      if (window.marked && window.DOMPurify) {
-        return DOMPurify.sanitize(marked.parse(text));
-      }
-
-      const div = document.createElement("div");
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    function appendTutorMessage(role, text) {
-      const wrap = $("tutorMessages");
-
-      const msg = document.createElement("div");
-      msg.className = `msg ${role}`;
-
-      if (role === "assistant") {
-        msg.innerHTML = renderMarkdown(text);
-      } else {
-        msg.textContent = text;
-      }
-
-      wrap.appendChild(msg);
-      wrap.scrollTop = wrap.scrollHeight;
-    }
-
-    async function askTutor() {
-      const input = $("tutorInput");
-      const question = input.value.trim();
-
-      if (!question) return;
-
-      input.value = "";
-      appendTutorMessage("user", question);
-
-      state.tutorHistory.push({ role: "user", content: question });
-
-      $("tutorSend").disabled = true;
-
-      try {
-        const data = await api("/api/ask", {
-          method: "POST",
-          body: {
-            question,
-            history: state.tutorHistory.slice(-10)
-          }
-        });
-
-        appendTutorMessage("assistant", data.reply);
-        state.tutorHistory.push({ role: "assistant", content: data.reply });
-      } catch (e) {
-        appendTutorMessage("assistant", `Sorry — ${e.message}`);
-      } finally {
-        $("tutorSend").disabled = false;
-        input.focus();
-      }
-    }
-
-    // Events
-    document.addEventListener("DOMContentLoaded", async () => {
-      applyTheme();
-      applyI18n();
-
-      await handleQueryParams();
-      await boot();
-
-      $("showLogin").onclick = () => {
-        $("showLogin").classList.add("active");
-        $("showSignup").classList.remove("active");
-        $("loginForm").classList.remove("hidden");
-        $("signupForm").classList.add("hidden");
-      };
-
-      $("showSignup").onclick = () => {
-        $("showSignup").classList.add("active");
-        $("showLogin").classList.remove("active");
-        $("signupForm").classList.remove("hidden");
-        $("loginForm").classList.add("hidden");
-      };
-
-      $("googleBtn").onclick = async () => {
-        try {
-          const data = await api("/api/auth/google", { auth: false });
-          location.href = data.auth_url;
-        } catch (e) {
-          toast(e.message, "error");
-        }
-      };
-
-      $("loginForm").onsubmit = async (e) => {
-        e.preventDefault();
-
-        const body = new URLSearchParams();
-        body.append("username", $("loginEmail").value.trim());
-        body.append("password", $("loginPassword").value);
-
-        try {
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body
-          });
-
-          const data = await res.json().catch(() => ({}));
-
-          if (!res.ok) {
-            throw new Error(data.detail || "Login failed.");
-          }
-
-          setToken(data.token);
-          location.href = "/";
-        } catch (err) {
-          toast(err.message, "error");
-        }
-      };
-
-      $("signupForm").onsubmit = async (e) => {
-        e.preventDefault();
-
-        try {
-          const data = await api("/api/auth/signup", {
-            method: "POST",
-            auth: false,
-            body: {
-              email: $("signupEmail").value.trim(),
-              password: $("signupPassword").value,
-              user_type: $("signupUserType").value,
-              grade: $("signupGrade").value,
-              language: state.lang
-            }
-          });
-
-          setToken(data.token);
-          location.href = "/";
-        } catch (err) {
-          toast(err.message, "error");
-        }
-      };
-
-      $("logoutBtn").onclick = logout;
-
-      $("themeBtn").onclick = () => {
-        state.theme = state.theme === "dark" ? "light" : "dark";
-        localStorage.setItem("elp_theme", state.theme);
-        applyTheme();
-      };
-
-      document.querySelectorAll(".nav-btn").forEach(btn => {
-        btn.onclick = () => showView(btn.dataset.view);
-      });
-
-      $("quizSource").onchange = updateQuizSourceUI;
-      $("startQuizBtn").onclick = startQuiz;
-      $("nextQuestionBtn").onclick = nextQuestion;
-      $("exitQuizBtn").onclick = resetQuizUI;
-      $("againQuizBtn").onclick = resetQuizUI;
-
-      $("dashboardAfterQuizBtn").onclick = async () => {
-        resetQuizUI();
-        showView("dashboard");
-        await loadDashboard();
-      };
-
-      $("addTaskBtn").onclick = addTask;
-
-      $("generateCoachBtn").onclick = loadCoach;
-
-      $("saveSettingsBtn").onclick = async () => {
-        try {
-          await api("/api/user/settings", {
-            method: "PUT",
-            body: {
-              username: $("settingsUsername").value.trim(),
-              language: $("settingsLanguage").value,
-              user_type: $("settingsUserType").value,
-              grade: $("settingsGrade").value
-            }
-          });
-
-          state.lang = $("settingsLanguage").value;
-          localStorage.setItem("elp_lang", state.lang);
-
-          await loadSettings();
-          toast("Settings saved.", "success");
-        } catch (e) {
-          toast(e.message, "error");
-        }
-      };
-
-      $("updatePasswordBtn").onclick = async () => {
-        try {
-          await api("/api/user/password", {
-            method: "PUT",
-            body: {
-              old_password: $("oldPassword").value,
-              new_password: $("newPassword").value
-            }
-          });
-
-          $("oldPassword").value = "";
-          $("newPassword").value = "";
-
-          toast("Password updated.", "success");
-        } catch (e) {
-          toast(e.message, "error");
-        }
-      };
-
-      document.querySelectorAll("[data-tier]").forEach(btn => {
-        btn.onclick = () => upgrade(btn.dataset.tier);
-      });
-
-      $("maybeLaterBtn").onclick = closeUpgradeModal;
-
-      $("tutorToggle").onclick = () => {
-        $("tutorPanel").classList.toggle("hidden");
-      };
-
-      $("tutorClose").onclick = () => {
-        $("tutorPanel").classList.add("hidden");
-      };
-
-      $("tutorSend").onclick = askTutor;
-
-      $("tutorInput").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          askTutor();
-        }
-      });
-
-      // Ensure slider moves on window resize
-      window.addEventListener('resize', () => {
-        const activeBtn = document.querySelector('.nav-btn.active');
-        const slider = document.getElementById('navSlider');
-        if (activeBtn && slider) {
-          slider.style.width = `${activeBtn.offsetWidth}px`;
-          slider.style.left = `${activeBtn.offsetLeft}px`;
-        }
-      });
-
-      updateQuizSourceUI();
     });
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/lenis@1.0.42/dist/lenis.min.js"></script>
-  <script>
-    // ================================================================
-    // LENIS BUTTER-SMOOTH SCROLL (Optimized for buttery smoothness)
-    // No scroll-behavior:smooth in CSS — Lenis RAF handles everything
-    // ================================================================
-    if (typeof Lenis !== 'undefined') {
-      const lenis = new Lenis({
-        lerp: 0.08, // Lower lerp makes the scroll more buttery and continuous
-        smoothWheel: true,
-        wheelMultiplier: 1,
-        touchMultiplier: 1.5,
-      });
+  } catch(e) { toast("Failed to load subjects"); }
+}
 
-      function raf(time) {
-        lenis.raf(time);
-        requestAnimationFrame(raf);
-      }
-      requestAnimationFrame(raf);
+/* Custom Slider Logic */
+const lenAiSlider = $("#lenAiSlider");
+const lenAiVal = $("#lenAiVal");
+lenAiSlider.oninput = () => { lenAiVal.textContent = lenAiSlider.value; };
+
+/* Quiz */
+let src = "static", pdfFile = null, correct = 0;
+ $$(".src-card").forEach(b => b.onclick = () => {
+  $$(".src-card").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); src = b.dataset.src;
+  $$(".panel").forEach(p => p.classList.remove("on"));
+  $("#panel-" + src).classList.add("on");
+});
+
+function segWire(id) {
+  $("#" + id).querySelectorAll("button").forEach(b => b.onclick = () => {
+    $("#" + id).querySelectorAll("button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+  });
+}
+segWire("lenStatic"); segWire("diffSeg");
+const segVal = (id, attr) => $("#" + id + " button.on").dataset[attr];
+
+ $("#drop").onclick = () => $("#fileInput").click();
+ $("#fileInput").onchange = e => { pdfFile = e.target.files[0] || null; $("#fileName").textContent = pdfFile ? `✔ ${pdfFile.name} (${(pdfFile.size/1e6).toFixed(1)} MB)` : ""; };
+["dragover", "dragenter"].forEach(ev => $("#drop").addEventListener(ev, e => { e.preventDefault(); $("#drop").classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => $("#drop").addEventListener(ev, e => { e.preventDefault(); $("#drop").classList.remove("over"); }));
+ $("#drop").addEventListener("drop", e => { pdfFile = e.dataTransfer.files[0] || null; $("#fileName").textContent = pdfFile ? `✔ ${pdfFile.name}` : ""; });
+
+ $("#beginBtn").onclick = async () => {
+  const btn = $("#beginBtn"); btn.classList.add("loading"); btn.disabled = true;
+  try {
+    let data;
+    if (src === "static") {
+      data = await api(`/api/quiz/static?topic=${encodeURIComponent(staticTopicValue)}&n=${segVal("lenStatic", "n")}`);
+    } else if (src === "ai") {
+      const t = $("#aiTopic").value.trim();
+      if (!t) throw new Error("Type a topic first");
+      let n = parseInt(lenAiSlider.value) || 4; n = Math.max(1, Math.min(30, n));
+      data = await api("/api/quiz/ai", { method: "POST", body: { topic: t, num_questions: n, difficulty: segVal("diffSeg", "d") } });
+    } else {
+      if (!pdfFile) throw new Error("Choose a PDF first");
+      const fd = new FormData();
+      fd.append("file", pdfFile); fd.append("topic", $("#pdfTopic").value.trim());
+      fd.append("difficulty", "mixed"); fd.append("num_questions", "0");
+      data = await api("/api/quiz/pdf", { method: "POST", formData: fd });
     }
-  </script>
+    
+    state.quiz = data; state.quizIndex = 0; state.answers = Array(data.questions.length).fill(null); correct = 0;
+    $("#setupCard").hidden = true; $("#resultCard").hidden = true; $("#playCard").hidden = false;
+    renderQuestion();
+  } catch (e) { toast("⚠ " + e.message); }
+  btn.classList.remove("loading"); btn.disabled = false;
+};
+
+function renderQuestion() {
+  const q = state.quiz.questions[state.quizIndex];
+  $("#qMeta").textContent = `Q ${state.quizIndex + 1}/${state.quiz.questions.length} · ${state.quiz.topic || "Quiz"}`;
+  $("#qBadge").innerHTML = state.quiz.source === "pdf" ? `<span class="badge pdf">PDF · AI</span>` : (state.quiz.ai ? `<span class="badge ai">AI</span>` : `<span class="badge static">BANK</span>`);
+  $("#qBar").style.width = (state.quizIndex / state.quiz.questions.length * 100) + "%";
+  $("#qText").textContent = q.question; $("#qExplain").innerHTML = ""; $("#qNext").hidden = true;
+  
+  const optionsWrap = $("#qOpts"); optionsWrap.innerHTML = "";
+  
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.className = "opt"; btn.textContent = opt;
+    btn.onclick = () => {
+      optionsWrap.querySelectorAll(".opt").forEach(x => x.disabled = true);
+      const pick = i;
+      if (pick === q.answer_index) { btn.classList.add("right"); correct++; }
+      else { btn.classList.add("wrong"); optionsWrap.children[q.answer_index].classList.add("right"); }
+      let ctxHtml = q.context ? `<div class="context-box"><b>Context:</b> "${q.context}"</div>` : "";
+      $("#qExplain").innerHTML = `<div class="explain"><b>Why:</b> ${q.explanation || "N/A"}</div>${ctxHtml}`;
+      $("#qBar").style.width = ((state.quizIndex + 1) / state.quiz.questions.length * 100) + "%";
+      $("#qNext").hidden = false;
+      $("#qNext").textContent = state.quizIndex === state.quiz.questions.length - 1 ? "Finish ▲" : "Next →";
+      state.answers[state.quizIndex] = pick;
+    };
+    optionsWrap.appendChild(btn);
+  });
+}
+
+ $("#qNext").onclick = async () => {
+  if (state.quizIndex < state.quiz.questions.length - 1) { state.quizIndex += 1; renderQuestion(); return; }
+  await submitQuiz();
+};
+
+ $("#exitBtn").onclick = () => { $("#playCard").hidden = true; $("#setupCard").hidden = false; };
+
+async function submitQuiz() {
+  $("#playCard").hidden = true;
+  try {
+    const total = state.quiz.questions.length;
+    const topic = state.quiz.topic || state.quiz.subject || "General";
+    const source = state.quiz.source === "pdf" ? "ai" : (state.quiz.ai ? "ai" : "static");
+    
+    const r = await api("/api/quiz/submit", { method: "POST", body: { topic_name: topic, correct, total, source } });
+    const pct = Math.round((correct / total) * 100);
+    $("#resPct").textContent = pct + "%";
+    
+    if (r.topic) {
+      const t = r.topic;
+      $("#resDelta").innerHTML = `<span class="badge ${t.delta >= 0 ? "static" : "pdf"}">${t.delta >= 0 ? "▲ +" : "▼ "}${t.delta} mastery</span>`;
+      $("#resTopic").textContent = `${t.name}: ${t.old}% → ${t.new}%`;
+    } else {
+      $("#resDelta").innerHTML = "";
+      $("#resTopic").textContent = "Quiz saved successfully.";
+    }
+    loadUsage().catch(() => {});
+  } catch (e) {
+    $("#resPct").textContent = Math.round((correct / state.quiz.questions.length) * 100) + "%";
+    $("#resDelta").textContent = "";
+    $("#resTopic").textContent = "⚠ " + e.message;
+  }
+  $("#resultCard").hidden = false;
+}
+
+ $("#againBtn").onclick = () => { $("#resultCard").hidden = true; $("#setupCard").hidden = false; };
+ $("#homeBtn").onclick = () => go("dashboard");
+
+/* Scheduler */
+async function loadSchedule() {
+  try {
+    const s = await api("/api/schedule");
+    $("#queueList").innerHTML = s.queue.length ? s.queue.map((t, i) => `
+      <div class="task">
+        <span class="rank">${String(i+1).padStart(2, "0")}</span>
+        <span class="grow"><span class="tt">${t.title}</span>
+          <span class="meta"><span class="tier ${t.tier.replace(/\s+/g, "").toUpperCase()}">${t.tier}</span>${t.topic ? `<span>◈ ${t.topic}</span>` : ""}<span>due ${ago(t.deadline)}</span><span>priority ${t.priority}</span></span>
+        </span>
+        <button class="check" data-id="${t.id}" title="Done">✓</button>
+        <button class="del" data-id="${t.id}" title="Delete">✕</button>
+      </div>
+    `).join("") : '<p class="sub">Queue clear. Add an objective or tap a radar blip.</p>';
+    
+    $("#clearedList").innerHTML = s.cleared.length ? s.cleared.map(t => `
+      <div class="task" style="opacity:.55">
+        <span class="grow"><span class="tt" style="text-decoration:line-through">${t.title}</span></span>
+        <span class="tier DONE">DONE</span>
+        <button class="del" data-id="${t.id}">✕</button>
+      </div>
+    `).join("") : '<p class="sub">Nothing cleared yet.</p>';
+
+    $("#sugRow").innerHTML = s.suggestions.length ? s.suggestions.map(x => `<button class="sug" data-topic="${x.topic}">+ ${x.topic} · ${Math.round(x.score)}%</button>`).join("") : '<span class="sub">No weak unscheduled topics 🎉</span>';
+
+    $$(".check").forEach(b => b.onclick = async () => { try { await api("/api/tasks/" + b.dataset.id, { method: "PATCH" }); toast("Objective cleared ✓"); loadSchedule(); } catch(e) { toast(e.message); } });
+    $$(".del").forEach(b => b.onclick = async () => { try { await api("/api/tasks/" + b.dataset.id, { method: "DELETE" }); loadSchedule(); } catch(e) { toast(e.message); } });
+    $$(".sug").forEach(b => b.onclick = () => { $("#taskTopic").value = b.dataset.topic; $("#taskTitle").value = "Drill " + b.dataset.topic; $("#taskTitle").focus(); });
+  } catch (e) { toast("Schedule load failed: " + e.message); }
+}
+
+ $("#addTaskBtn").onclick = async () => {
+  const title = $("#taskTitle").value.trim(), due = $("#taskDue").value;
+  if (!title || !due) return toast("⚠ Title and deadline required");
+  try {
+    await api("/api/tasks", { method: "POST", body: { title, topic: $("#taskTopic").value.trim() || null, deadline: new Date(due).toISOString() } });
+    $("#taskTitle").value = ""; $("#taskTopic").value = ""; toast("Added to queue +"); loadSchedule();
+  } catch (e) { toast(e.message); }
+};
+
+/* Coach */
+ $("#coachBtn").onclick = async () => {
+  const b = $("#coachBtn"); b.classList.add("loading"); b.disabled = true; $("#coachOut").innerHTML = "";
+  try {
+    const d = await api("/api/coach");
+    $("#coachBadge").innerHTML = d.ai ? '<span class="badge ai">⚡ GENERATED BY AI</span>' : '<span class="badge static">RULE-BASED FALLBACK · OFFLINE</span>';
+    $("#coachOut").innerHTML = `
+      <div class="card" style="margin-bottom:24px">
+        <h2 class="sec">${d.headline || ""}</h2>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:16px">
+          ${(d.focus || []).map(f => `<div style="background:var(--glass);padding:16px;border-radius:16px;border:1px solid var(--glass-border)"><div style="font-weight:700;font-size:14px;margin-bottom:6px">◈ ${f.topic}</div><p class="sub" style="margin:0 0 8px;font-size:13px">${f.why}</p><p style="font-size:12px;font-weight:600;color:var(--mint)">🎯 ${f.drill}</p></div>`).join("")}
+        </div>
+      </div>
+      <div class="grid dash-grid">
+        <div class="card"><h2 class="sec">7-Day Plan</h2><div class="plan">${(d.plan || []).map(p => `<div class="day"><div class="dname">${p.day.toUpperCase()}</div><div class="dtask">${p.task}</div></div>`).join("")}</div></div>
+        <div class="card"><h2 class="sec">Coach Tips</h2>${(d.tips || []).map(t => `<div class="tipbox">${t}</div>`).join("")}<div class="quote">“${d.motivation || ""}”</div></div>
+      </div>
+    `;
+  } catch (e) { toast("⚠ " + e.message); }
+  b.classList.remove("loading"); b.disabled = false;
+};
+
+/* Profile & Settings */
+async function loadSettings() {
+  const user = await api("/api/user/settings");
+  state.user = user; state.lang = user.language || state.lang; localStorage.setItem("elp_lang", state.lang);
+  $("#settingsEmail").value = user.email || "";
+  $("#settingsUsername").value = user.username || "";
+  $("#settingsLanguage").value = user.language || "en";
+  $("#tierPill").textContent = (user.effective_tier || "free").toUpperCase();
+  applyI18n();
+}
+
+async function loadUsage() {
+  const usage = await api("/api/usage");
+  state.usage = usage;
+  $("#tierPill").textContent = usage.tier.toUpperCase();
+  $("#usageSummary").innerHTML = `
+    <div style="font-size: 12px; color: var(--muted);">Current Plan: <strong>${usage.tier.toUpperCase()}</strong></div>
+    <div style="font-size: 12px; color: var(--muted);">Subscription: <strong>${usage.subscription_status || "inactive"}</strong></div>
+    <div style="font-size: 12px; color: var(--muted);">Expires: <strong>${usage.subscription_expires_at || "—"}</strong></div>
+  `;
+  const aiPct = usage.ai_limit ? Math.min(100, (usage.ai_used / usage.ai_limit) * 100) : 0;
+  const pdfPct = usage.pdf_limit ? Math.min(100, (usage.pdf_used / usage.pdf_limit) * 100) : 0;
+  $("#aiUsageLabel").textContent = `AI Questions: ${usage.ai_used} / ${usage.ai_limit}`;
+  $("#pdfUsageLabel").textContent = `PDF Uploads: ${usage.pdf_used} / ${usage.pdf_limit}`;
+  $("#aiUsageBar").style.width = `${aiPct}%`;
+  $("#pdfUsageBar").style.width = `${pdfPct}%`;
+}
+
+async function loadPayments() {
+  try {
+    const payments = await api("/api/payments");
+    const wrap = $("#paymentsList");
+    if (!payments.length) { wrap.innerHTML = `<p class="sub">No payments yet.</p>`; return; }
+    wrap.innerHTML = payments.map(p => `<div class="rowline"><span class="r-topic">${p.tier.toUpperCase()} · ${p.status}</span><span class="r-time">${ago(p.created_at)}</span><span class="pctpill" style="color:var(--accent)">${(p.amount_cents / 100).toFixed(0)} ${p.currency}</span></div>`).join("");
+  } catch(e) { $("#paymentsList").innerHTML = `<p class="sub">Failed to load payments.</p>`; }
+}
+
+ $("#saveSettingsBtn").onclick = async () => {
+  try {
+    await api("/api/user/settings", { method: "PUT", body: { username: $("#settingsUsername").value.trim(), language: $("#settingsLanguage").value } });
+    state.lang = $("#settingsLanguage").value; localStorage.setItem("elp_lang", state.lang);
+    await loadSettings(); toast("Settings saved.");
+  } catch (e) { toast(e.message); }
+};
+
+ $("#updatePasswordBtn").onclick = async () => {
+  try {
+    await api("/api/user/password", { method: "PUT", body: { old_password: $("#oldPassword").value, new_password: $("#newPassword").value } });
+    $("#oldPassword").value = ""; $("#newPassword").value = ""; toast("Password updated.");
+  } catch (e) { toast(e.message); }
+};
+
+async function upgrade(tier) {
+  try {
+    const data = await api("/api/payment/checkout", { method: "POST", body: { tier } });
+    if (data.checkout_url) location.href = data.checkout_url;
+  } catch (e) { toast(e.message); }
+}
+
+document.querySelectorAll("[data-tier]").forEach(btn => { btn.onclick = () => upgrade(btn.dataset.tier); });
+
+function openUpgradeModal() { $("#upgradeModal").classList.remove("hidden"); }
+ $("#maybeLaterBtn").onclick = () => $("#upgradeModal").classList.add("hidden");
+
+/* Auth Events */
+ $("#showLogin").onclick = () => { $("#showLogin").classList.add("active"); $("#showSignup").classList.remove("active"); $("#loginForm").classList.remove("hidden"); $("#signupForm").classList.add("hidden"); };
+ $("#showSignup").onclick = () => { $("#showSignup").classList.add("active"); $("#showLogin").classList.remove("active"); $("#signupForm").classList.remove("hidden"); $("#loginForm").classList.add("hidden"); };
+
+ $("#googleBtn").onclick = async () => {
+  try { const data = await api("/api/auth/google", { auth: false }); location.href = data.auth_url; } catch (e) { toast(e.message); }
+};
+
+ $("#loginForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const body = new URLSearchParams();
+  body.append("username", $("#loginEmail").value.trim());
+  body.append("password", $("#loginPassword").value);
+  try {
+    const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "Login failed.");
+    setToken(data.token); location.href = "/";
+  } catch (err) { toast(err.message); }
+};
+
+ $("#signupForm").onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const data = await api("/api/auth/signup", { method: "POST", auth: false, body: { email: $("#signupEmail").value.trim(), password: $("#signupPassword").value } });
+    setToken(data.token); location.href = "/";
+  } catch (err) { toast(err.message); }
+};
+
+ $("#logoutBtn").onclick = logout;
+
+/* AI Chat */
+ $("#chatFab").onclick = () => { $("#chatWin").classList.toggle("open"); if ($("#chatWin").classList.contains("open")) $("#chatInput").focus(); };
+ $("#chatClose").onclick = () => $("#chatWin").classList.remove("open");
+
+function addMsg(role, text) {
+  const body = $("#chatBody");
+  const div = document.createElement("div");
+  div.className = `msg ${role === "assistant" ? "ai" : "user"}`;
+  if (role === "assistant") {
+    if (window.marked && window.DOMPurify) div.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    else div.textContent = text;
+  } else { div.textContent = text; }
+  body.appendChild(div); body.scrollTop = body.scrollHeight;
+  return div;
+}
+
+async function sendChat() {
+  const inp = $("#chatInput"); const text = inp.value.trim();
+  if (!text) return; inp.value = "";
+  addMsg("user", text);
+  state.chatHistory.push({ role: "user", content: text });
+
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "msg ai loading";
+  loadingDiv.innerHTML = "<span></span><span></span><span></span>";
+  $("#chatBody").appendChild(loadingDiv);
+  $("#chatBody").scrollTop = $("#chatBody").scrollHeight;
+  $("#chatSend").disabled = true;
+
+  try {
+    const r = await api("/api/ask", { method: "POST", body: { question: text, history: state.chatHistory.slice(-10) } });
+    loadingDiv.remove(); addMsg("assistant", r.reply);
+    state.chatHistory.push({ role: "assistant", content: r.reply });
+  } catch (e) { loadingDiv.remove(); addMsg("assistant", `⚠ ${e.message}`); }
+  $("#chatSend").disabled = false;
+}
+
+ $("#chatSend").onclick = sendChat;
+ $("#chatInput").onkeydown = e => { if (e.key === "Enter") sendChat(); };
+
+// Init
+document.addEventListener("DOMContentLoaded", async () => {
+  applyTheme(); applyI18n();
+  await handleQueryParams();
+  await boot();
+});
+</script>
 </body>
 </html>
