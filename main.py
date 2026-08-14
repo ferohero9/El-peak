@@ -1,5 +1,5 @@
 """
-El-Peak — FastAPI backend v9 (Production Ready, Edu-Stages, Rate Limits).
+El-Peak — FastAPI backend v10 (Production Ready, Edu-Stages, Rate Limits).
 """
 import io
 import os
@@ -47,7 +47,7 @@ except ImportError:
     pass
 
 # --- CONFIG ---
-app = FastAPI(title="El-Peak API", version="9.0")
+app = FastAPI(title="El-Peak API", version="10.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -120,7 +120,6 @@ REDIRECT_URI = os.getenv("REDIRECT_URI", "https://el-peak-production.up.railway.
 session_serializer = URLSafeSerializer(SECRET_KEY, salt="oauth")
 
 # --- RATE LIMITING ---
-# Prevents Groq API 429 crashes by enforcing a 15s cooldown per user
 _rate_limits = {} 
 RATE_LIMIT_SECONDS = 15
 
@@ -128,15 +127,15 @@ def check_rate_limit(user_id: int):
     now = time.time()
     if now < _rate_limits.get(user_id, 0):
         wait_time = int(_rate_limits[user_id] - now)
-        raise HTTPException(429, f"Rate limit: Please wait {wait_time} seconds before generating more AI content.")
+        raise HTTPException(429, f"Rate limit reached: Please wait {wait_time} seconds before generating more AI content.")
     _rate_limits[user_id] = now + RATE_LIMIT_SECONDS
 
 # --- SCHEMAS ---
 class SignupIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
-    user_type: str = "general" # 'school' or 'general'
-    grade: str | None = None # 'g1-6', 'g7-9', 'g10-12'
+    user_type: str = "general"
+    grade: str | None = None
 
 class SubmitIn(BaseModel):
     topic_name: str = Field(min_length=1)
@@ -402,58 +401,61 @@ async def heatmap(user: Annotated[dict, Depends(get_current_user)]):
 # --- QUIZ ENGINE (EGYPTIAN CURRICULUM) ---
 STATIC_QUIZZES = {
     "g1-6": { # Primary / ابتدائية
-        "Arabic": [
+        "Arabic (اللغة العربية)": [
             {"question": "كم عدد حروف اللغة العربية؟", "options": ["28 حرفاً", "26 حرفاً", "30 حرفاً", "32 حرفاً"], "answer_index": 0, "explanation": "اللغة العربية تحتوي على 28 حرفاً أساسياً."},
-            {"question": "ما هو الفعل؟", "options": ["كلمة تدل على حدث", "كلمة تدل على اسم", "كلمة تدل على مكان", "كلمة تدل على زمان"], "answer_index": 0, "explanation": "الفعل هو كلمة تدل على حدث في زمن معين."},
+            {"question": "ما هو الفعل في جملة 'ذاكر الطالب الدرس'؟", "options": ["ذاكر", "الطالب", "الدرس", "لا يوجد"], "answer_index": 0, "explanation": "الفعل هو كلمة تدل على حدث، وهنا 'ذاكر'."},
             {"question": "ما جمع كلمة 'كتاب'؟", "options": ["كتب", "كتابات", "أكتب", "كُتب"], "answer_index": 0, "explanation": "جمع تكسير لكلمة كتاب هو 'كتب'."},
+            {"question": "ما مضاد كلمة 'النشاط'؟", "options": ["الكسل", "القوة", "الضعف", "النوم"], "answer_index": 0, "explanation": "مضاد (عكس) كلمة النشاط هو الكسل."}
         ],
-        "Math": [
+        "Math (الرياضيات)": [
             {"question": "What is 5 + 7?", "options": ["12", "11", "13", "10"], "answer_index": 0, "explanation": "5 + 7 = 12."},
             {"question": "What is 9 x 3?", "options": ["27", "21", "24", "12"], "answer_index": 0, "explanation": "9 multiplied by 3 is 27."},
-            {"question": "How many minutes in an hour?", "options": ["60", "50", "100", "24"], "answer_index": 0, "explanation": "There are 60 minutes in one hour."},
+            {"question": "How many sides does a triangle have?", "options": ["3", "4", "5", "6"], "answer_index": 0, "explanation": "A triangle has 3 sides."},
+            {"question": "What is the shape of a ball?", "options": ["Sphere", "Cube", "Cylinder", "Pyramid"], "answer_index": 0, "explanation": "A ball is shaped like a sphere."}
         ],
-        "Science": [
+        "Science (العلوم)": [
             {"question": "What do plants need to make food?", "options": ["Sunlight", "Plastic", "Rocks", "Metal"], "answer_index": 0, "explanation": "Plants use sunlight to make food via photosynthesis."},
-            {"question": "كم عدد حواس الإنسان؟", "options": ["5 حواس", "3 حواس", "7 حواس", "10 حواس"], "answer_index": 0, "explanation": "حواس الإنسان هي السمع، البصر، الشم، التذوق، اللمس."},
+            {"question": "كم عدد حواس الإنسان؟", "options": ["5 حواس", "3 حواس", "7 حواس", "10 حواس"], "answer_index": 0, "explanation": "حواس الإنسان هي السمع، البصر، الشم، التذوق، اللمس."}
         ]
     },
     "g7-9": { # Preparatory / إعدادية
-        "Arabic": [
-            {"question": "ما هو الفاعل في جملة 'ذاكر الطالب الدرس'؟", "options": ["الطالب", "ذاكر", "الدرس", "لا يوجد"], "answer_index": 0, "explanation": "الفاعل هو اسم مرفوع يأتي بعد الفعل ليدل على من قام بالفعل، وهنا 'الطالب'."},
-            {"question": "ما معنى كلمة 'عقيم'؟", "options": ["لا تثمر", "خصبة", "كبيرة", "صغيرة"], "answer_index": 0, "explanation": "عقيم تعني لا تثمر أو لا أمل فيها."},
-            {"question": "ما نوع 'أين' في اللغة العربية؟", "options": ["اسم استفهام", "فعل ماضي", "حرف جر", "اسم موصول"], "answer_index": 0, "explanation": "'أين' من أسماء الاستفهام التي تدل على المكان."},
+        "Arabic (اللغة العربية)": [
+            {"question": "ما نوع كلمة 'طالب' في جملة 'الطالبُ مجتهدٌ'؟", "options": ["مبتدأ", "خبر", "فعل", "حرف"], "answer_index": 0, "explanation": "'الطالب' مبتدأ مرفوع وعلامة رفعه الضمة."},
+            {"question": "ما هو التشبيه في قولنا 'الجندي كالأسد'؟", "options": ["حيث شبه الجندي بالأسد", "استعارة", "كناية", "طباق"], "answer_index": 0, "explanation": "في هذا التشبيه، شبه الكاتب الجندي بالأسد في الشجاعة."},
+            {"question": "من هو شاعر النيل؟", "options": ["حافظ إبراهيم", "أحمد شوقي", "إيليا أبو ماضي", "نزار قباني"], "answer_index": 0, "explanation": "حافظ إبراهيم هو شاعر النيل."}
         ],
-        "Math": [
+        "Math (الرياضيات)": [
             {"question": "What is the value of x in 2x + 4 = 10?", "options": ["3", "2", "4", "5"], "answer_index": 0, "explanation": "2x = 6, so x = 3."},
             {"question": "What is the area of a triangle with base 4 and height 6?", "options": ["12", "24", "10", "48"], "answer_index": 0, "explanation": "Area = 1/2 * base * height = 1/2 * 4 * 6 = 12."},
             {"question": "What is the LCM of 4 and 6?", "options": ["12", "24", "2", "8"], "answer_index": 0, "explanation": "The Least Common Multiple of 4 and 6 is 12."},
+            {"question": "What is the sum of angles in a triangle?", "options": ["180 degrees", "90 degrees", "360 degrees", "270 degrees"], "answer_index": 0, "explanation": "The sum of interior angles of a triangle is always 180 degrees."}
         ],
-        "Science": [
+        "Science (العلوم)": [
             {"question": "What is the powerhouse of the cell?", "options": ["Mitochondria", "Nucleus", "Ribosome", "Cytoplasm"], "answer_index": 0, "explanation": "Mitochondria produce ATP, the cell's energy currency."},
-            {"question": "What is the chemical symbol for water?", "options": ["H2O", "CO2", "O2", "NaCl"], "answer_index": 0, "explanation": "Water is made of 2 Hydrogen atoms and 1 Oxygen atom."},
+            {"question": "What is the chemical symbol for water?", "options": ["H2O", "CO2", "O2", "NaCl"], "answer_index": 0, "explanation": "Water is made of 2 Hydrogen atoms and 1 Oxygen atom."}
         ]
     },
     "g10-12": { # Secondary / ثانوية
-        "Arabic": [
-            {"question": "من قائل قصيدة 'النيل'؟", "options": ["حافظ إبراهيم", "أحمد شوقي", "إيليا أبو ماضي", "نزار قباني"], "answer_index": 0, "explanation": "قصيدة 'النيل' من أشهر قصائد حافظ إبراهيم."},
-            {"question": "ما هو المضاد لكلمة 'الصدق'؟", "options": ["الكذب", "الأمانة", "الخيانة", "الوفاء"], "answer_index": 0, "explanation": "المضاد (أو المتضاد) لكلمة الصدق هو الكذب."},
-            {"question": "ما نوع 'إن' في جملة 'إن العلم نور'؟", "options": ["حرف ناسخ", "فعل ناقص", "اسم موصول", "حرف جر"], "answer_index": 0, "explanation": "'إن' حرف ناسخ ينصب المبتدأ ويسمى اسمها، ويرفع الخبر."},
+        "Arabic (اللغة العربية)": [
+            {"question": "ما هو المفعول المطلق في جملة 'انتصر الجيش انتصاراً عظيماً'؟", "options": ["انتصاراً", "الجيش", "عظيماً", "انتصر"], "answer_index": 0, "explanation": "المفعول المطلق هو مصدر يؤكد الفعل، وهنا 'انتصاراً'."},
+            {"question": "من قائل مسرحية 'مجنون ليلى'؟", "options": ["أحمد شوقي", "توفيق الحكيم", "نجيب محفوظ", "أحمد أمين"], "answer_index": 0, "explanation": "مسرحية مجنون ليلى من أشهر أعمال أمير الشعراء أحمد شوقي."},
+            {"question": "ما الفرق بين التشبيه والاستعارة؟", "options": ["التشبيه يذكر المشبه والمشبه به", "لا يوجد فرق", "الاستعارة أقصر", "التشبيه يحذف المشبه"], "answer_index": 0, "explanation": "في التشبيه يذكر المشبه والمشبه به، بينما في الاستعارة يذكر أحدهما ويدل على الآخر."}
         ],
-        "Math": [
+        "Math (الرياضيات)": [
             {"question": "What is the derivative of sin(x)?", "options": ["cos(x)", "-cos(x)", "tan(x)", "-sin(x)"], "answer_index": 0, "explanation": "d/dx [sin(x)] = cos(x)."},
             {"question": "What is the integral of 2x dx?", "options": ["x^2 + C", "2 + C", "x^2 / 2 + C", "2x^2 + C"], "answer_index": 0, "explanation": "The anti-derivative of 2x is x^2 + C."},
-            {"question": "What is log10(1000)?", "options": ["3", "2", "10", "100"], "answer_index": 0, "explanation": "10^3 = 1000, so log10(1000) = 3."},
+            {"question": "What is log10(1000)?", "options": ["3", "2", "10", "100"], "answer_index": 0, "explanation": "10^3 = 1000, so log10(1000) = 3."}
         ],
-        "Physics": [
+        "Physics (الفيزياء)": [
             {"question": "What is the unit of electric resistance?", "options": ["Ohm", "Volt", "Ampere", "Watt"], "answer_index": 0, "explanation": "Resistance is measured in Ohms (Ω)."},
-            {"question": "What is the acceleration due to gravity on Earth?", "options": ["9.8 m/s^2", "8.9 m/s^2", "10.2 m/s^2", "9.5 m/s^2"], "answer_index": 0, "explanation": "g ≈ 9.81 m/s^2 on Earth."},
+            {"question": "What is the acceleration due to gravity on Earth?", "options": ["9.8 m/s^2", "8.9 m/s^2", "10.2 m/s^2", "9.5 m/s^2"], "answer_index": 0, "explanation": "g ≈ 9.81 m/s^2 on Earth."}
         ]
     },
     "general": { # General / General Knowledge
         "General Knowledge": [
             {"question": "What is the capital of Egypt?", "options": ["Cairo", "Alexandria", "Giza", "Luxor"], "answer_index": 0, "explanation": "Cairo is the capital and largest city of Egypt."},
             {"question": "كم عدد القارات في العالم؟", "options": ["7 قارات", "5 قارات", "6 قارات", "8 قارات"], "answer_index": 0, "explanation": "يوجد 7 قارات في العالم."},
-            {"question": "What is the largest ocean on Earth?", "options": ["Pacific", "Atlantic", "Indian", "Arctic"], "answer_index": 0, "explanation": "The Pacific Ocean is the largest and deepest."},
+            {"question": "What is the largest ocean on Earth?", "options": ["Pacific", "Atlantic", "Indian", "Arctic"], "answer_index": 0, "explanation": "The Pacific Ocean is the largest and deepest."}
         ]
     }
 }
@@ -504,10 +506,8 @@ QUIZ_SCHEMA = ('{"questions":[{"question":"...","options":["A","B","C","D"],"ans
 
 @app.post("/api/quiz/ai")
 async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_user)]):
-    # 1. Check Rate Limit
     check_rate_limit(user["id"])
     
-    # 2. Check Tier Limits
     usage = await db.get_user_usage(user["id"])
     tier = usage["tier"]
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
@@ -517,7 +517,6 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
     
     groq_model = TIER_MODELS.get(tier, TIER_MODELS["free"])
     
-    # 3. Get Language & Add Anti-Hallucination Prompt for Arabic
     user_settings = await db.get_user_by_id(user["id"])
     lang = user_settings.get("language", "en") if user_settings else "en"
     
@@ -553,7 +552,6 @@ async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed")
     if not PDF_OCR_ENABLED:
         raise HTTPException(500, "PDF libraries not installed on server.")
         
-    # 1. Check Rate Limit
     check_rate_limit(user["id"])
         
     usage = await db.get_user_usage(user["id"])
