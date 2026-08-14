@@ -91,6 +91,7 @@
       --smooth: cubic-bezier(0.16, 1, 0.3, 1);
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
       --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --wobble: cubic-bezier(0.68, -0.6, 0.32, 1.6);
     }
 
     body.light, [data-theme="light"] {
@@ -224,7 +225,7 @@
     }
 
     /* ================================================================
-       GLASS CARD (FILE 1 aesthetic)
+       GLASS CARD (FILE 1 aesthetic) + Wobbly Hover + Sheen Sweep
        ================================================================ */
     .card {
       background: var(--glass);
@@ -234,7 +235,7 @@
       -webkit-backdrop-filter: blur(var(--blur));
       padding: 28px;
       box-shadow: var(--shadow-sm);
-      transition: transform 0.4s var(--spring), box-shadow 0.4s var(--smooth), background 0.4s var(--smooth), border-color 0.4s var(--smooth);
+      transition: transform 0.4s var(--wobble), box-shadow 0.4s var(--smooth), background 0.4s var(--smooth), border-color 0.4s var(--smooth);
       position: relative;
       overflow: hidden;
     }
@@ -248,12 +249,31 @@
       height: 1px;
       background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
       pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Interactive light-refraction hover sweep */
+    .card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+      transition: left 0.6s var(--smooth);
+      pointer-events: none;
+      z-index: 1;
     }
 
     .card:hover {
-      transform: translateY(-4px) scale(1.005);
+      transform: translateY(-4px) scale(1.01);
       box-shadow: var(--shadow-hover);
       border-color: var(--glass-border-strong);
+    }
+
+    .card:hover::after {
+      left: 100%;
     }
 
     /* ================================================================
@@ -278,7 +298,7 @@
     }
 
     /* ================================================================
-       BUTTONS — Glowing gradient pills (FILE 1)
+       BUTTONS — Glowing gradient pills + Springy Interactions
        ================================================================ */
     .btn {
       position: relative;
@@ -296,17 +316,19 @@
       font-weight: 600;
       font-size: 13px;
       box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
-      transition: transform 0.3s var(--spring), box-shadow 0.3s var(--smooth), filter 0.2s var(--ease);
+      transition: transform 0.3s var(--wobble), box-shadow 0.3s var(--smooth), filter 0.2s var(--ease);
       white-space: nowrap;
     }
 
     .btn:hover {
-      transform: translateY(-2px) scale(1.02);
+      transform: scale(1.04) translateY(-3px);
       box-shadow: 0 12px 28px rgba(99, 102, 241, 0.5);
       filter: brightness(1.1);
     }
 
-    .btn:active { transform: scale(0.98); }
+    .btn:active {
+      transform: scale(0.95);
+    }
 
     .btn:disabled {
       opacity: 0.4;
@@ -327,6 +349,11 @@
       background: var(--glass);
       border-color: var(--accent);
       box-shadow: 0 0 12px var(--accent-glow);
+      transform: scale(1.04) translateY(-3px);
+    }
+    
+    .btn.secondary:active {
+      transform: scale(0.95);
     }
 
     .btn.danger {
@@ -340,6 +367,7 @@
       background: rgba(239, 68, 68, 0.2);
       border-color: var(--bad);
       box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+      transform: scale(1.04) translateY(-3px);
     }
 
     .btn.small {
@@ -408,7 +436,7 @@
       box-shadow: 0 0 10px var(--accent-glow);
     }
 
-    /* ===== CUSTOM GLASS DROPDOWN (<select>) ===== */
+    /* ===== FULLY STYLED LIQUID GLASS DROPDOWN (<select>) ===== */
     select {
       appearance: none;
       -webkit-appearance: none;
@@ -422,10 +450,11 @@
 
     select option {
       background: #0c0d1a;
-      color: #f8fafc;
+      color: #f1f5f9;
       padding: 12px 16px;
       border: none;
       outline: none;
+      border-radius: 8px;
     }
 
     select option:checked,
@@ -577,7 +606,7 @@
     }
 
     /* ================================================================
-       TOPBAR — Floating glass pill header (FILE 1 style)
+       UNIFIED FLOATING GLASS HEADER & NAVIGATION
        ================================================================ */
     header.topbar {
       position: fixed;
@@ -591,14 +620,14 @@
       justify-content: space-between;
       align-items: center;
       gap: 20px;
-      padding: 8px 20px;
+      padding: 8px 16px;
       background: var(--glass-popover);
       backdrop-filter: blur(var(--blur));
       -webkit-backdrop-filter: blur(var(--blur));
       border: 1px solid var(--glass-border);
       border-radius: 100px;
       box-shadow: var(--shadow-sm);
-      height: 52px;
+      height: 60px;
     }
 
     body.light header.topbar {
@@ -614,12 +643,20 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      padding-left: 8px;
+    }
+    
+    .logo svg {
+      width: 20px;
+      height: 20px;
+      color: var(--accent);
     }
 
     .top-actions {
       display: flex;
       gap: 8px;
       align-items: center;
+      padding-right: 8px;
     }
 
     .pill {
@@ -630,6 +667,11 @@
       color: var(--text-soft);
       font-size: 12px;
       font-weight: 600;
+      transition: transform 0.3s var(--wobble);
+    }
+
+    .pill:hover {
+      transform: scale(1.05);
     }
 
     #streakPill {
@@ -644,31 +686,32 @@
       color: var(--accent);
     }
 
-    /* ================================================================
-       NAVIGATION — Floating glass pill (FILE 1 style)
-       ================================================================ */
-    nav.main-nav {
-      position: fixed;
-      top: 84px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 55;
+    .main-nav {
+      position: relative;
       display: inline-flex;
       gap: 4px;
       padding: 4px;
-      background: var(--glass-popover);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
+      background: var(--glass-strong);
       border: 1px solid var(--glass-border);
       border-radius: 100px;
-      box-shadow: var(--shadow-sm);
     }
 
-    body.light nav.main-nav {
-      background: rgba(255, 255, 255, 0.85);
+    .nav-slider {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      height: calc(100% - 8px);
+      width: 0px;
+      background: var(--gradient-primary);
+      border-radius: 100px;
+      z-index: 1;
+      transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 15px var(--accent-glow);
     }
 
     .nav-btn {
+      position: relative;
+      z-index: 2;
       border: none;
       background: transparent;
       color: var(--muted);
@@ -677,25 +720,22 @@
       cursor: pointer;
       font-weight: 600;
       font-size: 13px;
-      transition: all 0.3s var(--smooth);
+      transition: color 0.3s var(--smooth);
     }
 
     .nav-btn:hover {
       color: var(--text);
-      background: var(--glass-strong);
     }
 
     .nav-btn.active {
       color: #ffffff;
-      background: var(--gradient-primary);
-      box-shadow: 0 4px 15px var(--accent-glow);
     }
 
     /* ================================================================
        MAIN & GRID
        ================================================================ */
     main {
-      padding-top: 140px;
+      padding-top: 110px;
       padding-bottom: 80px;
       position: relative;
       z-index: 1;
@@ -807,14 +847,14 @@
       cursor: pointer;
       font-size: 14.5px;
       font-weight: 500;
-      transition: all 0.2s var(--spring);
+      transition: all 0.2s var(--wobble);
     }
     body.light .option-btn { background: rgba(0,0,0,0.02); }
 
     .option-btn:hover {
       border-color: var(--accent);
       background: var(--glass-strong);
-      transform: translateX(6px);
+      transform: translateX(6px) scale(1.01);
     }
 
     .option-btn.selected {
@@ -846,11 +886,20 @@
       justify-content: space-between;
       align-items: center;
       gap: 14px;
-      padding: 16px 0;
-      border-bottom: 1px solid var(--glass-border);
+      padding: 16px;
+      margin-bottom: 10px;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
+      transition: transform 0.3s var(--wobble), background 0.3s var(--smooth), border-color 0.3s var(--smooth);
     }
 
-    .task-item:last-child { border-bottom: 0; }
+    .task-item:hover {
+      transform: scale(1.02) translateX(4px);
+      background: var(--glass-strong);
+      border-color: var(--accent);
+    }
+
     .task-title { font-weight: 600; font-size: 14px; }
     .task-actions { display: flex; gap: 8px; }
 
@@ -865,7 +914,9 @@
       border: 1px solid var(--glass-border);
       background: var(--glass-strong);
       color: var(--muted);
+      transition: transform 0.3s var(--wobble);
     }
+    .badge:hover { transform: scale(1.1); }
     .badge.ok { color: var(--mint); background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.3); }
     .badge.warn { color: var(--amber); background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3); }
     .badge.bad { color: var(--coral); background: rgba(251, 113, 133, 0.1); border-color: rgba(251, 113, 133, 0.3); }
@@ -877,7 +928,9 @@
       padding: 12px 0;
       border-bottom: 1px solid var(--glass-border);
       font-size: 13px;
+      transition: transform 0.2s var(--wobble);
     }
+    .list-item:hover { transform: translateX(4px); }
     .list-item:last-child { border-bottom: 0; }
 
     /* Topic rows in dashboard */
@@ -906,14 +959,14 @@
       background: var(--glass);
       backdrop-filter: blur(var(--blur));
       -webkit-backdrop-filter: blur(var(--blur));
-      transition: all 0.3s var(--spring);
+      transition: all 0.3s var(--wobble);
     }
     body.light .plan-card { background: rgba(255, 255, 255, 0.6); }
 
     .plan-card:hover {
       border-color: var(--accent);
       box-shadow: 0 0 20px var(--accent-glow);
-      transform: translateY(-3px) scale(1.01);
+      transform: translateY(-3px) scale(1.02);
     }
 
     .plan-card ul {
@@ -945,12 +998,16 @@
       color: #fff;
       box-shadow: 0 10px 30px var(--accent-glow);
       z-index: 70;
-      transition: all 0.3s var(--spring);
+      transition: all 0.3s var(--wobble);
     }
 
     .tutor-toggle:hover {
       transform: scale(1.1) rotate(5deg);
       box-shadow: 0 12px 36px var(--accent-glow);
+    }
+
+    .tutor-toggle:active {
+      transform: scale(0.95);
     }
 
     .tutor-panel {
@@ -1124,12 +1181,16 @@
         border-radius: 16px;
         padding: 8px 12px;
         gap: 8px;
+        height: auto;
+        flex-wrap: wrap;
+        justify-content: center;
       }
 
       .logo { font-size: 13px; }
       .pill { font-size: 10px; padding: 4px 8px; }
 
-      nav.main-nav {
+      .main-nav {
+        position: fixed;
         top: auto;
         bottom: 16px;
         left: 8px;
@@ -1137,12 +1198,16 @@
         transform: none;
         width: auto;
         justify-content: space-around;
+        background: var(--glass-popover);
+        backdrop-filter: blur(var(--blur));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-sm);
       }
 
       .nav-btn { flex: 1; padding: 8px 4px; font-size: 10px; }
 
       main {
-        padding-top: 80px;
+        padding-top: 100px;
         padding-bottom: 80px;
       }
 
@@ -1214,7 +1279,21 @@
   <!-- ======================== MAIN VIEW ======================== -->
   <div id="mainView" class="app hidden">
     <header class="topbar">
-      <div class="logo">El-Peak ▲</div>
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 20 L8 6 L12 14 L15 9 L21 20" />
+        </svg>
+        El-Peak
+      </div>
+
+      <nav class="main-nav">
+        <div class="nav-slider" id="navSlider"></div>
+        <button class="nav-btn active" data-view="dashboard" data-i18n="dashboard">Dashboard</button>
+        <button class="nav-btn" data-view="quiz" data-i18n="quiz">Quiz</button>
+        <button class="nav-btn" data-view="scheduler" data-i18n="scheduler">Scheduler</button>
+        <button class="nav-btn" data-view="coach" data-i18n="coach">Coach</button>
+        <button class="nav-btn" data-view="profile" data-i18n="profile">Profile</button>
+      </nav>
 
       <div class="top-actions">
         <div class="pill" id="streakPill">0 days</div>
@@ -1223,14 +1302,6 @@
         <button class="btn secondary small" id="logoutBtn" data-i18n="logout">Logout</button>
       </div>
     </header>
-
-    <nav class="main-nav">
-      <button class="nav-btn active" data-view="dashboard" data-i18n="dashboard">Dashboard</button>
-      <button class="nav-btn" data-view="quiz" data-i18n="quiz">Quiz</button>
-      <button class="nav-btn" data-view="scheduler" data-i18n="scheduler">Scheduler</button>
-      <button class="nav-btn" data-view="coach" data-i18n="coach">Coach</button>
-      <button class="nav-btn" data-view="profile" data-i18n="profile">Profile</button>
-    </nav>
 
     <main>
       <!-- DASHBOARD -->
@@ -1929,6 +2000,14 @@
         applyTheme();
         applyI18n();
 
+        // Initial slider position
+        const initialActive = document.querySelector('.nav-btn.active');
+        const slider = document.getElementById('navSlider');
+        if (initialActive && slider) {
+          slider.style.width = `${initialActive.offsetWidth}px`;
+          slider.style.left = `${initialActive.offsetLeft}px`;
+        }
+
         await Promise.allSettled([
           loadDashboard(),
           loadSubjects(),
@@ -1949,6 +2028,14 @@
       document.querySelectorAll(".nav-btn").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.view === name);
       });
+
+      // Sliding Navbar Tab Indicator Logic
+      const activeBtn = document.querySelector(`.nav-btn[data-view="${name}"]`);
+      const slider = document.getElementById('navSlider');
+      if (activeBtn && slider) {
+        slider.style.width = `${activeBtn.offsetWidth}px`;
+        slider.style.left = `${activeBtn.offsetLeft}px`;
+      }
 
       ["dashboard", "quiz", "scheduler", "coach", "profile"].forEach(view => {
         $(`view-${view}`).classList.toggle("hidden", view !== name);
@@ -2848,6 +2935,16 @@
         }
       });
 
+      // Ensure slider moves on window resize
+      window.addEventListener('resize', () => {
+        const activeBtn = document.querySelector('.nav-btn.active');
+        const slider = document.getElementById('navSlider');
+        if (activeBtn && slider) {
+          slider.style.width = `${activeBtn.offsetWidth}px`;
+          slider.style.left = `${activeBtn.offsetLeft}px`;
+        }
+      });
+
       updateQuizSourceUI();
     });
   </script>
@@ -2862,7 +2959,7 @@
         duration: 1.2,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         smoothWheel: true,
-        wheelMultiplier: 1,
+        mouseMultiplier: 1.0,
         touchMultiplier: 2
       });
 
