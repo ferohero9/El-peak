@@ -1,5 +1,5 @@
 """
-El-Peak — Data Layer v8 (PostgreSQL Multi-User, Production Ready)
+El-Peak — Data Layer v9 (PostgreSQL Multi-User, Edu-Stages, Rate Limits)
 """
 import datetime as dt
 import os
@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS users (
     pdf_uploads_used  INTEGER DEFAULT 0,
     usage_reset_date  TEXT,
     username          TEXT,
-    language          TEXT DEFAULT 'en'
+    language          TEXT DEFAULT 'en',
+    user_type         TEXT DEFAULT 'general',
+    grade             TEXT
 );
 CREATE TABLE IF NOT EXISTS topics (
     id         SERIAL PRIMARY KEY,
@@ -70,7 +72,7 @@ async def get_pool():
         _pool = await asyncpg.create_pool(
             dsn=clean_url,
             min_size=2,
-            max_size=15,  # Increased pool size to handle 10k+ users smoothly
+            max_size=15,
             ssl='require'
         )
     return _pool
@@ -91,7 +93,6 @@ def parse_dt(s: str) -> dt.datetime:
 async def init_db():
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # Create tables if they don't exist
         statements = SCHEMA.strip().split(';')
         for stmt in statements:
             if stmt.strip():
@@ -104,20 +105,22 @@ async def init_db():
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS usage_reset_date TEXT")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT")
         await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type TEXT DEFAULT 'general'")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS grade TEXT")
         
         await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
         await conn.execute("ALTER TABLE attempts ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
         await conn.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
 
 # ---------------------------------------------------------------- AUTH
-async def create_user(email: str, hashed_pw: str) -> dict:
+async def create_user(email: str, hashed_pw: str, user_type: str = "general", grade: str = None) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
         try:
             async with conn.transaction():
                 row = await conn.fetchrow(
-                    "INSERT INTO users(email, password, created_at) VALUES ($1, $2, $3) RETURNING id, email",
-                    email, hashed_pw, now_str())
+                    "INSERT INTO users(email, password, created_at, user_type, grade) VALUES ($1, $2, $3, $4, $5) RETURNING id, email",
+                    email, hashed_pw, now_str(), user_type, grade)
                 return dict(row) if row else None
         except asyncpg.UniqueViolationError:
             return None
@@ -131,7 +134,7 @@ async def get_user_by_email(email: str) -> dict:
 async def get_user_by_id(user_id: int) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT id, email, username, language FROM users WHERE id=$1", user_id)
+        row = await conn.fetchrow("SELECT id, email, username, language, user_type, grade FROM users WHERE id=$1", user_id)
         return dict(row) if row else None
 
 # ---------------------------------------------------------------- TOPICS
@@ -332,11 +335,11 @@ async def cleanup_old_pdf_attempts():
             await conn.execute("DELETE FROM attempts WHERE source='pdf' AND created_at < $1", cutoff)
 
 # ---------------------------------------------------------------- SETTINGS
-async def update_user_settings(user_id: int, username: str, language: str):
+async def update_user_settings(user_id: int, username: str, language: str, user_type: str, grade: str | None):
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
-            await conn.execute("UPDATE users SET username=$1, language=$2 WHERE id=$3", username, language, user_id)
+            await conn.execute("UPDATE users SET username=$1, language=$2, user_type=$3, grade=$4 WHERE id=$5", username, language, user_type, grade, user_id)
 
 async def update_user_password(user_id: int, hashed_pw: str):
     pool = await get_pool()
