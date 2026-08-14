@@ -42,7 +42,7 @@
       --glass-bg-hover: rgba(20,20,30,0.8);
       --glass-bg-strong: rgba(8,8,14,0.9);
       --glass-border-strong: rgba(255,255,255,0.12);
-      --glass-popover: rgba(20,20,30,0.85);
+      --glass-popover: rgba(20,20,30,0.75);
 
       --accent: #6366f1;
       --accent-2: #06b6d4;
@@ -71,11 +71,11 @@
       --warn: #f59e0b;
       --bad: #ef4444;
 
-      --r: 24px;
+      --r: 20px;
       --r-md: 12px;
       --r-lg: 16px;
       --r-xl: 24px;
-      --blur: 40px;
+      --blur: 20px;
 
       --font-display: 'Outfit', system-ui, sans-serif;
       --font-ui: 'Inter', system-ui, sans-serif;
@@ -84,7 +84,7 @@
 
       --shadow-sm: 0 4px 12px rgba(0,0,0,0.3);
       --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
-      --shadow-hover: 0 16px 40px rgba(0,0,0,0.4);
+      --shadow-hover: 0 12px 32px rgba(0,0,0,0.4);
       --shadow-glow: 0 0 20px rgba(99,102,241,0.4);
 
       --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -107,7 +107,7 @@
       --glass-bg-hover: rgba(255,255,255,0.95);
       --glass-bg-strong: rgba(255,255,255,0.95);
       --glass-border-strong: rgba(0,0,0,0.15);
-      --glass-popover: rgba(255,255,255,0.9);
+      --glass-popover: rgba(255,255,255,0.85);
 
       --accent: #4f46e5;
       --accent-glow: rgba(79,70,229,0.25);
@@ -120,7 +120,7 @@
 
       --shadow-sm: 0 4px 12px rgba(0,0,0,0.05);
       --shadow-md: 0 8px 24px rgba(0,0,0,0.1);
-      --shadow-hover: 0 16px 40px rgba(79,70,229,0.1);
+      --shadow-hover: 0 12px 32px rgba(79,70,229,0.1);
     }
 
     /* ================================================================
@@ -216,7 +216,7 @@
        LAYOUT
        ================================================================ */
     .app {
-      width: min(1100px, calc(100% - 48px));
+      width: min(1080px, calc(100% - 32px));
       margin: 0 auto;
       position: relative;
       z-index: 1;
@@ -233,7 +233,7 @@
       border-radius: var(--r);
       backdrop-filter: blur(var(--blur));
       -webkit-backdrop-filter: blur(var(--blur));
-      padding: 28px;
+      padding: 20px;
       box-shadow: var(--shadow-sm);
       transition: transform 0.4s var(--wobble), box-shadow 0.4s var(--smooth), background 0.4s var(--smooth), border-color 0.4s var(--smooth);
       position: relative;
@@ -267,7 +267,7 @@
     }
 
     .card:hover {
-      transform: translateY(-4px) scale(1.01);
+      transform: translateY(-3px) scale(1.01);
       box-shadow: var(--shadow-hover);
       border-color: var(--glass-border-strong);
     }
@@ -309,7 +309,7 @@
       gap: 8px;
       border: 1px solid transparent;
       border-radius: 100px;
-      padding: 12px 24px;
+      padding: 10px 20px;
       cursor: pointer;
       background: linear-gradient(90deg, #6366f1, #06b6d4);
       color: #ffffff;
@@ -383,8 +383,8 @@
       background: var(--glass-strong);
       color: var(--text);
       border: 1px solid var(--glass-border);
-      border-radius: 16px;
-      padding: 14px 20px;
+      border-radius: 14px;
+      padding: 12px 18px;
       outline: none;
       font-size: 14px;
       font-weight: 500;
@@ -508,7 +508,7 @@
 
     label {
       display: block;
-      margin: 14px 0 8px;
+      margin: 12px 0 6px;
       color: var(--muted);
       font-size: 11px;
       font-weight: 600;
@@ -529,8 +529,8 @@
     }
 
     .auth-card {
-      width: min(420px, 100%);
-      padding: 36px;
+      width: min(400px, 100%);
+      padding: 32px;
       background: var(--glass-bg-strong);
       border: 1px solid var(--glass-border-strong);
       border-radius: var(--r-xl);
@@ -541,7 +541,7 @@
 
     .brand {
       font-family: var(--font-display);
-      font-size: 32px;
+      font-size: 28px;
       font-weight: 700;
       margin: 0;
       background: linear-gradient(135deg, #fff, #06b6d4);
@@ -551,7 +551,7 @@
     }
 
     .brand-sub {
-      margin: 10px 0 28px;
+      margin: 8px 0 24px;
       color: var(--muted);
       font-size: 14px;
     }
@@ -561,7 +561,7 @@
       align-items: center;
       gap: 12px;
       color: var(--muted);
-      margin: 24px 0;
+      margin: 20px 0;
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
@@ -578,7 +578,7 @@
     .tabs {
       display: flex;
       gap: 4px;
-      margin: 20px 0;
+      margin: 16px 0;
       padding: 4px;
       background: var(--glass-strong);
       border: 1px solid var(--glass-border);
@@ -587,7 +587,7 @@
 
     .tab {
       flex: 1;
-      padding: 10px;
+      padding: 8px;
       text-align: center;
       border-radius: 100px;
       border: none;
@@ -606,28 +606,28 @@
     }
 
     /* ================================================================
-       UNIFIED FLOATING GLASS HEADER & NAVIGATION
+       UNIFIED FLOATING GLASS HEADER & NAVIGATION (CLEAN & COMPACT)
        ================================================================ */
     header.topbar {
       position: fixed;
-      top: 20px;
+      top: 16px;
       left: 50%;
       transform: translateX(-50%);
-      width: fit-content;
-      max-width: calc(100% - 48px);
-      z-index: 60;
+      z-index: 1000;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 20px;
-      padding: 8px 16px;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 6px;
       background: var(--glass-popover);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
       border: 1px solid var(--glass-border);
       border-radius: 100px;
-      box-shadow: var(--shadow-sm);
-      height: 60px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      max-width: calc(100% - 32px);
+      width: fit-content;
+      height: 52px;
     }
 
     body.light header.topbar {
@@ -637,18 +637,18 @@
     .logo {
       font-family: var(--font-display);
       font-weight: 700;
-      font-size: 15px;
+      font-size: 14px;
       letter-spacing: -0.02em;
       color: var(--text);
       display: flex;
       align-items: center;
       gap: 8px;
-      padding-left: 8px;
+      padding-left: 12px;
     }
     
     .logo svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       color: var(--accent);
     }
 
@@ -660,12 +660,12 @@
     }
 
     .pill {
-      padding: 6px 14px;
+      padding: 5px 12px;
       border-radius: 100px;
       background: var(--glass-strong);
       border: 1px solid var(--glass-border);
       color: var(--text-soft);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       transition: transform 0.3s var(--wobble);
     }
@@ -689,11 +689,17 @@
     .main-nav {
       position: relative;
       display: inline-flex;
-      gap: 4px;
+      align-items: center;
+      gap: 2px;
       padding: 4px;
-      background: var(--glass-strong);
+      background: rgba(0,0,0,0.2);
       border: 1px solid var(--glass-border);
       border-radius: 100px;
+      height: 100%;
+    }
+
+    body.light .main-nav {
+      background: rgba(0,0,0,0.05);
     }
 
     .nav-slider {
@@ -704,23 +710,25 @@
       width: 0px;
       background: var(--gradient-primary);
       border-radius: 100px;
-      z-index: 1;
+      z-index: 0;
       transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 4px 15px var(--accent-glow);
+      box-shadow: 0 2px 8px var(--accent-glow);
+      pointer-events: none;
     }
 
     .nav-btn {
       position: relative;
-      z-index: 2;
+      z-index: 1;
       border: none;
       background: transparent;
       color: var(--muted);
       border-radius: 100px;
-      padding: 8px 18px;
+      padding: 6px 14px;
       cursor: pointer;
       font-weight: 600;
-      font-size: 13px;
+      font-size: 12px;
       transition: color 0.3s var(--smooth);
+      height: 100%;
     }
 
     .nav-btn:hover {
@@ -735,8 +743,8 @@
        MAIN & GRID
        ================================================================ */
     main {
-      padding-top: 110px;
-      padding-bottom: 80px;
+      padding-top: 90px;
+      padding-bottom: 60px;
       position: relative;
       z-index: 1;
       will-change: transform;
@@ -745,12 +753,12 @@
 
     .grid {
       display: grid;
-      gap: 20px;
+      gap: 16px;
     }
 
     .grid.stats {
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      margin-bottom: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      margin-bottom: 16px;
     }
 
     .grid.two {
@@ -758,30 +766,30 @@
     }
 
     .grid.stats .card {
-      padding: 20px;
+      padding: 16px;
       background: var(--glass);
     }
 
     .stat-label {
       color: var(--muted);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .stat-value {
       font-family: var(--font-display);
-      font-size: 32px;
+      font-size: 26px;
       font-weight: 700;
       color: var(--text);
       letter-spacing: -0.04em;
     }
 
     .section-title {
-      margin: 0 0 18px;
-      font-size: 18px;
+      margin: 0 0 14px;
+      font-size: 16px;
       font-weight: 600;
       color: var(--text);
       font-family: var(--font-display);
@@ -789,10 +797,22 @@
     }
 
     /* ================================================================
+       VIEW SWITCHING ANIMATIONS (CLEAN FADE & SLIDE)
+       ================================================================ */
+    section[id^="view-"]:not(.hidden) {
+      animation: viewEnter 0.4s var(--smooth);
+    }
+
+    @keyframes viewEnter {
+      from { opacity: 0; transform: translateY(12px) scale(0.99); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ================================================================
        PROGRESS BARS — Gradient fill fix
        ================================================================ */
     .bar {
-      height: 8px;
+      height: 6px;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.05);
       overflow: hidden;
@@ -808,7 +828,7 @@
       will-change: width;
     }
 
-    .usage-bar { margin: 14px 0; }
+    .usage-bar { margin: 12px 0; }
 
     /* ================================================================
        HEATMAP
@@ -816,7 +836,7 @@
     .heatmap {
       display: grid;
       grid-template-columns: repeat(14, 1fr);
-      gap: 5px;
+      gap: 4px;
     }
 
     .heat-cell {
@@ -835,17 +855,17 @@
     /* ================================================================
        QUIZ & TASKS
        ================================================================ */
-    .quiz-options { display: grid; gap: 10px; margin-top: 20px; }
+    .quiz-options { display: grid; gap: 8px; margin-top: 16px; }
 
     .option-btn {
       text-align: left;
-      padding: 16px 20px;
-      border-radius: 16px;
+      padding: 14px 18px;
+      border-radius: 14px;
       border: 1px solid var(--glass-border);
       background: var(--glass);
       color: var(--text-soft);
       cursor: pointer;
-      font-size: 14.5px;
+      font-size: 14px;
       font-weight: 500;
       transition: all 0.2s var(--wobble);
     }
@@ -866,8 +886,8 @@
 
     #questionText {
       font-family: var(--font-display);
-      margin-top: 20px;
-      font-size: 22px;
+      margin-top: 16px;
+      font-size: 20px;
       font-weight: 600;
       line-height: 1.35;
       letter-spacing: -0.02em;
@@ -885,10 +905,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 14px;
-      padding: 16px;
-      margin-bottom: 10px;
-      border-radius: 16px;
+      gap: 12px;
+      padding: 14px;
+      margin-bottom: 8px;
+      border-radius: 14px;
       border: 1px solid var(--glass-border);
       background: var(--glass);
       transition: transform 0.3s var(--wobble), background 0.3s var(--smooth), border-color 0.3s var(--smooth);
@@ -925,7 +945,7 @@
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      padding: 12px 0;
+      padding: 10px 0;
       border-bottom: 1px solid var(--glass-border);
       font-size: 13px;
       transition: transform 0.2s var(--wobble);
@@ -934,7 +954,7 @@
     .list-item:last-child { border-bottom: 0; }
 
     /* Topic rows in dashboard */
-    .topic-row { margin-bottom: 14px; }
+    .topic-row { margin-bottom: 12px; }
     .topic-row-head {
       display: flex;
       justify-content: space-between;
@@ -953,7 +973,7 @@
     }
 
     .plan-card {
-      padding: 24px;
+      padding: 20px;
       border-radius: var(--r);
       border: 1px solid var(--glass-border);
       background: var(--glass);
@@ -972,11 +992,11 @@
     .plan-card ul {
       list-style: none;
       padding: 0;
-      margin: 14px 0;
+      margin: 12px 0;
     }
 
     .plan-card ul li {
-      padding: 5px 0;
+      padding: 4px 0;
       font-size: 13px;
       color: var(--text-soft);
     }
@@ -986,13 +1006,13 @@
        ================================================================ */
     .tutor-toggle {
       position: fixed;
-      right: 30px;
-      bottom: 30px;
-      width: 56px;
-      height: 56px;
+      right: 24px;
+      bottom: 24px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
       border: none;
-      font-size: 22px;
+      font-size: 20px;
       cursor: pointer;
       background: var(--gradient-primary);
       color: #fff;
@@ -1012,12 +1032,12 @@
 
     .tutor-panel {
       position: fixed;
-      right: 30px;
-      bottom: 100px;
-      width: 380px;
+      right: 24px;
+      bottom: 88px;
+      width: 360px;
       max-width: calc(100vw - 48px);
-      height: 520px;
-      max-height: calc(100vh - 140px);
+      height: 480px;
+      max-height: calc(100vh - 120px);
       z-index: 75;
       display: flex;
       flex-direction: column;
@@ -1041,7 +1061,7 @@
     }
 
     .tutor-panel > div:first-child {
-      padding: 18px 24px;
+      padding: 16px 20px;
       border-bottom: 1px solid var(--glass-border);
       display: flex;
       justify-content: space-between;
@@ -1051,10 +1071,10 @@
     .tutor-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 24px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       will-change: transform;
       transform: translateZ(0);
     }
@@ -1089,17 +1109,17 @@
     }
 
     .tutor-input {
-      padding: 14px;
+      padding: 12px;
       border-top: 1px solid var(--glass-border);
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
 
     .tutor-input input {
       flex: 1;
       border: 1px solid var(--glass-border);
       background: var(--glass);
-      padding: 12px 16px;
+      padding: 10px 14px;
       border-radius: 12px;
       font-size: 13px;
     }
@@ -1125,7 +1145,7 @@
       border-radius: var(--r-xl);
       backdrop-filter: blur(var(--blur));
       -webkit-backdrop-filter: blur(var(--blur));
-      padding: 32px;
+      padding: 28px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
       will-change: transform;
       transform: translateZ(0);
@@ -1173,47 +1193,32 @@
       .grid.two { grid-template-columns: 1fr; }
     }
 
+    @media (max-width: 768px) {
+      header.topbar {
+        gap: 8px;
+        padding: 6px;
+        height: 48px;
+      }
+      .logo { display: none; }
+      .top-actions .pill { display: none; }
+      .nav-btn { padding: 6px 10px; font-size: 11px; }
+    }
+
     @media (max-width: 600px) {
       .app { width: calc(100% - 16px); }
 
       header.topbar {
-        width: calc(100% - 16px);
-        border-radius: 16px;
-        padding: 8px 12px;
-        gap: 8px;
-        height: auto;
-        flex-wrap: wrap;
-        justify-content: center;
+        max-width: calc(100% - 16px);
       }
-
-      .logo { font-size: 13px; }
-      .pill { font-size: 10px; padding: 4px 8px; }
-
-      .main-nav {
-        position: fixed;
-        top: auto;
-        bottom: 16px;
-        left: 8px;
-        right: 8px;
-        transform: none;
-        width: auto;
-        justify-content: space-around;
-        background: var(--glass-popover);
-        backdrop-filter: blur(var(--blur));
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-sm);
-      }
-
-      .nav-btn { flex: 1; padding: 8px 4px; font-size: 10px; }
 
       main {
-        padding-top: 100px;
+        padding-top: 80px;
         padding-bottom: 80px;
       }
 
-      .stat-value { font-size: 24px; }
+      .stat-value { font-size: 22px; }
       .tutor-panel { width: calc(100% - 16px); right: 8px; }
-      .tutor-toggle { right: 16px; bottom: 80px; }
+      .tutor-toggle { right: 16px; bottom: 16px; }
     }
   </style>
 </head>
@@ -1350,7 +1355,7 @@
           </div>
         </div>
 
-        <div class="card" style="margin-top:20px">
+        <div class="card" style="margin-top:16px">
           <h3 class="section-title" data-i18n="activityHeatmap">Activity Heatmap</h3>
           <div id="heatmap" class="heatmap"></div>
         </div>
@@ -1434,10 +1439,10 @@
             </select>
           </div>
 
-          <button id="startQuizBtn" class="btn" style="margin-top:24px" data-i18n="beginAscent">Begin Ascent →</button>
+          <button id="startQuizBtn" class="btn" style="margin-top:20px" data-i18n="beginAscent">Begin Ascent →</button>
         </div>
 
-        <div class="card hidden" id="quizPlayerCard" style="margin-top:20px">
+        <div class="card hidden" id="quizPlayerCard" style="margin-top:16px">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
             <h3 class="section-title" id="quizTitle">Quiz</h3>
             <button class="btn danger small" id="exitQuizBtn" data-i18n="exit">Exit</button>
@@ -1456,7 +1461,7 @@
           </div>
         </div>
 
-        <div class="card hidden" id="quizResultCard" style="margin-top:20px">
+        <div class="card hidden" id="quizResultCard" style="margin-top:16px">
           <h3 class="section-title" data-i18n="ascentComplete">Ascent Complete</h3>
           <div id="quizResultText" style="font-size:42px; font-weight:900; margin:10px 0 16px;"></div>
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -1491,7 +1496,7 @@
           </div>
         </div>
 
-        <div class="grid two" style="margin-top:20px">
+        <div class="grid two" style="margin-top:16px">
           <div class="card">
             <h3 class="section-title" data-i18n="priorityQueue">Priority Queue</h3>
             <div id="scheduleQueue"></div>
@@ -1503,7 +1508,7 @@
           </div>
         </div>
 
-        <div class="card" style="margin-top:20px">
+        <div class="card" style="margin-top:16px">
           <h3 class="section-title" data-i18n="cleared">Cleared</h3>
           <div id="scheduleCleared"></div>
         </div>
