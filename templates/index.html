@@ -173,7 +173,7 @@ input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border
 .src-card.on{border-color:var(--accent);background:var(--glass-strong);box-shadow:0 0 0 2px var(--accent-glow)}
 .src-card .t{font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .src-card .d{color:var(--muted);font-size:12.5px;line-height:1.5}
-#panel-static { grid-template-columns: 1fr 1fr; }
+#panel-static { grid-template-columns: 1fr 1fr 1fr; }
 #panel-ai { grid-template-columns: 2fr 1fr 1fr; }
 #panel-pdf { grid-template-columns: 1fr 1fr; }
 .panel{display:none}
@@ -1266,7 +1266,7 @@ const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
  $("#beginBtn").onclick=async()=>{
   const btn=$("#beginBtn");btn.classList.add("loading");btn.disabled=true;
   try{
-    if(src==="static")quiz=await api(`/api/quiz/static?topic=${encodeURIComponent(staticTopicValue)}&n=${segVal("lenStatic","n")}`);
+    if(src==="static")quiz=await api(`/api/quiz/static?topic=${encodeURIComponent(staticTopicValue)}&n=${segVal("lenStatic","n")}&difficulty=${segVal("diffStaticSeg","d")}`);
     else if(src==="ai"){
       const t=$("#aiTopic").value.trim();if(!t)throw new Error("Type a topic first");
       let n=parseInt(lenAiSlider.value)||4;
