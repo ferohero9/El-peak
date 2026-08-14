@@ -1097,7 +1097,7 @@
       align-self: flex-end;
       background: var(--gradient-primary);
       color: #fff;
-      border-bottom-right-radius: 4px;
+      border-bottom-right-radius:4px;
     }
 
     .msg.assistant {
@@ -2956,16 +2956,15 @@
   <script src="https://cdn.jsdelivr.net/npm/lenis@1.0.42/dist/lenis.min.js"></script>
   <script>
     // ================================================================
-    // LENIS BUTTER-SMOOTH SCROLL (from FILE 1 config)
+    // LENIS BUTTER-SMOOTH SCROLL (Optimized for buttery smoothness)
     // No scroll-behavior:smooth in CSS — Lenis RAF handles everything
     // ================================================================
     if (typeof Lenis !== 'undefined') {
       const lenis = new Lenis({
-        duration: 1.2,
-        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        lerp: 0.08, // Lower lerp makes the scroll more buttery and continuous
         smoothWheel: true,
-        mouseMultiplier: 1.0,
-        touchMultiplier: 2
+        wheelMultiplier: 1,
+        touchMultiplier: 1.5,
       });
 
       function raf(time) {
