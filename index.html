@@ -28,7 +28,7 @@
 
       --glass-bg: rgba(255, 255, 255, 0.03);
       --glass-bg-hover: rgba(255, 255, 255, 0.06);
-      --glass-bg-strong: rgba(255, 255, 255, 0.08);
+      --glass-bg-strong: rgba(12, 13, 26, 0.7);
       --glass-border: rgba(255, 255, 255, 0.08);
       --glass-border-strong: rgba(255, 255, 255, 0.14);
       --glass-highlight: rgba(255, 255, 255, 0.12);
@@ -82,7 +82,7 @@
       --radius-lg: 22px;
       --radius-xl: 28px;
 
-      --blur: 24px;
+      --blur: 20px;
       --blur-strong: 40px;
 
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -254,6 +254,8 @@
       padding: 22px;
       transition: border-color 0.35s var(--ease), box-shadow 0.35s var(--ease), transform 0.35s var(--ease);
       position: relative;
+      will-change: transform;
+      transform: translateZ(0);
     }
 
     .card::before {
@@ -375,7 +377,7 @@
        ================================================================ */
     input, select, textarea {
       width: 100%;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(12, 13, 26, 0.4);
       color: var(--text);
       border: 1px solid var(--glass-border);
       border-radius: var(--radius-md);
@@ -398,7 +400,7 @@
 
     input:focus, select:focus, textarea:focus {
       border-color: var(--indigo);
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(12, 13, 26, 0.6);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 0 15px rgba(99, 102, 241, 0.25);
     }
 
@@ -433,9 +435,11 @@
       border-color: var(--glass-border-strong);
     }
 
+    /* Custom Liquid Glass Select */
     select {
       appearance: none;
       -webkit-appearance: none;
+      background-color: rgba(12, 13, 26, 0.6);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238181cf' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 14px center;
@@ -444,51 +448,55 @@
     }
 
     select option {
-      background: #0c0d1a;
-      color: #e2e8f0;
+      background-color: #0c0d1a;
+      color: #f1f5f9;
       padding: 10px;
+      border-radius: 8px;
     }
 
     body.light select option {
-      background: #ffffff;
+      background-color: #ffffff;
       color: #0f172a;
     }
 
+    /* Custom Range Sliders */
     input[type="range"] {
       -webkit-appearance: none;
       appearance: none;
       width: 100%;
-      height: 6px;
+      height: 8px;
       background: rgba(255, 255, 255, 0.1);
       border-radius: 999px;
       outline: none;
       padding: 0;
-      box-shadow: none;
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.2) inset;
     }
 
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
-      background: #ffffff;
-      border: 2px solid #6366f1;
+      background: rgba(12, 13, 26, 0.8);
+      backdrop-filter: blur(8px);
+      border: 2px solid rgba(255, 255, 255, 0.2);
       cursor: pointer;
-      box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.5), 0 2px 4px rgba(0,0,0,0.3);
       transition: transform 0.2s var(--ease);
     }
 
     input[type="range"]::-webkit-slider-thumb:hover {
       transform: scale(1.2);
+      border-color: var(--indigo);
     }
 
     input[type="range"]::-moz-range-thumb {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
-      background: #ffffff;
-      border: 2px solid #6366f1;
+      background: rgba(12, 13, 26, 0.8);
+      border: 2px solid rgba(255, 255, 255, 0.2);
       cursor: pointer;
       box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
     }
@@ -605,31 +613,41 @@
     }
 
     /* ================================================================
-       TOPBAR
+       TOPBAR (Floating Glass Pill)
        ================================================================ */
     header.topbar {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: fit-content;
+      min-width: 500px;
+      max-width: calc(100% - 32px);
+      z-index: 60;
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      padding: 20px 0 12px;
-      position: sticky;
-      top: 0;
-      z-index: 40;
-      background: linear-gradient(to bottom, var(--bg-deep) 50%, transparent);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      padding: 8px 16px;
+      background: rgba(8, 9, 16, 0.65);
+      backdrop-filter: blur(24px) saturate(1.5);
+      -webkit-backdrop-filter: blur(24px) saturate(1.5);
+      border: 1px solid var(--glass-border);
+      border-radius: 999px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.1);
+      will-change: transform;
     }
 
     .logo {
       font-family: var(--font-display);
       font-weight: 900;
-      font-size: 26px;
+      font-size: 22px;
       letter-spacing: -0.03em;
       background: var(--gradient-text);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
+      padding-left: 8px;
     }
 
     .top-actions {
@@ -640,16 +658,14 @@
     }
 
     .pill {
-      padding: 9px 14px;
+      padding: 6px 12px;
       border-radius: 999px;
       background: var(--glass-bg);
       border: 1px solid var(--glass-border);
       color: var(--text-soft);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       white-space: nowrap;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       transition: all 0.25s var(--ease);
     }
 
@@ -659,34 +675,36 @@
     }
 
     #streakPill {
-      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(239, 68, 68, 0.08));
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.1));
       border-color: rgba(245, 158, 11, 0.2);
       color: #fbbf24;
     }
 
     #tierPill {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
       border-color: rgba(99, 102, 241, 0.2);
       color: var(--indigo-light);
     }
 
     /* ================================================================
-       NAVIGATION
+       NAVIGATION (Centered Floating Glass)
        ================================================================ */
     nav.main-nav {
+      position: fixed;
+      top: 76px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 55;
       display: inline-flex;
       gap: 4px;
       padding: 6px;
-      margin: 12px 0 28px;
-      background: var(--glass-bg);
+      background: rgba(8, 9, 16, 0.65);
       border: 1px solid var(--glass-border);
       border-radius: 999px;
-      backdrop-filter: blur(var(--blur)) saturate(1.5);
-      -webkit-backdrop-filter: blur(var(--blur)) saturate(1.5);
-      box-shadow: var(--shadow-md);
-      position: sticky;
-      top: 64px;
-      z-index: 35;
+      backdrop-filter: blur(24px) saturate(1.5);
+      -webkit-backdrop-filter: blur(24px) saturate(1.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      will-change: transform;
     }
 
     .nav-btn {
@@ -694,22 +712,22 @@
       background: transparent;
       color: var(--muted-light);
       border-radius: 999px;
-      padding: 10px 18px;
+      padding: 8px 16px;
       cursor: pointer;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
       white-space: nowrap;
       transition: all 0.3s var(--ease);
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       position: relative;
     }
 
     .nav-btn::before {
       content: "";
-      width: 17px;
-      height: 17px;
+      width: 16px;
+      height: 16px;
       background: currentColor;
       flex-shrink: 0;
       -webkit-mask-repeat: no-repeat;
@@ -760,6 +778,7 @@
        MAIN & GRID
        ================================================================ */
     main { 
+      padding-top: 140px; 
       padding-bottom: 120px; 
       position: relative;
       z-index: 1;
@@ -771,7 +790,7 @@
     }
 
     .grid.stats {
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       margin-bottom: 16px;
     }
 
@@ -780,7 +799,7 @@
     }
 
     .grid.stats .card {
-      padding: 18px 20px;
+      padding: 16px 18px;
       overflow: hidden;
     }
 
@@ -797,16 +816,16 @@
 
     .stat-label {
       color: var(--muted-light);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.05em;
       text-transform: uppercase;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .stat-value {
       font-family: var(--font-display);
-      font-size: 34px;
+      font-size: 30px;
       font-weight: 800;
       letter-spacing: -0.03em;
       background: var(--gradient-text);
@@ -818,7 +837,7 @@
 
     .section-title {
       margin: 0 0 16px;
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 700;
       letter-spacing: -0.02em;
     }
@@ -874,7 +893,7 @@
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      padding: 13px 0;
+      padding: 12px 0;
       border-bottom: 1px solid var(--glass-border);
       font-size: 14px;
       transition: padding-left 0.25s var(--ease);
@@ -894,7 +913,7 @@
 
     .heat-cell {
       aspect-ratio: 1;
-      border-radius: 7px;
+      border-radius: 6px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.03);
       transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
@@ -936,7 +955,7 @@
 
     .option-btn {
       text-align: left;
-      padding: 15px 16px;
+      padding: 14px 16px;
       border-radius: var(--radius-md);
       border: 1px solid var(--glass-border);
       background: var(--glass-bg);
@@ -976,7 +995,7 @@
     #questionText {
       font-family: var(--font-display);
       margin-top: 18px;
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 700;
       line-height: 1.45;
       letter-spacing: -0.02em;
@@ -997,7 +1016,7 @@
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 10px;
-      padding: 15px 0;
+      padding: 14px 0;
       border-bottom: 1px solid var(--glass-border);
       transition: background 0.2s var(--ease);
     }
@@ -1046,7 +1065,7 @@
     /* ================================================================
        USAGE BARS
        ================================================================ */
-    .usage-bar { margin: 14px 0 20px; }
+    .usage-bar { margin: 12px 0 18px; }
 
     /* ================================================================
        PLANS
@@ -1059,7 +1078,7 @@
     }
 
     .plan-card {
-      padding: 22px;
+      padding: 20px;
       border-radius: var(--radius-lg);
       border: 1px solid var(--glass-border);
       background: var(--glass-bg);
@@ -1127,16 +1146,16 @@
       position: fixed;
       right: 22px;
       bottom: 22px;
-      width: 60px;
-      height: 60px;
+      width: 56px;
+      height: 56px;
       border-radius: 999px;
       border: 0;
-      font-size: 26px;
+      font-size: 24px;
       cursor: pointer;
       background: var(--gradient-primary);
       color: white;
       box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-      z-index: 60;
+      z-index: 70;
       transition: transform 0.3s var(--ease-spring), box-shadow 0.3s var(--ease);
       display: flex;
       align-items: center;
@@ -1153,10 +1172,10 @@
     .tutor-panel {
       position: fixed;
       right: 22px;
-      bottom: 94px;
-      width: min(420px, calc(100vw - 44px));
-      height: min(560px, 70vh);
-      z-index: 70;
+      bottom: 88px;
+      width: min(380px, calc(100vw - 44px));
+      height: min(540px, 70vh);
+      z-index: 75;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -1173,7 +1192,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 18px;
+      padding: 14px 18px;
       border-bottom: 1px solid var(--glass-border);
     }
 
@@ -1184,12 +1203,15 @@
       display: grid;
       gap: 10px;
       padding: 16px;
+      -webkit-overflow-scrolling: touch;
+      will-change: transform;
+      transform: translateZ(0);
     }
 
     .msg {
       max-width: 88%;
       padding: 12px 14px;
-      border-radius: 18px;
+      border-radius: 16px;
       line-height: 1.5;
       font-size: 14px;
       animation: msgIn 0.3s var(--ease-out);
@@ -1235,7 +1257,7 @@
     .tutor-input {
       display: flex;
       gap: 8px;
-      padding: 14px;
+      padding: 12px;
       border-top: 1px solid var(--glass-border);
     }
 
@@ -1263,11 +1285,14 @@
     }
 
     .modal-card {
-      width: min(760px, 100%);
+      width: min(720px, 100%);
       max-height: 90vh;
       overflow: auto;
-      padding: 28px;
+      padding: 24px;
       animation: modalIn 0.4s var(--ease-spring);
+      -webkit-overflow-scrolling: touch;
+      will-change: transform;
+      transform: translateZ(0);
     }
 
     @keyframes modalIn {
@@ -1286,11 +1311,11 @@
       z-index: 100;
       display: grid;
       gap: 8px;
-      width: min(560px, calc(100vw - 32px));
+      width: min(520px, calc(100vw - 32px));
     }
 
     .toast {
-      padding: 14px 18px;
+      padding: 12px 18px;
       border-radius: var(--radius-md);
       background: var(--glass-bg-strong);
       border: 1px solid var(--glass-border);
@@ -1357,44 +1382,53 @@
     @media (max-width: 768px) {
       .app { width: min(1240px, calc(100% - 20px)); }
 
+      header.topbar {
+        top: 12px;
+        width: calc(100% - 24px);
+        max-width: none;
+        min-width: 0;
+        border-radius: 16px;
+        padding: 6px 12px;
+      }
+
+      .logo { font-size: 18px; }
+      .top-actions .pill { font-size: 10px; padding: 4px 8px; }
+      .top-actions .btn.small { padding: 6px 8px; font-size: 11px; }
+
       nav.main-nav {
-        position: fixed;
+        top: auto;
         bottom: 16px;
         left: 16px;
         right: 16px;
-        top: auto;
+        transform: none;
         width: auto;
         justify-content: space-around;
-        border-radius: var(--radius-lg);
-        padding: 8px;
-        margin: 0;
+        border-radius: 18px;
+        padding: 6px;
       }
 
       .nav-btn {
         flex-direction: column;
         gap: 4px;
         padding: 8px 6px;
-        font-size: 11px;
+        font-size: 10px;
         flex: 1;
         justify-content: center;
       }
 
-      .nav-btn::before { width: 20px; height: 20px; }
-
+      .nav-btn::before { width: 18px; height: 18px; }
       .nav-btn.active { box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3); }
 
-      main { padding-bottom: 100px; }
+      main { 
+        padding-top: 80px; 
+        padding-bottom: 100px; 
+      }
 
-      header.topbar { padding: 14px 0 8px; }
+      .tutor-toggle { width: 48px; height: 48px; bottom: 86px; font-size: 20px; }
+      .tutor-panel { bottom: 140px; width: calc(100vw - 32px); }
 
-      .top-actions .pill { font-size: 12px; padding: 7px 11px; }
-
-      .tutor-toggle { width: 54px; height: 54px; bottom: 86px; }
-      .tutor-panel { bottom: 150px; }
-
-      .stat-value { font-size: 28px; }
-
-      #questionText { font-size: 19px; }
+      .stat-value { font-size: 24px; }
+      #questionText { font-size: 18px; }
 
       .heatmap { grid-template-columns: repeat(7, 1fr); }
 
@@ -1403,7 +1437,6 @@
 
     @media (max-width: 480px) {
       .brand { font-size: 32px; }
-      .logo { font-size: 22px; }
       .auth-card { padding: 28px 22px; }
       .grid.stats { grid-template-columns: repeat(2, 1fr); }
     }
@@ -1520,7 +1553,7 @@
 
           <div class="card">
             <div class="stat-label" data-i18n="bestTopic">Best Topic</div>
-            <div class="stat-value" id="statBest" style="font-size:18px; line-height:1.35;">—</div>
+            <div class="stat-value" id="statBest" style="font-size:16px; line-height:1.35;">—</div>
           </div>
         </div>
 
@@ -1631,7 +1664,7 @@
 
           <div class="muted small" id="quizProgress">Q 1/1</div>
 
-          <div id="questionText" style="margin-top:16px; font-size:22px; font-weight:800; line-height:1.45;"></div>
+          <div id="questionText" style="margin-top:16px; font-size:20px; font-weight:800; line-height:1.45;"></div>
 
           <div id="questionContext" class="muted small" style="margin-top:8px;"></div>
 
@@ -1644,7 +1677,7 @@
 
         <div class="card hidden" id="quizResultCard" style="margin-top:16px">
           <h3 class="section-title" data-i18n="ascentComplete">Ascent Complete</h3>
-          <div id="quizResultText" style="font-size:48px; font-weight:900; margin:10px 0 16px;"></div>
+          <div id="quizResultText" style="font-size:42px; font-weight:900; margin:10px 0 16px;"></div>
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <button class="btn secondary" id="againQuizBtn" data-i18n="again">Again</button>
             <button class="btn" id="dashboardAfterQuizBtn" data-i18n="dashboard">Dashboard</button>
@@ -1732,7 +1765,7 @@
             <div class="plans">
               <div class="plan-card" id="plusBox">
                 <h3>Plus</h3>
-                <div style="font-size:30px; font-weight:900;">99 EGP <span class="muted small">/ month</span></div>
+                <div style="font-size:28px; font-weight:900;">99 EGP <span class="muted small">/ month</span></div>
                 <ul class="muted small">
                   <li>500 AI Questions</li>
                   <li>50 PDF Uploads</li>
@@ -1743,7 +1776,7 @@
 
               <div class="plan-card" id="proBox">
                 <h3>Pro</h3>
-                <div style="font-size:30px; font-weight:900;">199 EGP <span class="muted small">/ month</span></div>
+                <div style="font-size:28px; font-weight:900;">199 EGP <span class="muted small">/ month</span></div>
                 <ul class="muted small">
                   <li>2000 AI Questions</li>
                   <li>200 PDF Uploads</li>
@@ -3103,6 +3136,23 @@
 
       updateQuizSourceUI();
     });
+  </script>
+  <script src="https://unpkg.com/lenis@1.0.42/dist/lenis.min.js"></script>
+  <script>
+    // Initialize Lenis for buttery smooth scrolling without layout thrashing
+    if (typeof Lenis !== 'undefined') {
+      const lenis = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        smoothWheel: true,
+      });
+
+      function raf(time) {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+      }
+      requestAnimationFrame(raf);
+    }
   </script>
 </body>
 </html>
