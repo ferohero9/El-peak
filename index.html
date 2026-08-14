@@ -6,7 +6,7 @@
   <title>El-Peak · Study Companion</title>
 
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#05050a" />
+  <meta name="theme-color" content="#070710" />
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 20 L8 6 L12 14 L15 9 L21 20' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 
@@ -22,13 +22,13 @@
        DESIGN TOKENS
        ================================================================ */
     :root {
-      --bg-deep: #05050a;
-      --bg-mid: #080910;
+      --bg-deep: #070710;
+      --bg-mid: #0b0c16;
       --bg-soft: #0c0d1a;
 
-      --glass-bg: rgba(255, 255, 255, 0.03);
-      --glass-bg-hover: rgba(255, 255, 255, 0.06);
-      --glass-bg-strong: rgba(12, 13, 26, 0.7);
+      --glass-bg: rgba(12, 13, 26, 0.5);
+      --glass-bg-hover: rgba(12, 13, 26, 0.65);
+      --glass-bg-strong: rgba(12, 13, 26, 0.8);
       --glass-border: rgba(255, 255, 255, 0.08);
       --glass-border-strong: rgba(255, 255, 255, 0.14);
       --glass-highlight: rgba(255, 255, 255, 0.12);
@@ -40,7 +40,7 @@
       --cyan: #06b6d4;
       --cyan-light: #22d3ee;
 
-      --gradient-primary: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #06b6d4 100%);
+      --gradient-primary: linear-gradient(90deg, #6366f1, #06b6d4);
       --gradient-accent: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
       --gradient-text: linear-gradient(135deg, #818cf8 0%, #c084fc 40%, #22d3ee 100%);
 
@@ -79,10 +79,10 @@
 
       --radius-sm: 12px;
       --radius-md: 16px;
-      --radius-lg: 22px;
+      --radius-lg: 20px;
       --radius-xl: 28px;
 
-      --blur: 20px;
+      --blur: 24px;
       --blur-strong: 40px;
 
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -131,9 +131,7 @@
        ================================================================ */
     *, *::before, *::after { box-sizing: border-box; }
 
-    html { 
-      scroll-behavior: smooth; 
-    }
+    /* Removed scroll-behavior: smooth to prevent conflict with Lenis */
 
     body {
       margin: 0;
@@ -191,7 +189,7 @@
     .blob-a {
       width: 600px;
       height: 600px;
-      background: #4f46e5;
+      background: #6366f1;
       top: -200px;
       left: -150px;
       animation: float-a 22s ease-in-out infinite;
@@ -200,7 +198,7 @@
     .blob-b {
       width: 700px;
       height: 700px;
-      background: #9333ea;
+      background: #a855f7;
       top: 25%;
       right: -250px;
       animation: float-b 28s ease-in-out infinite;
@@ -209,7 +207,7 @@
     .blob-c {
       width: 500px;
       height: 500px;
-      background: #0891b2;
+      background: #22d3ee;
       bottom: -150px;
       left: 25%;
       animation: float-c 25s ease-in-out infinite;
@@ -323,15 +321,13 @@
       pointer-events: none;
     }
 
-    .btn:hover {
+    .btn:hover, .btn:active {
       transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 8px 32px rgba(99, 102, 241, 0.35), 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4), 0 1px 0 rgba(255, 255, 255, 0.2) inset;
       filter: brightness(1.08);
     }
 
     .btn:hover::after { transform: translateX(120%); }
-
-    .btn:active { transform: translateY(0) scale(0.98); }
 
     .btn:disabled {
       opacity: 0.45;
@@ -439,6 +435,7 @@
     select {
       appearance: none;
       -webkit-appearance: none;
+      -moz-appearance: none;
       background-color: rgba(12, 13, 26, 0.6);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238181cf' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
@@ -447,16 +444,29 @@
       cursor: pointer;
     }
 
+    body.light select {
+      background-color: rgba(255, 255, 255, 0.6);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    }
+
     select option {
       background-color: #0c0d1a;
       color: #f1f5f9;
-      padding: 10px;
+      padding: 12px;
       border-radius: 8px;
     }
 
     body.light select option {
       background-color: #ffffff;
       color: #0f172a;
+    }
+
+    select:focus {
+      background-color: rgba(12, 13, 26, 0.8);
+    }
+
+    body.light select:focus {
+      background-color: rgba(255, 255, 255, 0.95);
     }
 
     /* Custom Range Sliders */
@@ -771,7 +781,7 @@
     .nav-btn.active {
       color: white;
       background: var(--gradient-primary);
-      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
     }
 
     /* ================================================================
@@ -843,7 +853,7 @@
     }
 
     /* ================================================================
-       TOPIC LIST (Mastery)
+       TOPIC LIST (Mastery) & USAGE BARS
        ================================================================ */
     .topic-row { margin-bottom: 15px; }
 
@@ -871,6 +881,7 @@
       border-radius: 999px;
       transition: width 0.5s var(--ease-out);
       position: relative;
+      background: linear-gradient(90deg, #6366f1, #22d3ee);
     }
 
     .bar-fill::after {
@@ -885,6 +896,8 @@
       0% { transform: translateX(-100%); }
       100% { transform: translateX(100%); }
     }
+
+    .usage-bar { margin: 12px 0 18px; }
 
     /* ================================================================
        LIST ITEMS
@@ -1061,11 +1074,6 @@
       border-color: rgba(239, 68, 68, 0.25);
       background: rgba(239, 68, 68, 0.08);
     }
-
-    /* ================================================================
-       USAGE BARS
-       ================================================================ */
-    .usage-bar { margin: 12px 0 18px; }
 
     /* ================================================================
        PLANS
@@ -1269,7 +1277,7 @@
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(5, 5, 10, 0.7);
+      background: rgba(7, 7, 16, 0.7);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       display: grid;
@@ -1293,6 +1301,7 @@
       -webkit-overflow-scrolling: touch;
       will-change: transform;
       transform: translateZ(0);
+      z-index: 91;
     }
 
     @keyframes modalIn {
@@ -1360,16 +1369,28 @@
     }
 
     /* ================================================================
-       SCROLLBAR
+       SCROLLBAR (Custom Futuristic Glass)
        ================================================================ */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 999px;
+    ::-webkit-scrollbar { 
+      width: 8px; 
+      height: 8px; 
+    }
+    ::-webkit-scrollbar-track { 
+      background: rgba(7, 7, 16, 0.6); 
+    }
+    ::-webkit-scrollbar-thumb { 
+      background: rgba(99, 102, 241, 0.4); 
+      border-radius: 9999px; 
+      border: 1px solid rgba(255, 255, 255, 0.08); 
     }
     ::-webkit-scrollbar-thumb:hover { 
-      background: var(--indigo); 
+      background: rgba(99, 102, 241, 0.8); 
+    }
+
+    /* Firefox */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
     }
 
     /* ================================================================
@@ -1752,12 +1773,12 @@
 
             <div class="usage-bar">
               <div class="small muted" id="aiUsageLabel">AI Questions</div>
-              <div class="bar"><div class="bar-fill" id="aiUsageBar" style="width:0%; background:var(--primary);"></div></div>
+              <div class="bar"><div class="bar-fill" id="aiUsageBar" style="width:0%;"></div></div>
             </div>
 
             <div class="usage-bar">
               <div class="small muted" id="pdfUsageLabel">PDF Uploads</div>
-              <div class="bar"><div class="bar-fill" id="pdfUsageBar" style="width:0%; background:var(--ok);"></div></div>
+              <div class="bar"><div class="bar-fill" id="pdfUsageBar" style="width:0%;"></div></div>
             </div>
 
             <h3 class="section-title" style="margin-top:24px" data-i18n="upgradePlan">Upgrade Plan</h3>
@@ -3145,6 +3166,7 @@
         duration: 1.2,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         smoothWheel: true,
+        touchMultiplier: 2
       });
 
       function raf(time) {
