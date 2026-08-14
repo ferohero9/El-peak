@@ -1,44 +1,62 @@
 """
-El-Peak — FastAPI backend v11 (Production Ready, Edu-Stages, Rate Limits).
+El-Peak — FastAPI backend v12
+Production-oriented, safer, more reliable, improved quiz engine,
+better payments, better AI handling, better PDF pipeline.
 """
+
 import io
 import os
-import random
 import re
 import json
 import time
 import hmac
 import hashlib
+import logging
+import secrets
+import shutil
+import random
 import datetime as dt
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional, List, Dict, Any
+from contextlib import asynccontextmanager
 
 import httpx
-import pymupdf as fitz
-import pytesseract
-from PIL import Image
 import fastapi
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Depends, status, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Depends, status, Request, Query
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+
 from pydantic import BaseModel, Field, EmailStr
+
 import jwt
 import bcrypt
-import secrets
-from itsdangerous import URLSafeSerializer
+from itsdangerous import URLSafeSerializer, BadSignature
 
 import database as db
 
+# Optional PDF dependencies
 try:
-    import fitz
+    import pymupdf as fitz
     import pytesseract
     from PIL import Image
-    PDF_OCR_ENABLED = True
-except ImportError:
-    PDF_OCR_ENABLED = False
+    PDF_IMPORT_OK = True
+except Exception:
+    fitz = None
+    pytesseract = None
+    Image = None
+    PDF_IMPORT_OK = False
 
-env_path = Path(__file__).parent / "key.env"
+PDF_TESSERACT_OK = shutil.which("tesseract") is not None
+PDF_OCR_ENABLED = PDF_IMPORT_OK and PDF_TESSERACT_OK
+
+BASE_DIR = Path(__file__).resolve().parent
+
+# Load local env files if present
+env_path = BASE_DIR / ".env"
+if not env_path.exists():
+    env_path = BASE_DIR / "key.env"
+
 try:
     from dotenv import load_dotenv
     if env_path.exists():
@@ -46,64 +64,91 @@ try:
 except ImportError:
     pass
 
-# --- CONFIG ---
-app = FastAPI(title="El-Peak API", version="11.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("el-peak")
+
+# -----------------------------
+# CONFIG
+# -----------------------------
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
+DEBUG = os.getenv("DEBUG", "true" if ENVIRONMENT != "production" else "false").strip().lower() in ("1", "true", "yes", "on")
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if ENVIRONMENT == "production":
+        raise RuntimeError("SECRET_KEY must be set in production.")
+    SECRET_KEY = "el_peak_local_dev_secret_change_me"
+    logger.warning("SECRET_KEY not set. Using insecure development key.")
+
+ALGORITHM = "HS256"
+
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-INDEX = Path(__file__).parent / "templates" / "index.html"
 
 PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY")
 PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "12345")
 PAYMOB_IFRAME_ID = os.getenv("PAYMOB_IFRAME_ID", "12345")
 PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "el_peak_super_secret_dev_key_change_in_production")
-ALGORITHM = "HS256"
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+REDIRECT_URI = os.getenv(
+    "REDIRECT_URI",
+    "https://el-peak-production.up.railway.app/api/auth/google/callback"
+)
 
-def hash_password(password: str) -> str:
-    pwd_bytes = password.encode('utf-8')
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
+RATE_LIMIT_SECONDS = int(os.getenv("RATE_LIMIT_SECONDS", "15"))
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    pwd_bytes = plain_password.encode('utf-8')
-    hashed_bytes = hashed_password.encode('utf-8')
-    return bcrypt.checkpw(pwd_bytes, hashed_bytes)
+ALLOW_SIMULATED_PAYMENTS_RAW = os.getenv("ALLOW_SIMULATED_PAYMENTS")
+if ALLOW_SIMULATED_PAYMENTS_RAW is None:
+    ALLOW_SIMULATED_PAYMENTS = ENVIRONMENT != "production"
+else:
+    ALLOW_SIMULATED_PAYMENTS = ALLOW_SIMULATED_PAYMENTS_RAW.strip().lower() in ("1", "true", "yes", "on")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+INDEX = BASE_DIR / "index.html"
+if not INDEX.exists():
+    INDEX = BASE_DIR / "templates" / "index.html"
 
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expire = dt.datetime.utcnow() + dt.timedelta(days=30)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+session_serializer = URLSafeSerializer(SECRET_KEY, salt="oauth")
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id_str = payload.get("sub")
-        if user_id_str is None:
-            raise credentials_exception
-        user_id = int(user_id_str)
-    except jwt.PyJWTError:
-        raise credentials_exception
-    
-    user_email = payload.get("email")
-    if user_id is None or user_email is None:
-        raise credentials_exception
-    return {"id": user_id, "email": user_email}
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+# -----------------------------
+# TIER CONFIG
+# -----------------------------
 
 TIER_LIMITS = {
-    "free": {"ai_questions": 30, "pdf_uploads": 3},
-    "plus": {"ai_questions": 500, "pdf_uploads": 50},
-    "pro": {"ai_questions": 2000, "pdf_uploads": 200}
+    "free": {
+        "ai_questions": 30,
+        "pdf_uploads": 3,
+        "pdf_max_mb": 1,
+        "pdf_max_pages": 20,
+        "pdf_max_ocr_pages": 5,
+        "max_ai_questions_per_request": 8
+    },
+    "plus": {
+        "ai_questions": 500,
+        "pdf_uploads": 50,
+        "pdf_max_mb": 15,
+        "pdf_max_pages": 40,
+        "pdf_max_ocr_pages": 10,
+        "max_ai_questions_per_request": 15
+    },
+    "pro": {
+        "ai_questions": 2000,
+        "pdf_uploads": 200,
+        "pdf_max_mb": 15,
+        "pdf_max_pages": 60,
+        "pdf_max_ocr_pages": 15,
+        "max_ai_questions_per_request": 30
+    }
 }
 
 TIER_MODELS = {
@@ -112,36 +157,269 @@ TIER_MODELS = {
     "pro": "llama-3.3-70b-versatile"
 }
 
-TIER_PRICES = {"plus": 9900, "pro": 19900}
+TIER_FALLBACK_MODELS = {
+    "free": [
+        "llama-3.1-8b-instant"
+    ],
+    "plus": [
+        "openai/gpt-oss-20b",
+        "llama-3.1-8b-instant"
+    ],
+    "pro": [
+        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-20b",
+        "llama-3.1-8b-instant"
+    ]
+}
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("REDIRECT_URI", "https://el-peak-production.up.railway.app/api/auth/google/callback")
-session_serializer = URLSafeSerializer(SECRET_KEY, salt="oauth")
+TIER_PRICES = {
+    "plus": 9900,
+    "pro": 19900
+}
 
-# --- RATE LIMITING ---
-_rate_limits = {} 
-RATE_LIMIT_SECONDS = 15
+# -----------------------------
+# HELPERS
+# -----------------------------
 
-def check_rate_limit(user_id: int):
-    now = time.time()
-    if now < _rate_limits.get(user_id, 0):
-        wait_time = int(_rate_limits[user_id] - now)
-        raise HTTPException(429, f"Rate limit reached: Please wait {wait_time} seconds before generating more AI content.")
-    _rate_limits[user_id] = now + RATE_LIMIT_SECONDS
+def hash_password(password: str) -> str:
+    pwd_bytes = password.encode("utf-8")
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
-# --- SCHEMAS ---
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8")
+        )
+    except Exception:
+        return False
+
+def create_access_token(data: dict, days: int = 30) -> str:
+    to_encode = data.copy()
+    expire = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=days)
+    to_encode.update({
+        "exp": expire,
+        "iat": dt.datetime.now(dt.timezone.utc),
+        "type": "access"
+    })
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def effective_tier_from_user(user: dict) -> str:
+    tier = (user.get("tier") or "free").strip().lower()
+    if tier == "free":
+        return "free"
+
+    expires_raw = user.get("subscription_expires_at")
+    subscription_status = (user.get("subscription_status") or "").strip().lower()
+
+    if not expires_raw:
+        # Backwards compatibility for older paid users without expiry.
+        return tier
+
+    try:
+        expires = db.parse_dt(expires_raw)
+        now = dt.datetime.utcnow()
+        if expires >= now:
+            return tier
+        return "free"
+    except Exception:
+        if subscription_status == "active":
+            return tier
+        return "free"
+
+def normalize_grade(value: Optional[str]) -> str:
+    if not value:
+        return "general"
+
+    v = str(value).strip().lower()
+
+    if v in ("g1-6", "primary", "primary (1-6)", "primary (1 - 6)", "p1-6"):
+        return "g1-6"
+
+    if v in ("g7-9", "preparatory", "preparatory (7-9)", "preparatory (7 - 9)", "prep"):
+        return "g7-9"
+
+    if v in ("g10-12", "secondary", "secondary (10-12)", "secondary (10 - 12)", "sec"):
+        return "g10-12"
+
+    if "primary" in v or "1-6" in v:
+        return "g1-6"
+
+    if "preparatory" in v or "7-9" in v:
+        return "g7-9"
+
+    if "secondary" in v or "10-12" in v:
+        return "g10-12"
+
+    return "general"
+
+def grade_difficulty_key(grade: str, difficulty: str) -> str:
+    grade = normalize_grade(grade)
+    difficulty = (difficulty or "mixed").strip().lower()
+
+    mapping = {
+        "g1-6": {
+            "easy": "1-2",
+            "mixed": "3-4",
+            "hard": "5-6"
+        },
+        "g7-9": {
+            "easy": "7",
+            "mixed": "8",
+            "hard": "9"
+        },
+        "g10-12": {
+            "easy": "10",
+            "mixed": "11",
+            "hard": "12"
+        },
+        "general": {
+            "easy": "easy",
+            "mixed": "mixed",
+            "hard": "hard"
+        }
+    }
+
+    return mapping.get(grade, mapping["general"]).get(difficulty, "mixed")
+
+def _unique_models(models: List[str]) -> List[str]:
+    seen = set()
+    out = []
+    for model in models:
+        if model and model not in seen:
+            seen.add(model)
+            out.append(model)
+    return out
+
+def _paymob_configured() -> bool:
+    try:
+        integration_id = int(PAYMOB_INTEGRATION_ID)
+        iframe_id = int(PAYMOB_IFRAME_ID)
+    except Exception:
+        return False
+
+    return bool(
+        PAYMOB_API_KEY and
+        integration_id != 12345 and
+        iframe_id != 12345
+    )
+
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("1", "true", "yes", "y")
+
+def _hmac_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+def _clean_questions(data: Any, limit: int) -> List[dict]:
+    if isinstance(data, list):
+        qs = data
+    elif isinstance(data, dict):
+        qs = data.get("questions", [])
+    else:
+        qs = []
+
+    clean = []
+
+    for q in qs[:limit]:
+        if not isinstance(q, dict):
+            continue
+
+        question = str(q.get("question", "")).strip()
+        raw_options = q.get("options", [])
+
+        if not isinstance(raw_options, list):
+            continue
+
+        options = []
+        for opt in raw_options[:6]:
+            opt_str = str(opt).strip()
+            if opt_str:
+                options.append(opt_str)
+
+        if not question or len(options) < 3:
+            continue
+
+        answer_index = None
+
+        try:
+            answer_index = int(q.get("answer_index", 0))
+        except Exception:
+            answer_index = None
+
+        if answer_index is None or answer_index < 0 or answer_index >= len(options):
+            answer_text = str(q.get("answer", "")).strip().lower()
+            found = False
+            if answer_text:
+                for i, opt in enumerate(options):
+                    if opt.strip().lower() == answer_text:
+                        answer_index = i
+                        found = True
+                        break
+            if not found:
+                answer_index = 0
+
+        explanation = str(q.get("explanation", "—")).strip() or "—"
+        context = str(q.get("context", "")).strip()
+
+        clean.append({
+            "question": question,
+            "options": options,
+            "answer_index": answer_index,
+            "explanation": explanation,
+            "context": context
+        })
+
+    return clean
+
+def extract_json(text: str) -> Any:
+    candidates = [text.strip()]
+
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if fence:
+        candidates.insert(0, fence.group(1).strip())
+
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+
+        lo = candidate.find("{")
+        hi = candidate.rfind("}")
+        if lo != -1 and hi > lo:
+            try:
+                return json.loads(candidate[lo:hi + 1])
+            except Exception:
+                pass
+
+    raise ValueError("No parseable JSON in model response")
+
+# -----------------------------
+# PYDANTIC SCHEMAS
+# -----------------------------
+
 class SignupIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
+    username: Optional[str] = None
+    language: str = "en"
     user_type: str = "general"
-    grade: str | None = None
+    grade: Optional[str] = None
 
 class SubmitIn(BaseModel):
-    topic_name: str = Field(min_length=1)
+    topic_name: Optional[str] = None
+    topic: Optional[str] = None
     correct: int = Field(ge=0)
     total: int = Field(ge=1)
     source: str = "static"
+    session_id: Optional[int] = None
 
 class AIQuizIn(BaseModel):
     topic: str = Field(min_length=1)
@@ -150,238 +428,1356 @@ class AIQuizIn(BaseModel):
 
 class TaskIn(BaseModel):
     title: str = Field(min_length=1)
-    topic: str | None = None
+    topic: Optional[str] = None
     deadline: str = Field(min_length=10)
 
 class AskIn(BaseModel):
     question: str = Field(min_length=1)
-    history: list = []
+    history: List[dict] = []
 
 class CheckoutIn(BaseModel):
     tier: str
 
 class SettingsIn(BaseModel):
-    username: str | None = None
+    username: Optional[str] = None
     language: str = "en"
     user_type: str = "general"
-    grade: str | None = None
+    grade: Optional[str] = None
 
 class PasswordIn(BaseModel):
     old_password: str
     new_password: str = Field(min_length=6)
 
-# --- LIFECYCLE & STATIC ---
-@app.on_event("startup")
-async def startup():
+class GoogleExchangeIn(BaseModel):
+    code: str
+
+# -----------------------------
+# APP + LIFECYCLE
+# -----------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     await db.init_db()
-    if os.getenv("GROQ_API_KEY"):
-        print("✅ GROQ_API_KEY found!")
+    await db.cleanup_old_pdf_attempts()
+    logger.info("El-Peak startup complete.")
+    yield
+    await db.close_pool()
+    logger.info("El-Peak shutdown complete.")
+
+app = FastAPI(
+    title="El-Peak API",
+    version="12.0",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+
+    if request.url.path.startswith("/api"):
+        response.headers.setdefault("Cache-Control", "no-store")
+
+    return response
+
+# -----------------------------
+# AUTH DEPENDENCY
+# -----------------------------
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> dict:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id_raw = payload.get("sub")
+        if user_id_raw is None:
+            raise credentials_exception
+        user_id = int(user_id_raw)
+    except jwt.PyJWTError:
+        raise credentials_exception
+    except Exception:
+        raise credentials_exception
+
+    user = await db.get_user_full(user_id)
+    if not user:
+        raise credentials_exception
+
+    user["effective_tier"] = effective_tier_from_user(user)
+    return user
+
+async def check_rate_limit(user_id: int):
+    allowed, wait_seconds = await db.check_ai_rate_limit(user_id, RATE_LIMIT_SECONDS)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit reached. Please wait {wait_seconds} seconds before generating more AI content."
+        )
+
+# -----------------------------
+# GROQ
+# -----------------------------
+
+async def groq_chat(
+    messages: List[dict],
+    temperature: float = 0.6,
+    max_tokens: int = 1200,
+    model_override: Optional[str] = None,
+    timeout: int = 60
+) -> str:
+    key = os.getenv("GROQ_API_KEY")
+    if not key:
+        raise RuntimeError("Missing GROQ_API_KEY.")
+
+    model_to_use = model_override or GROQ_MODEL
+
+    payload = {
+        "model": model_to_use,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens
+    }
+
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json"
+    }
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        r = await client.post(GROQ_URL, headers=headers, json=payload)
+
+        if r.status_code != 200:
+            try:
+                err = r.json()
+                err_msg = err.get("error", {}).get("message", str(err))
+            except Exception:
+                err_msg = r.text
+
+            logger.error("GROQ API ERROR %s: %s", r.status_code, err_msg)
+            raise RuntimeError(f"Groq API Error: {err_msg}")
+
+        data = r.json()
+        return data["choices"][0]["message"]["content"]
+
+async def groq_chat_with_fallback(
+    messages: List[dict],
+    tier: str,
+    temperature: float = 0.6,
+    max_tokens: int = 1200,
+    model_override: Optional[str] = None
+) -> str:
+    tier = (tier or "free").strip().lower()
+
+    models = []
+    if model_override:
+        models.append(model_override)
+
+    models.append(TIER_MODELS.get(tier, GROQ_MODEL))
+    models.extend(TIER_FALLBACK_MODELS.get(tier, [GROQ_MODEL]))
+
+    models = _unique_models(models)
+    last_error = None
+
+    for model in models:
+        try:
+            return await groq_chat(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                model_override=model
+            )
+        except Exception as e:
+            last_error = e
+            logger.warning("Groq model %s failed: %s", model, str(e))
+            continue
+
+    raise last_error or RuntimeError("Groq unavailable.")
+
+# -----------------------------
+# STATIC QUIZ BANK
+# -----------------------------
+
+STATIC_QUIZZES = {
+    "g1-6": {
+        "Arabic (اللغة العربية)": {
+            "1-2": [
+                {
+                    "question": "كم عدد حروف اللغة العربية؟",
+                    "options": ["28 حرفاً", "26 حرفاً", "30 حرفاً", "32 حرفاً"],
+                    "answer_index": 0,
+                    "explanation": "اللغة العربية تحتوي على 28 حرفاً أساسياً.",
+                    "context": ""
+                },
+                {
+                    "question": "ما جمع كلمة 'قلم'؟",
+                    "options": ["أقلام", "كتب", "قلمة", "قوالم"],
+                    "answer_index": 0,
+                    "explanation": "جمع تكسير لكلمة قلم هو 'أقلام'.",
+                    "context": ""
+                },
+                {
+                    "question": "ما مضاد كلمة 'كبير'؟",
+                    "options": ["صغير", "طويل", "ضخم", "قصير"],
+                    "answer_index": 0,
+                    "explanation": "عكس كلمة كبير هو صغير.",
+                    "context": ""
+                }
+            ],
+            "3-4": [
+                {
+                    "question": "ما هو الفعل في جملة 'ذاكر الطالب الدرس'؟",
+                    "options": ["ذاكر", "الطالب", "الدرس", "لا يوجد"],
+                    "answer_index": 0,
+                    "explanation": "الفعل هو كلمة تدل على حدث، وهنا 'ذاكر'.",
+                    "context": ""
+                },
+                {
+                    "question": "كم نوعاً للفعل الماضي؟",
+                    "options": ["3 أنواع", "نوعان", "4 أنواع", "نوع واحد"],
+                    "answer_index": 0,
+                    "explanation": "الفعل الماضي يكون: صحيح، معتل، مهموز.",
+                    "context": ""
+                },
+                {
+                    "question": "ما مرادف كلمة 'سعيد'؟",
+                    "options": ["فرح", "حزين", "غاضب", "متعب"],
+                    "answer_index": 0,
+                    "explanation": "مرادف كلمة سعيد هو فرح.",
+                    "context": ""
+                }
+            ],
+            "5-6": [
+                {
+                    "question": "ما نوع 'إن' في جملة 'إن العلم نور'؟",
+                    "options": ["حرف ناسخ", "فعل ناقص", "اسم موصول", "حرف جر"],
+                    "answer_index": 0,
+                    "explanation": "'إن' حرف ناسخ ينصب المبتدأ.",
+                    "context": ""
+                },
+                {
+                    "question": "ما هو المفعول المطلق؟",
+                    "options": [
+                        "مصدر يؤكد الفعل",
+                        "اسم يدل على زمن",
+                        "اسم يدل على مكان",
+                        "اسم يدل على آلة"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "المفعول المطلق هو مصدر يؤكد حدث الفعل.",
+                    "context": ""
+                },
+                {
+                    "question": "ما جمع كلمة 'بحر'؟",
+                    "options": ["بحار", "أبحر", "بُحُور", "كل ما سبق"],
+                    "answer_index": 3,
+                    "explanation": "كلمة بحر تجمع على 'بحار' و'أبحر' و'بُحُور'.",
+                    "context": ""
+                }
+            ]
+        },
+        "Math (الرياضيات)": {
+            "1-2": [
+                {
+                    "question": "What is 5 + 7?",
+                    "options": ["12", "11", "13", "10"],
+                    "answer_index": 0,
+                    "explanation": "5 + 7 = 12.",
+                    "context": ""
+                },
+                {
+                    "question": "What is 9 - 4?",
+                    "options": ["5", "6", "4", "3"],
+                    "answer_index": 0,
+                    "explanation": "9 - 4 = 5.",
+                    "context": ""
+                },
+                {
+                    "question": "What shape is a ball?",
+                    "options": ["Sphere", "Cube", "Triangle", "Square"],
+                    "answer_index": 0,
+                    "explanation": "A ball is shaped like a sphere.",
+                    "context": ""
+                }
+            ],
+            "3-4": [
+                {
+                    "question": "What is 6 x 8?",
+                    "options": ["48", "42", "56", "36"],
+                    "answer_index": 0,
+                    "explanation": "6 multiplied by 8 is 48.",
+                    "context": ""
+                },
+                {
+                    "question": "What is 1/2 as a decimal?",
+                    "options": ["0.5", "0.2", "1.2", "0.05"],
+                    "answer_index": 0,
+                    "explanation": "1 divided by 2 is 0.5.",
+                    "context": ""
+                },
+                {
+                    "question": "How many sides does a pentagon have?",
+                    "options": ["5", "6", "4", "7"],
+                    "answer_index": 0,
+                    "explanation": "A pentagon has 5 sides.",
+                    "context": ""
+                }
+            ],
+            "5-6": [
+                {
+                    "question": "What is the LCM of 4 and 6?",
+                    "options": ["12", "24", "2", "8"],
+                    "answer_index": 0,
+                    "explanation": "The Least Common Multiple of 4 and 6 is 12.",
+                    "context": ""
+                },
+                {
+                    "question": "Solve for x: 3x = 15",
+                    "options": ["5", "3", "12", "45"],
+                    "answer_index": 0,
+                    "explanation": "x = 15 / 3 = 5.",
+                    "context": ""
+                },
+                {
+                    "question": "What is the area of a triangle with base 4 and height 6?",
+                    "options": ["12", "24", "10", "48"],
+                    "answer_index": 0,
+                    "explanation": "Area = 1/2 * base * height = 1/2 * 4 * 6 = 12.",
+                    "context": ""
+                }
+            ]
+        },
+        "Science (العلوم)": {
+            "1-2": [
+                {
+                    "question": "كم عدد حواس الإنسان؟",
+                    "options": ["5 حواس", "3 حواس", "7 حواس", "10 حواس"],
+                    "answer_index": 0,
+                    "explanation": "حواس الإنسان هي السمع، البصر، الشم، التذوق، اللمس.",
+                    "context": ""
+                },
+                {
+                    "question": "What do plants need to grow?",
+                    "options": ["Sunlight", "Darkness", "Plastic", "Rocks"],
+                    "answer_index": 0,
+                    "explanation": "Plants need sunlight to make food.",
+                    "context": ""
+                }
+            ],
+            "3-4": [
+                {
+                    "question": "What are the three states of matter?",
+                    "options": [
+                        "Solid, Liquid, Gas",
+                        "Hot, Cold, Warm",
+                        "Big, Small, Medium",
+                        "Red, Blue, Green"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "Matter can be solid, liquid, or gas.",
+                    "context": ""
+                },
+                {
+                    "question": "ما هو الكوكب الذي نعيش عليه؟",
+                    "options": ["الأرض", "المريخ", "المشتري", "القمر"],
+                    "answer_index": 0,
+                    "explanation": "نعيش على كوكب الأرض.",
+                    "context": ""
+                }
+            ],
+            "5-6": [
+                {
+                    "question": "What organ pumps blood?",
+                    "options": ["Heart", "Lungs", "Brain", "Liver"],
+                    "answer_index": 0,
+                    "explanation": "The heart pumps blood throughout the body.",
+                    "context": ""
+                },
+                {
+                    "question": "ما هي وظيفة الجذور في النبات؟",
+                    "options": [
+                        "تثبت النبات وتمتص الماء",
+                        "تصنع الغذاء",
+                        "تنشر البذور",
+                        "تخزن الغذاء"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "الجذور تثبت النبات في التربة وتمتص منها الماء والأملاح.",
+                    "context": ""
+                }
+            ]
+        }
+    },
+    "g7-9": {
+        "Arabic (اللغة العربية)": {
+            "7": [
+                {
+                    "question": "ما نوع كلمة 'طالب' في جملة 'الطالبُ مجتهدٌ'؟",
+                    "options": ["مبتدأ", "خبر", "فعل", "حرف"],
+                    "answer_index": 0,
+                    "explanation": "'الطالب' مبتدأ مرفوع وعلامة رفعه الضمة.",
+                    "context": ""
+                },
+                {
+                    "question": "ما هو التشبيه في قولنا 'الجندي كالأسد'؟",
+                    "options": [
+                        "حيث شبه الجندي بالأسد",
+                        "استعارة",
+                        "كناية",
+                        "طباق"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "في هذا التشبيه، شبه الكاتب الجندي بالأسد في الشجاعة.",
+                    "context": ""
+                }
+            ],
+            "8": [
+                {
+                    "question": "الجار والمجرور في جملة 'ذهبت إلى المدرسة'؟",
+                    "options": ["إلى المدرسة", "ذهبت", "المدرسة", "لا يوجد"],
+                    "answer_index": 0,
+                    "explanation": "حرف الجر 'إلى' واسمه 'المدرسة' يسميان الجار والمجرور.",
+                    "context": ""
+                },
+                {
+                    "question": "اسم الإشارة للقريب هو؟",
+                    "options": ["هذا", "ذلك", "أولئك", "هؤلاء"],
+                    "answer_index": 0,
+                    "explanation": "'هذا' يدل على المفرد القريب.",
+                    "context": ""
+                }
+            ],
+            "9": [
+                {
+                    "question": "من هو شاعر النيل؟",
+                    "options": ["حافظ إبراهيم", "أحمد شوقي", "إيليا أبو ماضي", "نزار قباني"],
+                    "answer_index": 0,
+                    "explanation": "حافظ إبراهيم هو شاعر النيل.",
+                    "context": ""
+                },
+                {
+                    "question": "ما الفرق بين التشبيه والاستعارة؟",
+                    "options": [
+                        "التشبيه يذكر المشبه والمشبه به",
+                        "لا يوجد فرق",
+                        "الاستعارة أقصر",
+                        "التشبيه يحذف المشبه"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "في التشبيه يذكر المشبه والمشبه به، بينما في الاستعارة يذكر أحدهما ويدل على الآخر.",
+                    "context": ""
+                }
+            ]
+        },
+        "Math (الرياضيات)": {
+            "7": [
+                {
+                    "question": "If x + 5 = 12, what is x?",
+                    "options": ["7", "5", "17", "12"],
+                    "answer_index": 0,
+                    "explanation": "x = 12 - 5 = 7.",
+                    "context": ""
+                },
+                {
+                    "question": "What is the area of a rectangle with length 4 and width 3?",
+                    "options": ["12", "7", "14", "1"],
+                    "answer_index": 0,
+                    "explanation": "Area = length * width = 4 * 3 = 12.",
+                    "context": ""
+                }
+            ],
+            "8": [
+                {
+                    "question": "What is the sum of angles in a triangle?",
+                    "options": ["180 degrees", "90 degrees", "360 degrees", "270 degrees"],
+                    "answer_index": 0,
+                    "explanation": "The sum of interior angles of a triangle is always 180 degrees.",
+                    "context": ""
+                },
+                {
+                    "question": "Solve: 2(x - 3) = 8",
+                    "options": ["7", "5", "11", "4"],
+                    "answer_index": 0,
+                    "explanation": "2x - 6 = 8 => 2x = 14 => x = 7.",
+                    "context": ""
+                }
+            ],
+            "9": [
+                {
+                    "question": "What is the value of x in x^2 = 81?",
+                    "options": ["9", "8", "10", "7"],
+                    "answer_index": 0,
+                    "explanation": "9 * 9 = 81.",
+                    "context": ""
+                },
+                {
+                    "question": "What is the slope of a horizontal line?",
+                    "options": ["0", "1", "Undefined", "-1"],
+                    "answer_index": 0,
+                    "explanation": "A horizontal line has no steepness, so its slope is 0.",
+                    "context": ""
+                }
+            ]
+        },
+        "Science (العلوم)": {
+            "7": [
+                {
+                    "question": "What is the powerhouse of the cell?",
+                    "options": ["Mitochondria", "Nucleus", "Ribosome", "Cytoplasm"],
+                    "answer_index": 0,
+                    "explanation": "Mitochondria produce ATP, the cell's energy currency.",
+                    "context": ""
+                },
+                {
+                    "question": "What is the chemical symbol for water?",
+                    "options": ["H2O", "CO2", "O2", "NaCl"],
+                    "answer_index": 0,
+                    "explanation": "Water is made of 2 Hydrogen atoms and 1 Oxygen atom.",
+                    "context": ""
+                }
+            ],
+            "8": [
+                {
+                    "question": "What force pulls objects towards Earth?",
+                    "options": ["Gravity", "Friction", "Magnetism", "Tension"],
+                    "answer_index": 0,
+                    "explanation": "Gravity is the force that attracts objects toward the center of the Earth.",
+                    "context": ""
+                },
+                {
+                    "question": "ما هي وحدة قياس القوة؟",
+                    "options": ["نيوتن", "جول", "واط", "متر"],
+                    "answer_index": 0,
+                    "explanation": "تقاس القوة بوحدة نيوتن.",
+                    "context": ""
+                }
+            ],
+            "9": [
+                {
+                    "question": "What is the atomic number of Oxygen?",
+                    "options": ["8", "6", "16", "12"],
+                    "answer_index": 0,
+                    "explanation": "Oxygen has 8 protons in its nucleus.",
+                    "context": ""
+                },
+                {
+                    "question": "What type of energy is stored in food?",
+                    "options": ["Chemical", "Kinetic", "Potential", "Nuclear"],
+                    "answer_index": 0,
+                    "explanation": "Food stores chemical energy in its bonds.",
+                    "context": ""
+                }
+            ]
+        }
+    },
+    "g10-12": {
+        "Arabic (اللغة العربية)": {
+            "10": [
+                {
+                    "question": "ما هو المفعول المطلق في جملة 'انتصر الجيش انتصاراً عظيماً'؟",
+                    "options": ["انتصاراً", "الجيش", "عظيماً", "انتصر"],
+                    "answer_index": 0,
+                    "explanation": "المفعول المطلق هو مصدر يؤكد الفعل، وهنا 'انتصاراً'.",
+                    "context": ""
+                },
+                {
+                    "question": "من قائل مسرحية 'مجنون ليلى'؟",
+                    "options": ["أحمد شوقي", "توفيق الحكيم", "نجيب محفوظ", "أحمد أمين"],
+                    "answer_index": 0,
+                    "explanation": "مسرحية مجنون ليلى من أشهر أعمال أمير الشعراء أحمد شوقي.",
+                    "context": ""
+                }
+            ],
+            "11": [
+                {
+                    "question": "البلاغة علم يبحث فيه عن؟",
+                    "options": [
+                        "المحسنات والصور البيانية",
+                        "النحو والإعراب",
+                        "تاريخ الأدب",
+                        "الكتابة الإنشائية"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "علم البلاغة يبحث في المحسنات البديعية والمعنوية والصور البيانية.",
+                    "context": ""
+                },
+                {
+                    "question": "التشبيه هو؟",
+                    "options": [
+                        "تشبيه شيء بشيء لبيان وجه الشبه",
+                        "إسناد معنى لشيء ليس منه",
+                        "ذكر الشيء بلفظه",
+                        "ذكر الشيء بضده"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "التشبيه هو عقد مماثلة بين طرفين لبيان وجه الشبه.",
+                    "context": ""
+                }
+            ],
+            "12": [
+                {
+                    "question": "ما هي مدرسة الإحياء والبعث؟",
+                    "options": [
+                        "مدرسة أدبية تهتم بتقليد الشعر القديم",
+                        "مدرسة حديثة ترفض الشعر",
+                        "مدرسة تكتب الرواية فقط",
+                        "مدرسة تنتمي للأدب المهجري"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "مدرسة الإحياء والبعث هي مدرسة شعرية حافظت على القديم وأضافت إليه روحاً جديدة.",
+                    "context": ""
+                },
+                {
+                    "question": "ما الفرق بين الوراقة والطباعة؟",
+                    "options": [
+                        "الوراقة كتابة يدوية والطباعة آلية",
+                        "لا فرق",
+                        "الوراقة أحدث",
+                        "الطباعة تستخدم الحبر"
+                    ],
+                    "answer_index": 0,
+                    "explanation": "الوراقة هي صناعة الكتابة على الورق يدوياً، بينما الطباعة تتم بواسطة الآلات.",
+                    "context": ""
+                }
+            ]
+        },
+        "Math (الرياضيات)": {
+            "10": [
+                {
+                    "question": "What is log10(100)?",
+                    "options": ["2", "10", "0.1", "100"],
+                    "answer_index": 0,
+                    "explanation": "10^2 = 100, so log10(100) = 2.",
+                    "context": ""
+                },
+                {
+                    "question": "What is the value of sin(30)?",
+                    "options": ["1/2", "1", "√3/2", "0"],
+                    "answer_index": 0,
+                    "explanation": "sin(30) = 1/2.",
+                    "context": ""
+                }
+            ],
+            "11": [
+                {
+                    "question": "What is the derivative of x^3?",
+                    "options": ["3x^2", "x^2", "3x", "3"],
+                    "answer_index": 0,
+                    "explanation": "d/dx(x^n) = n x^(n-1).",
+                    "context": ""
+                },
+                {
+                    "question": "What is the limit of (x^2 - 1)/(x - 1) as x approaches 1?",
+                    "options": ["2", "1", "0", "Undefined"],
+                    "answer_index": 0,
+                    "explanation": "Factoring gives (x-1)(x+1)/(x-1) = x+1. At x=1, value is 2.",
+                    "context": ""
+                }
+            ],
+            "12": [
+                {
+                    "question": "What is the integral of 2x dx?",
+                    "options": ["x^2 + C", "2 + C", "x^2 / 2 + C", "2x^2 + C"],
+                    "answer_index": 0,
+                    "explanation": "The anti-derivative of 2x is x^2 + C.",
+                    "context": ""
+                },
+                {
+                    "question": "What is the determinant of [[2,0],[0,2]]?",
+                    "options": ["4", "0", "2", "1"],
+                    "answer_index": 0,
+                    "explanation": "2*2 - 0*0 = 4.",
+                    "context": ""
+                }
+            ]
+        },
+        "Physics (الفيزياء)": {
+            "10": [
+                {
+                    "question": "What is the unit of force?",
+                    "options": ["Newton", "Joule", "Watt", "Pascal"],
+                    "answer_index": 0,
+                    "explanation": "Force is measured in Newtons (N).",
+                    "context": ""
+                },
+                {
+                    "question": "What is the acceleration due to gravity on Earth?",
+                    "options": ["9.8 m/s^2", "8.9 m/s^2", "10.2 m/s^2", "9.5 m/s^2"],
+                    "answer_index": 0,
+                    "explanation": "g ≈ 9.8 m/s^2 on Earth.",
+                    "context": ""
+                }
+            ],
+            "11": [
+                {
+                    "question": "What is Ohm's Law?",
+                    "options": ["V = I * R", "P = I * V", "V = I / R", "R = V * I"],
+                    "answer_index": 0,
+                    "explanation": "Voltage equals current times resistance.",
+                    "context": ""
+                },
+                {
+                    "question": "What type of wave is light?",
+                    "options": ["Transverse", "Longitudinal", "Mechanical", "Sound"],
+                    "answer_index": 0,
+                    "explanation": "Light is a transverse electromagnetic wave.",
+                    "context": ""
+                }
+            ],
+            "12": [
+                {
+                    "question": "What is the charge of an electron?",
+                    "options": ["Negative", "Positive", "Neutral", "Variable"],
+                    "answer_index": 0,
+                    "explanation": "Electrons carry a negative elementary charge.",
+                    "context": ""
+                },
+                {
+                    "question": "What is the speed of light in vacuum?",
+                    "options": ["3 x 10^8 m/s", "3 x 10^6 m/s", "3 x 10^10 m/s", "9.8 m/s"],
+                    "answer_index": 0,
+                    "explanation": "c ≈ 300,000,000 m/s.",
+                    "context": ""
+                }
+            ]
+        }
+    },
+    "general": {
+        "General Knowledge": {
+            "easy": [
+                {
+                    "question": "What is the capital of Egypt?",
+                    "options": ["Cairo", "Alexandria", "Giza", "Luxor"],
+                    "answer_index": 0,
+                    "explanation": "Cairo is the capital and largest city of Egypt.",
+                    "context": ""
+                },
+                {
+                    "question": "كم عدد القارات في العالم؟",
+                    "options": ["7 قارات", "5 قارات", "6 قارات", "8 قارات"],
+                    "answer_index": 0,
+                    "explanation": "يوجد 7 قارات في العالم.",
+                    "context": ""
+                }
+            ],
+            "mixed": [
+                {
+                    "question": "What is the largest ocean on Earth?",
+                    "options": ["Pacific", "Atlantic", "Indian", "Arctic"],
+                    "answer_index": 0,
+                    "explanation": "The Pacific Ocean is the largest and deepest.",
+                    "context": ""
+                },
+                {
+                    "question": "ما هو أطول نهر في العالم؟",
+                    "options": ["النيل", "الأمازون", "المسيسيبي", "اليانغتسي"],
+                    "answer_index": 0,
+                    "explanation": "نهر النيل هو أطول نهر في العالم.",
+                    "context": ""
+                }
+            ],
+            "hard": [
+                {
+                    "question": "What is the chemical symbol for Gold?",
+                    "options": ["Au", "Ag", "Gd", "Go"],
+                    "answer_index": 0,
+                    "explanation": "Au comes from the Latin word 'aurum'.",
+                    "context": ""
+                },
+                {
+                    "question": "ما هي عاصمة اليابان؟",
+                    "options": ["طوكيو", "كيوتو", "أوساكا", "سيول"],
+                    "answer_index": 0,
+                    "explanation": "طوكيو هي عاصمة اليابان.",
+                    "context": ""
+                }
+            ]
+        }
+    }
+}
+
+QUIZ_SCHEMA = (
+    '{"questions":[{"question":"...","options":["A","B","C","D"],'
+    '"answer_index":0,"explanation":"...","context":"exact quote from text if pdf"}]}'
+)
+
+def _match_static(topic: str, n: int, grade: str = "general", difficulty: str = "mixed") -> dict:
+    grade = normalize_grade(grade)
+    bank_dict = STATIC_QUIZZES.get(grade, STATIC_QUIZZES["general"])
+
+    key = (topic or "").strip().lower()
+    subject = None
+
+    for name in bank_dict:
+        name_lower = name.lower()
+        if name_lower == key or name_lower in key or key in name_lower:
+            subject = name
+            break
+
+    if subject is None:
+        if grade == "general" and "General Knowledge" in bank_dict:
+            subject = "General Knowledge"
+        else:
+            subject = list(bank_dict.keys())[0]
+
+    subject_bank = bank_dict[subject]
+    desired_key = grade_difficulty_key(grade, difficulty)
+
+    questions = subject_bank.get(desired_key, [])
+    if not questions:
+        questions = [q for qs in subject_bank.values() for q in qs]
+
+    if not questions:
+        return {
+            "topic": topic,
+            "subject": subject,
+            "grade": grade,
+            "difficulty": difficulty,
+            "questions": [],
+            "ai": False,
+            "source": "static"
+        }
+
+    qs = random.sample(questions, min(n, len(questions)))
+
+    return {
+        "topic": topic,
+        "subject": subject,
+        "grade": grade,
+        "difficulty": difficulty,
+        "questions": qs,
+        "ai": False,
+        "source": "static"
+    }
+
+def _ocr_page(page, dpi: int = 130) -> str:
+    if not PDF_OCR_ENABLED:
+        return ""
+
+    pix = page.get_pixmap(dpi=dpi)
+    img = Image.open(io.BytesIO(pix.tobytes("png")))
+
+    try:
+        return pytesseract.image_to_string(img, lang="ara+eng")
+    except Exception:
+        try:
+            return pytesseract.image_to_string(img)
+        except Exception:
+            return ""
+
+# -----------------------------
+# STATIC ROUTES
+# -----------------------------
 
 @app.get("/", include_in_schema=False)
 async def home():
-    return FileResponse(INDEX)
+    if INDEX.exists():
+        return FileResponse(INDEX)
+    return HTMLResponse("<h1>El-Peak</h1><p>index.html not found.</p>")
 
 @app.get("/manifest.json", include_in_schema=False)
 async def manifest():
     return JSONResponse({
         "name": "El-Peak Study Compass",
         "short_name": "El-Peak",
+        "description": "AI-powered study companion, quiz engine, coach, and scheduler.",
         "start_url": "/",
+        "scope": "/",
         "display": "standalone",
+        "orientation": "portrait-primary",
         "background_color": "#070710",
         "theme_color": "#070710",
+        "categories": ["education", "productivity"],
         "icons": [
             {
-                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 18 L7 4 L10 12 L13 6 L18 18'/%3E%3C/svg%3E",
+                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23070710'/%3E%3Cpath d='M96 400 L208 112 L264 272 L320 176 L416 400' fill='none' stroke='%236366f1' stroke-width='28' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
                 "sizes": "any",
-                "type": "image/svg+xml"
+                "type": "image/svg+xml",
+                "purpose": "any"
+            },
+            {
+                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23070710'/%3E%3Cpath d='M96 400 L208 112 L264 272 L320 176 L416 400' fill='none' stroke='%236366f1' stroke-width='28' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+                "sizes": "512x512",
+                "type": "image/svg+xml",
+                "purpose": "maskable"
             }
         ]
     })
 
-# --- AUTH ROUTES ---
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    sw_path = BASE_DIR / "sw.js"
+    if sw_path.exists():
+        return FileResponse(sw_path, media_type="application/javascript")
+    return JSONResponse({}, media_type="application/javascript")
+
+@app.get("/health", include_in_schema=False)
+async def health():
+    try:
+        await db.ping()
+        return {"status": "ok", "db": "ok", "pdf_ocr_enabled": PDF_OCR_ENABLED}
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "db": "unavailable",
+                "detail": str(e)
+            }
+        )
+
+@app.get("/api/health")
+async def api_health():
+    return await health()
+
+# -----------------------------
+# AUTH ROUTES
+# -----------------------------
+
 @app.post("/api/auth/signup")
 async def signup(payload: SignupIn):
     existing = await db.get_user_by_email(payload.email)
     if existing:
-        raise HTTPException(400, "Email already registered")
+        raise HTTPException(400, "Email already registered.")
+
     hashed_pw = hash_password(payload.password)
-    user = await db.create_user(payload.email, hashed_pw, payload.user_type, payload.grade)
+    normalized_grade = normalize_grade(payload.grade)
+
+    user = await db.create_user(
+        email=payload.email,
+        hashed_pw=hashed_pw,
+        user_type=payload.user_type,
+        grade=normalized_grade,
+        username=payload.username,
+        language=payload.language,
+        provider="local"
+    )
+
     if not user:
-        raise HTTPException(500, "Failed to create user")
-    token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
-    return {"token": token, "email": user["email"]}
+        raise HTTPException(500, "Failed to create user.")
+
+    token = create_access_token({
+        "sub": str(user["id"]),
+        "email": user["email"]
+    })
+
+    return {
+        "token": token,
+        "email": user["email"]
+    }
 
 @app.post("/api/auth/login")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await db.get_user_by_email(form_data.username)
+
     if not user or not verify_password(form_data.password, user["password"]):
-        raise HTTPException(401, "Incorrect email or password")
-    await db.cleanup_old_pdf_attempts()
-    token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
-    return {"token": token, "email": user["email"]}
+        raise HTTPException(401, "Incorrect email or password.")
+
+    await db.update_last_login(user["id"])
+
+    token = create_access_token({
+        "sub": str(user["id"]),
+        "email": user["email"]
+    })
+
+    return {
+        "token": token,
+        "email": user["email"]
+    }
 
 @app.get("/api/auth/google")
-async def google_login(request: Request):
-    if not GOOGLE_CLIENT_ID:
-        raise HTTPException(500, "Google OAuth not configured")
-    state = session_serializer.dumps({"nonce": secrets.token_urlsafe(16)})
+async def google_login():
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(500, "Google OAuth not configured.")
+
+    state = session_serializer.dumps({
+        "nonce": secrets.token_urlsafe(16),
+        "ts": int(time.time())
+    })
+
     auth_url = (
-        f"https://accounts.google.com/o/oauth2/auth"
-        f"?response_type=code&client_id={GOOGLE_CLIENT_ID}"
+        "https://accounts.google.com/o/oauth2/auth"
+        f"?response_type=code"
+        f"&client_id={GOOGLE_CLIENT_ID}"
         f"&redirect_uri={REDIRECT_URI}"
-        f"&scope=openid email profile&state={state}"
+        f"&scope=openid email profile"
+        f"&state={state}"
+        f"&prompt=select_account"
     )
-    return {"auth_url": auth_url, "state": state}
+
+    return {
+        "auth_url": auth_url,
+        "state": state
+    }
 
 @app.get("/api/auth/google/callback")
 async def google_callback(request: Request, code: str, state: str):
-    async with httpx.AsyncClient() as client:
-        token_resp = await client.post("https://oauth2.googleapis.com/token", data={
-            "code": code, "client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uri": REDIRECT_URI, "grant_type": "authorization_code",
-        })
+    try:
+        session_serializer.loads(state)
+    except BadSignature:
+        raise HTTPException(400, "Invalid OAuth state.")
+
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(500, "Google OAuth not configured.")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        token_resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "redirect_uri": REDIRECT_URI,
+                "grant_type": "authorization_code"
+            }
+        )
         token_resp.raise_for_status()
+
         access_token = token_resp.json().get("access_token")
-        user_resp = await client.get("https://www.googleapis.com/oauth2/v1/userinfo", headers={"Authorization": f"Bearer {access_token}"})
+        if not access_token:
+            raise HTTPException(500, "Failed to get Google access token.")
+
+        user_resp = await client.get(
+            "https://www.googleapis.com/oauth2/v1/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
         user_resp.raise_for_status()
+
         google_data = user_resp.json()
 
     email = google_data.get("email")
     if not email:
-        raise HTTPException(400, "Could not get email from Google")
-    user = await db.get_user_by_email(email)
-    if not user:
-        dummy_pw = hashlib.sha256(f"google_{email}".encode()).hexdigest()
-        user = await db.create_user(email, dummy_pw)
-        if not user:
-            raise HTTPException(500, "Failed to create user")
-    jwt_token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
-    return RedirectResponse(url=f"/?token={jwt_token}")
+        raise HTTPException(400, "Could not get email from Google.")
 
-# --- SETTINGS & PROFILE ROUTES ---
+    user = await db.get_user_by_email(email)
+
+    if not user:
+        random_password = secrets.token_urlsafe(32)
+        hashed_pw = hash_password(random_password)
+
+        user = await db.create_user(
+            email=email,
+            hashed_pw=hashed_pw,
+            user_type="general",
+            grade=None,
+            username=email.split("@")[0],
+            language="en",
+            provider="google"
+        )
+
+        if not user:
+            raise HTTPException(500, "Failed to create user.")
+
+    await db.update_last_login(user["id"])
+
+    oauth_code = await db.create_oauth_code(user["id"])
+
+    return RedirectResponse(url=f"/?oauth_code={oauth_code}")
+
+@app.post("/api/auth/google/exchange")
+async def google_exchange(payload: GoogleExchangeIn):
+    user_id = await db.consume_oauth_code(payload.code)
+    if not user_id:
+        raise HTTPException(400, "Invalid or expired OAuth code.")
+
+    user = await db.get_user_full(user_id)
+    if not user:
+        raise HTTPException(404, "User not found.")
+
+    token = create_access_token({
+        "sub": str(user["id"]),
+        "email": user["email"]
+    })
+
+    return {
+        "token": token,
+        "email": user["email"]
+    }
+
+# -----------------------------
+# SETTINGS & PROFILE
+# -----------------------------
+
 @app.get("/api/user/settings")
 async def get_settings(user: Annotated[dict, Depends(get_current_user)]):
-    return await db.get_user_by_id(user["id"])
+    settings = await db.get_user_by_id(user["id"])
+    if not settings:
+        raise HTTPException(404, "User not found.")
+
+    settings["effective_tier"] = effective_tier_from_user(user)
+    return settings
 
 @app.put("/api/user/settings")
 async def update_settings(payload: SettingsIn, user: Annotated[dict, Depends(get_current_user)]):
-    await db.update_user_settings(user["id"], payload.username or "", payload.language, payload.user_type, payload.grade)
+    normalized_grade = normalize_grade(payload.grade)
+
+    await db.update_user_settings(
+        user_id=user["id"],
+        username=payload.username or "",
+        language=payload.language,
+        user_type=payload.user_type,
+        grade=normalized_grade
+    )
+
     return {"status": "success"}
 
 @app.put("/api/user/password")
 async def update_password(payload: PasswordIn, user: Annotated[dict, Depends(get_current_user)]):
     db_user = await db.get_user_by_email(user["email"])
+
     if not db_user or not verify_password(payload.old_password, db_user["password"]):
-        raise HTTPException(401, "Incorrect current password")
+        raise HTTPException(401, "Incorrect current password.")
+
     hashed_pw = hash_password(payload.new_password)
     await db.update_user_password(user["id"], hashed_pw)
+
     return {"status": "success"}
 
-# --- USAGE & BILLING ROUTES ---
+# -----------------------------
+# USAGE & BILLING
+# -----------------------------
+
 @app.get("/api/usage")
 async def get_usage(user: Annotated[dict, Depends(get_current_user)]):
+    await db.reset_usage_if_needed(user["id"])
     usage = await db.get_user_usage(user["id"])
-    if not usage: raise HTTPException(404, "User not found")
-    tier = usage["tier"]
+
+    if not usage:
+        raise HTTPException(404, "User not found.")
+
+    tier = effective_tier_from_user(usage)
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
+
     return {
         "tier": tier,
-        "ai_used": usage["ai_questions_used"],
+        "stored_tier": usage.get("tier", "free"),
+        "subscription_status": usage.get("subscription_status", "inactive"),
+        "subscription_expires_at": usage.get("subscription_expires_at"),
+        "ai_used": usage.get("ai_questions_used", 0),
         "ai_limit": limits["ai_questions"],
-        "pdf_used": usage["pdf_uploads_used"],
-        "pdf_limit": limits["pdf_uploads"]
+        "pdf_used": usage.get("pdf_uploads_used", 0),
+        "pdf_limit": limits["pdf_uploads"],
+        "pdf_max_mb": limits["pdf_max_mb"],
+        "prices": TIER_PRICES,
+        "simulated_payments": ALLOW_SIMULATED_PAYMENTS and not _paymob_configured()
     }
 
 @app.post("/api/payment/checkout")
 async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get_current_user)]):
-    if payload.tier not in TIER_PRICES:
-        raise HTTPException(400, "Invalid tier selected")
-    if not PAYMOB_API_KEY or not PAYMOB_INTEGRATION_ID or PAYMOB_INTEGRATION_ID == "12345":
-        print("⚠️ WARNING: Paymob not configured. Simulating successful checkout for testing.")
-        await db.upgrade_user_tier(user["id"], payload.tier)
-        return {"checkout_url": "/?upgraded=true"}
+    tier = payload.tier.strip().lower()
 
-    amount = TIER_PRICES[payload.tier]
-    merchant_order_id = f"user_{user['id']}_{payload.tier}_{int(time.time())}"
+    if tier not in TIER_PRICES:
+        raise HTTPException(400, "Invalid tier selected.")
+
+    if not _paymob_configured():
+        if ALLOW_SIMULATED_PAYMENTS:
+            logger.warning("Paymob not configured. Simulating successful checkout for user %s.", user["id"])
+            await db.upgrade_user_tier(user["id"], tier)
+            return {"checkout_url": "/?upgraded=true"}
+
+        raise HTTPException(503, "Payments are not configured.")
+
+    amount = TIER_PRICES[tier]
+    merchant_order_id = f"user_{user['id']}_{tier}_{int(time.time())}"
+
+    await db.create_payment(
+        user_id=user["id"],
+        tier=tier,
+        amount_cents=amount,
+        merchant_order_id=merchant_order_id,
+        status="pending"
+    )
 
     try:
-        async with httpx.AsyncClient() as client:
-            auth_resp = await client.post("https://accept.paymob.com/api/auth/tokens", json={"api_key": PAYMOB_API_KEY})
+        async with httpx.AsyncClient(timeout=45) as client:
+            auth_resp = await client.post(
+                "https://accept.paymob.com/api/auth/tokens",
+                json={"api_key": PAYMOB_API_KEY}
+            )
             auth_resp.raise_for_status()
             auth_token = auth_resp.json().get("token")
-            if not auth_token: raise HTTPException(500, "Failed to authenticate with Paymob")
 
-            order_resp = await client.post("https://accept.paymob.com/api/ecommerce/orders", json={
-                "auth_token": auth_token, "delivery_needed": "false", "amount_cents": amount,
-                "currency": "EGP", "merchant_order_id": merchant_order_id, "items": []
-            })
+            if not auth_token:
+                raise HTTPException(500, "Failed to authenticate with Paymob.")
+
+            order_resp = await client.post(
+                "https://accept.paymob.com/api/ecommerce/orders",
+                json={
+                    "auth_token": auth_token,
+                    "delivery_needed": "false",
+                    "amount_cents": amount,
+                    "currency": "EGP",
+                    "merchant_order_id": merchant_order_id,
+                    "items": []
+                }
+            )
             order_resp.raise_for_status()
             paymob_order_id = order_resp.json().get("id")
 
-            payment_key_resp = await client.post("https://accept.paymob.com/api/acceptance/payment_keys", json={
-                "auth_token": auth_token, "amount_cents": amount, "expiration": 3600, "order_id": paymob_order_id,
-                "billing_data": {
-                    "apartment": "NA", "email": user["email"], "floor": "NA", "first_name": "El-Peak",
-                    "street": "NA", "building": "NA", "phone_number": "01000000000", "shipping_method": "NA",
-                    "postal_code": "NA", "city": "Cairo", "country": "EG", "last_name": "User", "state": "NA"
-                },
-                "currency": "EGP", "integration_id": int(PAYMOB_INTEGRATION_ID)
-            })
+            payment_key_resp = await client.post(
+                "https://accept.paymob.com/api/acceptance/payment_keys",
+                json={
+                    "auth_token": auth_token,
+                    "amount_cents": amount,
+                    "expiration": 3600,
+                    "order_id": paymob_order_id,
+                    "billing_data": {
+                        "apartment": "NA",
+                        "email": user["email"],
+                        "floor": "NA",
+                        "first_name": "El-Peak",
+                        "street": "NA",
+                        "building": "NA",
+                        "phone_number": "01000000000",
+                        "shipping_method": "NA",
+                        "postal_code": "NA",
+                        "city": "Cairo",
+                        "country": "EG",
+                        "last_name": "User",
+                        "state": "NA"
+                    },
+                    "currency": "EGP",
+                    "integration_id": int(PAYMOB_INTEGRATION_ID)
+                }
+            )
             payment_key_resp.raise_for_status()
             payment_token = payment_key_resp.json().get("token")
 
-        if not payment_token: raise HTTPException(500, "Failed to generate payment key")
+        if not payment_token:
+            raise HTTPException(500, "Failed to generate payment key.")
+
+        await db.update_payment_paymob_order(
+            merchant_order_id=merchant_order_id,
+            paymob_order_id=str(paymob_order_id)
+        )
+
         iframe_url = f"https://accept.paymob.com/api/acceptance/iframes/{PAYMOB_IFRAME_ID}?payment_token={payment_token}"
         return {"checkout_url": iframe_url}
 
     except httpx.HTTPStatusError as exc:
-        print(f"❌ Paymob API Error: {exc.response.text}")
-        raise HTTPException(500, f"Payment gateway error: {exc.response.text}")
+        logger.error("Paymob API Error: %s", exc.response.text)
+        await db.update_payment_status(merchant_order_id, "gateway_error")
+        raise HTTPException(500, "Payment gateway error.")
+
+    except HTTPException:
+        raise
+
     except Exception as e:
-        print(f"❌ Checkout Error: {str(e)}")
+        logger.error("Checkout Error: %s", str(e))
+        await db.update_payment_status(merchant_order_id, "checkout_error")
         raise HTTPException(500, "Failed to initiate payment.")
 
 @app.post("/api/payment/webhook")
-async def payment_webhook(request: fastapi.Request):
+async def payment_webhook(request: Request):
     try:
         payload = await request.json()
     except Exception:
-        raise HTTPException(400, "Invalid payload")
+        raise HTTPException(400, "Invalid payload.")
 
-    hmac_secret = os.getenv("PAYMOB_HMAC_SECRET", "")
-    if hmac_secret:
+    obj = payload.get("obj", {}) or {}
+    order_obj = obj.get("order", {}) or {}
+    merchant_order_id = str(order_obj.get("merchant_order_id", "")).strip()
+
+    if PAYMOB_HMAC_SECRET:
         req_hmac = request.headers.get("X-PAYMOB-HMAC", "")
-        obj = payload.get("obj", {})
+
+        source_data = obj.get("source_data", {}) or {}
+
         concat = "".join([
-            str(obj.get("amount_cents", "")), str(obj.get("created_at", "")), str(obj.get("currency", "")),
-            str(obj.get("error_occured", "")), str(obj.get("has_parent_transaction", "")), str(obj.get("id", "")),
-            str(obj.get("integration_id", "")), str(obj.get("is_hmac_authenticated", "")), str(obj.get("is_auth", "")),
-            str(obj.get("is_capture", "")), str(obj.get("is_refunded", "")), str(obj.get("is_standalone_payment", "")),
-            str(obj.get("is_voided", "")), str(obj.get("order", {}).get("id", "")), str(obj.get("owner", "")),
-            str(obj.get("pending", "")), str(obj.get("source_data", {}).get("pan", "")),
-            str(obj.get("source_data", {}).get("sub_type", "")), str(obj.get("source_data", {}).get("type", "")),
-            str(obj.get("success", ""))
+            _hmac_value(obj.get("amount_cents", "")),
+            _hmac_value(obj.get("created_at", "")),
+            _hmac_value(obj.get("currency", "")),
+            _hmac_value(obj.get("error_occured", "")),
+            _hmac_value(obj.get("has_parent_transaction", "")),
+            _hmac_value(obj.get("id", "")),
+            _hmac_value(obj.get("integration_id", "")),
+            _hmac_value(obj.get("is_hmac_authenticated", "")),
+            _hmac_value(obj.get("is_auth", "")),
+            _hmac_value(obj.get("is_capture", "")),
+            _hmac_value(obj.get("is_refunded", "")),
+            _hmac_value(obj.get("is_standalone_payment", "")),
+            _hmac_value(obj.get("is_voided", "")),
+            _hmac_value(order_obj.get("id", "")),
+            _hmac_value(obj.get("owner", "")),
+            _hmac_value(obj.get("pending", "")),
+            _hmac_value(source_data.get("pan", "")),
+            _hmac_value(source_data.get("sub_type", "")),
+            _hmac_value(source_data.get("type", "")),
+            _hmac_value(obj.get("success", ""))
         ])
-        calculated_hmac = hmac.new(hmac_secret.encode('utf-8'), concat.encode('utf-8'), hashlib.sha512).hexdigest()
+
+        calculated_hmac = hmac.new(
+            PAYMOB_HMAC_SECRET.encode("utf-8"),
+            concat.encode("utf-8"),
+            hashlib.sha512
+        ).hexdigest()
+
         if calculated_hmac != req_hmac:
-            print("❌ Paymob HMAC Verification Failed!")
-            raise HTTPException(403, "Invalid HMAC signature")
+            logger.error("Paymob HMAC verification failed for %s", merchant_order_id)
+            raise HTTPException(403, "Invalid HMAC signature.")
 
-    if payload.get("success") == "true" or payload.get("obj", {}).get("success") == "true":
-        obj = payload.get("obj", {})
-        order_obj = obj.get("order", {})
-        merchant_order_id = order_obj.get("merchant_order_id", "")
-        parts = merchant_order_id.split("_")
-        if len(parts) >= 3:
-            user_id = int(parts[1])
-            tier = parts[2]
-            print(f"✅ Upgrading User {user_id} to {tier}!")
-            await db.upgrade_user_tier(user_id, tier)
-            return {"status": "success"}
-    return {"status": "ignored"}
+    success = _as_bool(payload.get("success")) or _as_bool(obj.get("success"))
 
-# --- DASHBOARD ROUTES ---
+    if not merchant_order_id:
+        return {"status": "ignored", "reason": "missing merchant_order_id"}
+
+    if not success:
+        await db.update_payment_status(
+            merchant_order_id=merchant_order_id,
+            status="failed",
+            raw_payload=json.dumps(payload, ensure_ascii=False)
+        )
+        return {"status": "ignored", "reason": "payment not successful"}
+
+    parts = merchant_order_id.split("_")
+    if len(parts) < 3:
+        return {"status": "ignored", "reason": "invalid merchant_order_id"}
+
+    try:
+        user_id = int(parts[1])
+    except Exception:
+        return {"status": "ignored", "reason": "invalid user id"}
+
+    tier = parts[2].strip().lower()
+    if tier not in TIER_PRICES:
+        return {"status": "ignored", "reason": "invalid tier"}
+
+    upgraded = await db.finalize_payment(
+        user_id=user_id,
+        tier=tier,
+        merchant_order_id=merchant_order_id,
+        amount_cents=obj.get("amount_cents"),
+        raw_payload=json.dumps(payload, ensure_ascii=False)
+    )
+
+    if upgraded:
+        logger.info("Upgraded user %s to %s", user_id, tier)
+
+    return {
+        "status": "success",
+        "upgraded": upgraded
+    }
+
+@app.get("/api/payments")
+async def payments(user: Annotated[dict, Depends(get_current_user)]):
+    return await db.get_payments(user["id"], limit=20)
+
+# -----------------------------
+# DASHBOARD ROUTES
+# -----------------------------
+
 @app.get("/api/stats")
 async def stats(user: Annotated[dict, Depends(get_current_user)]):
     return await db.get_stats(user["id"])
@@ -398,339 +1794,341 @@ async def recent(user: Annotated[dict, Depends(get_current_user)], limit: int = 
 async def heatmap(user: Annotated[dict, Depends(get_current_user)]):
     return await db.heatmap(user["id"])
 
-# --- QUIZ ENGINE (EGYPTIAN CURRICULUM) ---
-STATIC_QUIZZES = {
-    "g1-6": { # Primary / ابتدائية
-        "Arabic (اللغة العربية)": {
-            "1-2": [
-                {"question": "كم عدد حروف اللغة العربية؟", "options": ["28 حرفاً", "26 حرفاً", "30 حرفاً", "32 حرفاً"], "answer_index": 0, "explanation": "اللغة العربية تحتوي على 28 حرفاً أساسياً."},
-                {"question": "ما جمع كلمة 'قلم'؟", "options": ["أقلام", "كتب", "قلمة", "قوالم"], "answer_index": 0, "explanation": "جمع تكسير لكلمة قلم هو 'أقلام'."},
-                {"question": "ما مضاد كلمة 'كبير'؟", "options": ["صغير", "طويل", "ضخم", "قصير"], "answer_index": 0, "explanation": "عكس كلمة كبير هو صغير."}
-            ],
-            "3-4": [
-                {"question": "ما هو الفعل في جملة 'ذاكر الطالب الدرس'؟", "options": ["ذاكر", "الطالب", "الدرس", "لا يوجد"], "answer_index": 0, "explanation": "الفعل هو كلمة تدل على حدث، وهنا 'ذاكر'."},
-                {"question": "كم نوعاً للفعل الماضي؟", "options": ["3 أنواع", "نوعان", "4 أنواع", "نوع واحد"], "answer_index": 0, "explanation": "الفعل الماضي يكون: صحيح، معتل، مهموز."},
-                {"question": "ما مرادف كلمة 'سعيد'؟", "options": ["فرح", "حزين", "غاضب", "متعب"], "answer_index": 0, "explanation": "مرادف (مثل) كلمة سعيد هو فرح."}
-            ],
-            "5-6": [
-                {"question": "ما نوع 'إن' في جملة 'إن العلم نور'؟", "options": ["حرف ناسخ", "فعل ناقص", "اسم موصول", "حرف جر"], "answer_index": 0, "explanation": "'إن' حرف ناسخ ينصب المبتدأ."},
-                {"question": "ما هو المفعول المطلق؟", "options": ["مصدر يؤكد الفعل", "اسم يدل على زمن", "اسم يدل على مكان", "اسم يدل على آلة"], "answer_index": 0, "explanation": "المفعول المطلق هو مصدر يؤكد حدث الفعل."},
-                {"question": "ما جمع كلمة 'بحر'؟", "options": ["بحار", "أبحر", "بُحُور", "كل ما سبق"], "answer_index": 3, "explanation": "كلمة بحر تجمع على 'بحار' و'أبحر' و'بُحُور'."}
-            ]
-        },
-        "Math (الرياضيات)": {
-            "1-2": [
-                {"question": "What is 5 + 7?", "options": ["12", "11", "13", "10"], "answer_index": 0, "explanation": "5 + 7 = 12."},
-                {"question": "What is 9 - 4?", "options": ["5", "6", "4", "3"], "answer_index": 0, "explanation": "9 - 4 = 5."},
-                {"question": "What shape is a ball?", "options": ["Sphere", "Cube", "Triangle", "Square"], "answer_index": 0, "explanation": "A ball is shaped like a sphere."}
-            ],
-            "3-4": [
-                {"question": "What is 6 x 8?", "options": ["48", "42", "56", "36"], "answer_index": 0, "explanation": "6 multiplied by 8 is 48."},
-                {"question": "What is 1/2 as a decimal?", "options": ["0.5", "0.2", "1.2", "0.05"], "answer_index": 0, "explanation": "1 divided by 2 is 0.5."},
-                {"question": "How many sides does a pentagon have?", "options": ["5", "6", "4", "7"], "answer_index": 0, "explanation": "A pentagon has 5 sides."}
-            ],
-            "5-6": [
-                {"question": "What is the LCM of 4 and 6?", "options": ["12", "24", "2", "8"], "answer_index": 0, "explanation": "The Least Common Multiple of 4 and 6 is 12."},
-                {"question": "Solve for x: 3x = 15", "options": ["5", "3", "12", "45"], "answer_index": 0, "explanation": "x = 15 / 3 = 5."},
-                {"question": "What is the area of a triangle with base 4 and height 6?", "options": ["12", "24", "10", "48"], "answer_index": 0, "explanation": "Area = 1/2 * base * height = 1/2 * 4 * 6 = 12."}
-            ]
-        },
-        "Science (العلوم)": {
-            "1-2": [
-                {"question": "كم عدد حواس الإنسان؟", "options": ["5 حواس", "3 حواس", "7 حواس", "10 حواس"], "answer_index": 0, "explanation": "حواس الإنسان هي السمع، البصر، الشم، التذوق، اللمس."},
-                {"question": "What do plants need to grow?", "options": ["Sunlight", "Darkness", "Plastic", "Rocks"], "answer_index": 0, "explanation": "Plants need sunlight to make food."}
-            ],
-            "3-4": [
-                {"question": "What are the three states of matter?", "options": ["Solid, Liquid, Gas", "Hot, Cold, Warm", "Big, Small, Medium", "Red, Blue, Green"], "answer_index": 0, "explanation": "Matter can be solid, liquid, or gas."},
-                {"question": "ما هو الكوكب الذي نعيش عليه؟", "options": ["الأرض", "المريخ", "المشتري", "القمر"], "answer_index": 0, "explanation": "نعيش على كوكب الأرض."}
-            ],
-            "5-6": [
-                {"question": "What organ pumps blood?", "options": ["Heart", "Lungs", "Brain", "Liver"], "answer_index": 0, "explanation": "The heart pumps blood throughout the body."},
-                {"question": "ما هي وظيفة الجذور في النبات؟", "options": ["تثبت النبات وتمتص الماء", "تصنع الغذاء", "تنشر البذور", "تخزن الغذاء"], "answer_index": 0, "explanation": "الجذور تثبت النبات في التربة وتمتص منها الماء والأملاح."}
-            ]
-        }
-    },
-    "g7-9": { # Preparatory / إعدادية
-        "Arabic (اللغة العربية)": {
-            "7": [
-                {"question": "ما نوع كلمة 'طالب' في جملة 'الطالبُ مجتهدٌ'؟", "options": ["مبتدأ", "خبر", "فعل", "حرف"], "answer_index": 0, "explanation": "'الطالب' مبتدأ مرفوع وعلامة رفعه الضمة."},
-                {"question": "ما هو التشبيه في قولنا 'الجندي كالأسد'؟", "options": ["حيث شبه الجندي بالأسد", "استعارة", "كناية", "طباق"], "answer_index": 0, "explanation": "في هذا التشبيه، شبه الكاتب الجندي بالأسد في الشجاعة."}
-            ],
-            "8": [
-                {"question": "الجار والمجرور في جملة 'ذهبت إلى المدرسة'؟", "options": ["إلى المدرسة", "ذهبت", "المدرسة", "لا يوجد"], "answer_index": 0, "explanation": "حرف الجر 'إلى' واسمه 'المدرسة' يسميان الجار والمجرور."},
-                {"question": "اسم الإشارة للقريب هو؟", "options": ["هذا", "ذلك", "أولئك", "هؤلاء"], "answer_index": 0, "explanation": "'هذا' يدل على المفرد القريب."}
-            ],
-            "9": [
-                {"question": "من هو شاعر النيل؟", "options": ["حافظ إبراهيم", "أحمد شوقي", "إيليا أبو ماضي", "نزار قباني"], "answer_index": 0, "explanation": "حافظ إبراهيم هو شاعر النيل."},
-                {"question": "ما الفرق بين التشبيه والاستعارة؟", "options": ["التشبيه يذكر المشبه والمشبه به", "لا يوجد فرق", "الاستعارة أقصر", "التشبيه يحذف المشبه"], "answer_index": 0, "explanation": "في التشبيه يذكر المشبه والمشبه به، بينما في الاستعارة يذكر أحدهما ويدل على الآخر."}
-            ]
-        },
-        "Math (الرياضيات)": {
-            "7": [
-                {"question": "If x + 5 = 12, what is x?", "options": ["7", "5", "17", "12"], "answer_index": 0, "explanation": "x = 12 - 5 = 7."},
-                {"question": "What is the area of a rectangle with length 4 and width 3?", "options": ["12", "7", "14", "1"], "answer_index": 0, "explanation": "Area = length * width = 4 * 3 = 12."}
-            ],
-            "8": [
-                {"question": "What is the sum of angles in a triangle?", "options": ["180 degrees", "90 degrees", "360 degrees", "270 degrees"], "answer_index": 0, "explanation": "The sum of interior angles of a triangle is always 180 degrees."},
-                {"question": "Solve: 2(x - 3) = 8", "options": ["7", "5", "11", "4"], "answer_index": 0, "explanation": "2x - 6 = 8 => 2x = 14 => x = 7."}
-            ],
-            "9": [
-                {"question": "What is the value of x in x^2 = 81?", "options": ["9", "8", "10", "7"], "answer_index": 0, "explanation": "9 * 9 = 81."},
-                {"question": "What is the slope of a horizontal line?", "options": ["0", "1", "Undefined", "-1"], "answer_index": 0, "explanation": "A horizontal line has no steepness, so its slope is 0."}
-            ]
-        },
-        "Science (العلوم)": {
-            "7": [
-                {"question": "What is the powerhouse of the cell?", "options": ["Mitochondria", "Nucleus", "Ribosome", "Cytoplasm"], "answer_index": 0, "explanation": "Mitochondria produce ATP, the cell's energy currency."},
-                {"question": "What is the chemical symbol for water?", "options": ["H2O", "CO2", "O2", "NaCl"], "answer_index": 0, "explanation": "Water is made of 2 Hydrogen atoms and 1 Oxygen atom."}
-            ],
-            "8": [
-                {"question": "What force pulls objects towards Earth?", "options": ["Gravity", "Friction", "Magnetism", "Tension"], "answer_index": 0, "explanation": "Gravity is the force that attracts objects toward the center of the Earth."},
-                {"question": "ما هي وحدة قياس القوة؟", "options": ["نيوتن", "جول", "واط", "متر"], "answer_index": 0, "explanation": "تقاس القوة بوحدة نيوتن."}
-            ],
-            "9": [
-                {"question": "What is the atomic number of Oxygen?", "options": ["8", "6", "16", "12"], "answer_index": 0, "explanation": "Oxygen has 8 protons in its nucleus."},
-                {"question": "What type of energy is stored in food?", "options": ["Chemical", "Kinetic", "Potential", "Nuclear"], "answer_index": 0, "explanation": "Food stores chemical energy in its bonds."}
-            ]
-        }
-    },
-    "g10-12": { # Secondary / ثانوية
-        "Arabic (اللغة العربية)": {
-            "10": [
-                {"question": "ما هو المفعول المطلق في جملة 'انتصر الجيش انتصاراً عظيماً'؟", "options": ["انتصاراً", "الجيش", "عظيماً", "انتصر"], "answer_index": 0, "explanation": "المفعول المطلق هو مصدر يؤكد الفعل، وهنا 'انتصاراً'."},
-                {"question": "من قائل مسرحية 'مجنون ليلى'؟", "options": ["أحمد شوقي", "توفيق الحكيم", "نجيب محفوظ", "أحمد أمين"], "answer_index": 0, "explanation": "مسرحية مجنون ليلى من أشهر أعمال أمير الشعراء أحمد شوقي."}
-            ],
-            "11": [
-                {"question": "البلاغة علم يبحث فيه عن؟", "options": ["المحسنات والصور البيانية", "النحو والإعراب", "تاريخ الأدب", "الكتابة الإنشائية"], "answer_index": 0, "explanation": "علم البلاغة يبحث في المحسنات البديعية والمعنوية والصور البيانية."},
-                {"question": "التشبيه هو؟", "options": ["تشبيه شيء بشيء لبيان وجه الشبه", "إسناد معنى لشيء ليس منه", "ذكر الشيء بلفظه", "ذكر الشيء بضده"], "answer_index": 0, "explanation": "التشبيه هو عقد مماثلة بين طرفين لبيان وجه الشبه."}
-            ],
-            "12": [
-                {"question": "ما هي مدرسة الإحياء والبعث؟", "options": ["مدرسة أدبية تهتم بتقليد الشعر القديم", "مدرسة حديثة ترفض الشعر", "مدرسة تكتب الرواية فقط", "مدرسة تنتمي للأدب المهجري"], "answer_index": 0, "explanation": "مدرسة الإحياء والبعث هي مدرسة شعرية حافظت على القديم وأضافت إليه روحاً جديدة."},
-                {"question": "ما الفرق بين الوراقة والطباعة؟", "options": ["الوراقة كتابة يدوية والطباعة آلية", "لا فرق", "الوراقة أحدث", "الطباعة تستخدم الحبر"], "answer_index": 0, "explanation": "الوراقة هي صناعة الكتابة على الورق يدوياً، بينما الطباعة تتم بواسطة الآلات."}
-            ]
-        },
-        "Math (الرياضيات)": {
-            "10": [
-                {"question": "What is log10(100)?", "options": ["2", "10", "0.1", "100"], "answer_index": 0, "explanation": "10^2 = 100, so log10(100) = 2."},
-                {"question": "What is the value of sin(30)?", "options": ["1/2", "1", "√3/2", "0"], "answer_index": 0, "explanation": "sin(30) = 1/2."}
-            ],
-            "11": [
-                {"question": "What is the derivative of x^3?", "options": ["3x^2", "x^2", "3x", "3"], "answer_index": 0, "explanation": "d/dx(x^n) = n*x^(n-1)."},
-                {"question": "What is the limit of (x^2 - 1)/(x - 1) as x approaches 1?", "options": ["2", "1", "0", "Undefined"], "answer_index": 0, "explanation": "Factoring gives (x-1)(x+1)/(x-1) = x+1. At x=1, value is 2."}
-            ],
-            "12": [
-                {"question": "What is the integral of 2x dx?", "options": ["x^2 + C", "2 + C", "x^2 / 2 + C", "2x^2 + C"], "answer_index": 0, "explanation": "The anti-derivative of 2x is x^2 + C."},
-                {"question": "What is the determinant of [[2,0],[0,2]]?", "options": ["4", "0", "2", "1"], "answer_index": 0, "explanation": "2*2 - 0*0 = 4."}
-            ]
-        },
-        "Physics (الفيزياء)": {
-            "10": [
-                {"question": "What is the unit of force?", "options": ["Newton", "Joule", "Watt", "Pascal"], "answer_index": 0, "explanation": "Force is measured in Newtons (N)."},
-                {"question": "What is the acceleration due to gravity on Earth?", "options": ["9.8 m/s^2", "8.9 m/s^2", "10.2 m/s^2", "9.5 m/s^2"], "answer_index": 0, "explanation": "g ≈ 9.8 m/s^2 on Earth."}
-            ],
-            "11": [
-                {"question": "What is Ohm's Law?", "options": ["V = I * R", "P = I * V", "V = I / R", "R = V * I"], "answer_index": 0, "explanation": "Voltage equals current times resistance."},
-                {"question": "What type of wave is light?", "options": ["Transverse", "Longitudinal", "Mechanical", "Sound"], "answer_index": 0, "explanation": "Light is a transverse electromagnetic wave."}
-            ],
-            "12": [
-                {"question": "What is the charge of an electron?", "options": ["Negative", "Positive", "Neutral", "Variable"], "answer_index": 0, "explanation": "Electrons carry a negative elementary charge."},
-                {"question": "What is the speed of light in vacuum?", "options": ["3 x 10^8 m/s", "3 x 10^6 m/s", "3 x 10^10 m/s", "9.8 m/s"], "answer_index": 0, "explanation": "c ≈ 300,000,000 m/s."}
-            ]
-        }
-    },
-    "general": { # General / General Knowledge
-        "General Knowledge": {
-            "easy": [
-                {"question": "What is the capital of Egypt?", "options": ["Cairo", "Alexandria", "Giza", "Luxor"], "answer_index": 0, "explanation": "Cairo is the capital and largest city of Egypt."},
-                {"question": "كم عدد القارات في العالم؟", "options": ["7 قارات", "5 قارات", "6 قارات", "8 قارات"], "answer_index": 0, "explanation": "يوجد 7 قارات في العالم."}
-            ],
-            "mixed": [
-                {"question": "What is the largest ocean on Earth?", "options": ["Pacific", "Atlantic", "Indian", "Arctic"], "answer_index": 0, "explanation": "The Pacific Ocean is the largest and deepest."},
-                {"question": "ما هو أطول نهر في العالم؟", "options": ["النيل", "الأمازون", "المسيسيبي", "اليانغتسي"], "answer_index": 0, "explanation": "نهر النيل هو أطول نهر في العالم."}
-            ],
-            "hard": [
-                {"question": "What is the chemical symbol for Gold?", "options": ["Au", "Ag", "Gd", "Go"], "answer_index": 0, "explanation": "Au comes from the Latin word 'aurum'."},
-                {"question": "ما هي عاصمة اليابان؟", "options": ["طوكيو", "كيوتو", "أوساكا", "سيول"], "answer_index": 0, "explanation": "طوكيو هي عاصمة اليابان."}
-            ]
-        }
-    }
-}
-
-def _match_static(topic: str, n: int, grade: str = "general", difficulty: str = "mixed"):
-    key = topic.strip().lower()
-    bank_dict = STATIC_QUIZZES.get(grade, STATIC_QUIZZES["general"])
-    
-    subject = None
-    for name in bank_dict:
-        if name.lower() == key or name.lower() in key or key in name.lower():
-            subject = name
-            break
-    if subject is None:
-        subject = random.choice(list(bank_dict.keys()))
-        
-    subject_bank = bank_dict[subject]
-    
-    # Get questions for the specific difficulty, fallback to "mixed" or "easy" if not found
-    questions = subject_bank.get(difficulty, subject_bank.get("mixed", subject_bank.get("easy", [])))
-    if not questions:
-        # If still no questions, just grab whatever is available in the subject
-        for diff_qs in subject_bank.values():
-            if diff_qs:
-                questions = diff_qs
-                break
-                
-    qs = random.sample(questions, min(n, len(questions)))
-    return {"topic": topic, "subject": subject, "questions": qs, "ai": False, "source": "static"}
+# -----------------------------
+# QUIZ ENGINE
+# -----------------------------
 
 @app.get("/api/quiz/subjects")
 async def quiz_subjects(user: Annotated[dict, Depends(get_current_user)]):
-    user_settings = await db.get_user_by_id(user["id"])
-    grade = user_settings.get("grade", "general") if user_settings else "general"
-    return {"subjects": list(STATIC_QUIZZES.get(grade, STATIC_QUIZZES["general"]).keys())}
+    grade = normalize_grade(user.get("grade"))
+    subjects = list(STATIC_QUIZZES.get(grade, STATIC_QUIZZES["general"]).keys())
+
+    return {
+        "grade": grade,
+        "subjects": subjects
+    }
 
 @app.get("/api/quiz/static")
-async def quiz_static(user: Annotated[dict, Depends(get_current_user)], topic: str = "Mathematics", n: int = 4, difficulty: str = "mixed"):
-    user_settings = await db.get_user_by_id(user["id"])
-    grade = user_settings.get("grade", "general") if user_settings else "general"
-    return _match_static(topic, max(3, min(5, n)), grade, difficulty)
+async def quiz_static(
+    user: Annotated[dict, Depends(get_current_user)],
+    topic: str = Query(default="General Knowledge"),
+    n: int = Query(default=4, ge=1, le=10),
+    difficulty: str = Query(default="mixed")
+):
+    grade = normalize_grade(user.get("grade"))
+    n = max(3, min(10, n))
+    quiz = _match_static(topic, n, grade, difficulty)
 
-def _clean_questions(data, limit: int) -> list:
-    qs = data.get("questions", data if isinstance(data, list) else [])
-    clean = []
-    for q in qs[:limit]:
-        opts = [str(o) for o in q.get("options", [])][:6]
-        try: idx = int(q.get("answer_index", 0))
-        except Exception: continue
-        if q.get("question") and len(opts) >= 3 and 0 <= idx < len(opts):
-            clean.append({
-                "question": str(q["question"]), "options": opts,
-                "answer_index": idx, "explanation": str(q.get("explanation", "—")),
-                "context": str(q.get("context", ""))
-            })
-    return clean
+    if quiz["questions"]:
+        session_id = await db.create_quiz_session(
+            user_id=user["id"],
+            topic=quiz.get("topic") or quiz.get("subject") or "General",
+            source="static",
+            difficulty=difficulty,
+            questions=quiz["questions"]
+        )
+        quiz["session_id"] = session_id
 
-QUIZ_SCHEMA = ('{"questions":[{"question":"...","options":["A","B","C","D"],"answer_index":0,"explanation":"...","context":"exact quote from text if pdf"}]}')
+    return quiz
 
 @app.post("/api/quiz/ai")
 async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_user)]):
-    check_rate_limit(user["id"])
-    
+    await check_rate_limit(user["id"])
+
+    await db.reset_usage_if_needed(user["id"])
     usage = await db.get_user_usage(user["id"])
-    tier = usage["tier"]
+
+    tier = effective_tier_from_user(usage or user)
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
-    
-    if usage["ai_questions_used"] + payload.num_questions > limits["ai_questions"]:
-        raise HTTPException(403, f"You have reached your monthly AI question limit ({limits['ai_questions']}). Please upgrade to Plus.")
-    
-    groq_model = TIER_MODELS.get(tier, TIER_MODELS["free"])
-    
-    user_settings = await db.get_user_by_id(user["id"])
-    lang = user_settings.get("language", "en") if user_settings else "en"
-    
-    if lang == "ar":
+
+    num_questions = min(payload.num_questions, limits["max_ai_questions_per_request"])
+
+    if usage["ai_questions_used"] + num_questions > limits["ai_questions"]:
+        raise HTTPException(
+            403,
+            f"You have reached your monthly AI question limit ({limits['ai_questions']}). Please upgrade."
+        )
+
+    language = (user.get("language") or "en").strip().lower()
+    grade = normalize_grade(user.get("grade"))
+
+    if language == "ar":
         lang_instruction = (
             "Please generate the questions, options, and explanations strictly in Arabic. "
             "CRITICAL: If the topic involves Arabic poetry, literature, or history, you MUST be strictly factual. "
-            "DO NOT invent or hallucinate any poetry verses. If you don't know the exact verse, ask a general question about the poem's theme or author instead."
+            "DO NOT invent or hallucinate poetry verses. If you do not know the exact verse, ask a general question "
+            "about the poem's theme or author instead."
         )
     else:
         lang_instruction = "Generate in English."
-    
+
     messages = [
-        {"role": "system", "content": f"You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — matching exactly this schema: {QUIZ_SCHEMA}. Vary the correct answer position. {lang_instruction}"},
-        {"role": "user", "content": f"Generate exactly {payload.num_questions} {payload.difficulty} multiple-choice questions about '{payload.topic}' for a student. Each must have 4 plausible options and a one-sentence explanation."},
+        {
+            "role": "system",
+            "content": (
+                "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — "
+                f"matching exactly this schema: {QUIZ_SCHEMA}. "
+                "Vary the correct answer position. "
+                f"{lang_instruction}"
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Generate exactly {num_questions} {payload.difficulty} multiple-choice questions about "
+                f"'{payload.topic}' for a student in grade group {grade}. "
+                "Each must have 4 plausible options and a one-sentence explanation."
+            )
+        }
     ]
+
     try:
-        max_tokens = max(1200, payload.num_questions * 250)
-        raw = await groq_chat(messages, temperature=0.7, max_tokens=max_tokens, model_override=groq_model)
-        clean = _clean_questions(extract_json(raw), payload.num_questions)
-        if not clean: raise ValueError("empty question set")
-        
-        await db.increment_usage(user["id"], ai_questions=payload.num_questions)
-        return {"topic": payload.topic, "subject": "AI", "questions": clean, "ai": True, "source": "ai"}
+        max_tokens = max(1200, num_questions * 250)
+
+        raw = await groq_chat_with_fallback(
+            messages=messages,
+            tier=tier,
+            temperature=0.7,
+            max_tokens=max_tokens
+        )
+
+        clean = _clean_questions(extract_json(raw), num_questions)
+
+        if not clean:
+            raise ValueError("Empty question set from AI.")
+
+        session_id = await db.create_quiz_session(
+            user_id=user["id"],
+            topic=payload.topic,
+            source="ai",
+            difficulty=payload.difficulty,
+            questions=clean
+        )
+
+        await db.increment_usage(user["id"], ai_questions=num_questions)
+        await db.log_usage_event(user["id"], "ai_question", num_questions, tier)
+
+        return {
+            "topic": payload.topic,
+            "subject": "AI",
+            "grade": grade,
+            "difficulty": payload.difficulty,
+            "questions": clean,
+            "ai": True,
+            "source": "ai",
+            "session_id": session_id
+        }
+
     except Exception as e:
-        print(f"⚠️ AI Quiz Error: {e}")
-        fallback = _match_static(payload.topic, 4, user_settings.get("grade", "general") if user_settings else "general", payload.difficulty)
+        logger.warning("AI Quiz Error: %s", str(e))
+
+        fallback = _match_static(
+            topic=payload.topic,
+            n=min(4, num_questions),
+            grade=grade,
+            difficulty=payload.difficulty
+        )
+
         fallback["note"] = "AI unavailable — served from the static bank."
         return fallback
 
 @app.post("/api/quiz/pdf")
-async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed"), topic: str = Form(""), num_questions: int = Form(0), user: dict = Depends(get_current_user)):
-    if not PDF_OCR_ENABLED:
-        raise HTTPException(500, "PDF libraries not installed on server.")
-        
-    check_rate_limit(user["id"])
-        
+async def quiz_pdf(
+    file: UploadFile = File(...),
+    difficulty: str = Form("mixed"),
+    topic: str = Form(""),
+    num_questions: int = Form(0),
+    user: dict = Depends(get_current_user)
+):
+    if not PDF_IMPORT_OK:
+        raise HTTPException(500, "PDF libraries are not installed on the server.")
+
+    await check_rate_limit(user["id"])
+
+    await db.reset_usage_if_needed(user["id"])
     usage = await db.get_user_usage(user["id"])
-    tier = usage["tier"]
+
+    tier = effective_tier_from_user(usage or user)
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
-    
+
     if usage["pdf_uploads_used"] >= limits["pdf_uploads"]:
-        raise HTTPException(403, f"You have reached your monthly PDF upload limit ({limits['pdf_uploads']}). Please upgrade to Plus.")
+        raise HTTPException(
+            403,
+            f"You have reached your monthly PDF upload limit ({limits['pdf_uploads']}). Please upgrade."
+        )
+
+    max_bytes = int(limits["pdf_max_mb"] * 1024 * 1024)
+
+    size = getattr(file, "size", None)
+    if size is not None and size > max_bytes:
+        raise HTTPException(
+            413,
+            f"PDF too large. Your plan allows up to {limits['pdf_max_mb']}MB."
+        )
 
     data = await file.read()
-    file_size_mb = len(data) / (1024 * 1024)
-    
-    if tier == "free" and file_size_mb > 1.0:
-        raise HTTPException(413, "Free tier limit: PDFs must be under 1MB. Please upgrade to Plus for larger files (up to 15MB).")
-        
-    if len(data) > 15 * 1024 * 1024: 
-        raise HTTPException(413, "PDF too large (max 15 MB).")
-    
+
+    if len(data) == 0:
+        raise HTTPException(422, "The uploaded file is empty.")
+
+    if len(data) > max_bytes:
+        raise HTTPException(
+            413,
+            f"PDF too large. Your plan allows up to {limits['pdf_max_mb']}MB."
+        )
+
     text = ""
+
     try:
         doc = fitz.open(stream=data, filetype="pdf")
-        for page in doc[:40]: 
-            text += page.get_text()
-        text = re.sub(r"\s+", " ", text).strip()
-        
-        if len(text) < 200:
-            text = ""
-            for page in doc[:10]:
-                pix = page.get_pixmap(dpi=150)
-                img = Image.open(io.BytesIO(pix.tobytes("png")))
-                text += pytesseract.image_to_string(img)
-            text = re.sub(r"\s+", " ", text).strip()
     except Exception as e:
-        raise HTTPException(422, f"Could not read that file. Is it a valid PDF? ({str(e)})")
+        raise HTTPException(422, f"Could not read that file. Is it a valid PDF? {str(e)}")
 
-    if len(text) < 200: 
-        raise HTTPException(422, "Not enough readable text in this PDF (even with OCR).")
+    try:
+        max_pages = min(len(doc), limits["pdf_max_pages"])
 
-    if not num_questions or num_questions == 0:
-        if len(text) > 6000: auto_n = 5
-        elif len(text) > 2500: auto_n = 4
-        else: auto_n = 3
-        num_questions = auto_n
+        for page in doc[:max_pages]:
+            try:
+                text += page.get_text()
+            except Exception:
+                continue
+
+        text = re.sub(r"\s+", " ", text).strip()
+
+        if len(text) < 200 and PDF_OCR_ENABLED:
+            ocr_text = ""
+            ocr_pages = min(len(doc), limits["pdf_max_ocr_pages"])
+
+            for page in doc[:ocr_pages]:
+                try:
+                    ocr_text += _ocr_page(page)
+                except Exception:
+                    continue
+
+            text = re.sub(r"\s+", " ", ocr_text).strip()
+
+    finally:
+        try:
+            doc.close()
+        except Exception:
+            pass
+
+    if len(text) < 200:
+        raise HTTPException(
+            422,
+            "Not enough readable text in this PDF. If it is scanned, OCR may need better quality."
+        )
+
+    if not num_questions or num_questions <= 0:
+        if len(text) > 6000:
+            num_questions = 5
+        elif len(text) > 2500:
+            num_questions = 4
+        else:
+            num_questions = 3
+
+    num_questions = min(num_questions, limits["max_ai_questions_per_request"])
 
     label = topic.strip() or Path(file.filename or "upload.pdf").stem
-    excerpt = text[:9000]
-    
-    groq_model = TIER_MODELS.get(tier, TIER_MODELS["free"])
-    
+    excerpt = text[:12000]
+
     messages = [
-        {"role": "system", "content": "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — matching exactly this schema: " + QUIZ_SCHEMA + ". Vary the correct answer position."},
-        {"role": "user", "content": f"Using ONLY the excerpt below from the student's document '{label}', write exactly {num_questions} {difficulty} multiple-choice questions. Make them smart: test conceptual understanding, application, or inference rather than just rote memorization. Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote (max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt},
+        {
+            "role": "system",
+            "content": (
+                "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — "
+                f"matching exactly this schema: {QUIZ_SCHEMA}. "
+                "Vary the correct answer position."
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Using ONLY the excerpt below from the student's document '{label}', write exactly "
+                f"{num_questions} {difficulty} multiple-choice questions. "
+                "Make them smart: test conceptual understanding, application, or inference rather than just rote memorization. "
+                "Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote "
+                "(max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt
+            )
+        }
     ]
-    
+
     try:
-        raw = await groq_chat(messages, temperature=0.6, max_tokens=2000, model_override=groq_model)
+        raw = await groq_chat_with_fallback(
+            messages=messages,
+            tier=tier,
+            temperature=0.6,
+            max_tokens=2000
+        )
+
         clean = _clean_questions(extract_json(raw), num_questions)
-        if not clean: raise ValueError("empty question set")
-            
+
+        if not clean:
+            raise ValueError("Empty question set from PDF AI.")
+
+        session_id = await db.create_quiz_session(
+            user_id=user["id"],
+            topic=label,
+            source="pdf",
+            difficulty=difficulty,
+            questions=clean
+        )
+
         await db.increment_usage(user["id"], pdf_uploads=1)
-        return {"topic": label, "subject": "PDF", "questions": clean, "ai": True, "source": "pdf"}
+        await db.log_usage_event(user["id"], "pdf_upload", 1, tier)
+
+        return {
+            "topic": label,
+            "subject": "PDF",
+            "difficulty": difficulty,
+            "questions": clean,
+            "ai": True,
+            "source": "pdf",
+            "session_id": session_id
+        }
+
     except Exception as e:
-        print(f"⚠️ AI PDF Quiz Error: {e}")
-        raise HTTPException(503, "AI is unavailable right now.")
+        logger.error("AI PDF Quiz Error: %s", str(e))
+        raise HTTPException(503, "AI is unavailable right now. Please try again.")
 
 @app.post("/api/quiz/submit")
 async def quiz_submit(payload: SubmitIn, user: Annotated[dict, Depends(get_current_user)]):
-    if payload.correct > payload.total: raise HTTPException(422, "correct cannot exceed total")
-    result = await db.record_attempt(user["id"], payload.topic_name, payload.correct, payload.total, payload.source)
-    return {"saved": True, "topic": result}
+    if payload.correct > payload.total:
+        raise HTTPException(422, "correct cannot exceed total.")
 
-# --- SCHEDULER ---
+    topic_name = (payload.topic or payload.topic_name or "General").strip() or "General"
+
+    result = await db.record_attempt(
+        user_id=user["id"],
+        topic_name=topic_name,
+        correct=payload.correct,
+        total=payload.total,
+        source=payload.source
+    )
+
+    if payload.session_id:
+        await db.complete_quiz_session(user["id"], payload.session_id)
+
+    return {
+        "saved": True,
+        "topic": result
+    }
+
+@app.get("/api/quiz/sessions")
+async def quiz_sessions(user: Annotated[dict, Depends(get_current_user)], limit: int = 20):
+    return await db.get_quiz_sessions(user["id"], limit)
+
+@app.get("/api/quiz/sessions/{session_id}")
+async def quiz_session_detail(session_id: int, user: Annotated[dict, Depends(get_current_user)]):
+    session = await db.get_quiz_session(user["id"], session_id)
+    if not session:
+        raise HTTPException(404, "Quiz session not found.")
+    return session
+
+# -----------------------------
+# SCHEDULER
+# -----------------------------
+
 @app.get("/api/schedule")
 async def schedule(user: Annotated[dict, Depends(get_current_user)]):
     return await db.get_schedule(user["id"])
@@ -748,100 +2146,209 @@ async def remove(task_id: int, user: Annotated[dict, Depends(get_current_user)])
     await db.delete_task(user["id"], task_id)
     return {"deleted": task_id}
 
-# --- AI COACH ---
+# -----------------------------
+# AI COACH
+# -----------------------------
+
 @app.get("/api/coach")
 async def coach(user: Annotated[dict, Depends(get_current_user)]):
+    await check_rate_limit(user["id"])
+
     topics = await db.get_topics(user["id"])
     sched = await db.get_schedule(user["id"])
     recent = await db.recent_attempts(user["id"], 6)
+
     weak = sorted([t for t in topics if t["score"] < 65], key=lambda t: t["score"])[:4]
-    if not weak: weak = sorted(topics, key=lambda t: t["score"])[:2]
+    if not weak:
+        weak = sorted(topics, key=lambda t: t["score"])[:2]
+
     pcts = [a["pct"] for a in recent]
-    trend = (sum(pcts[:3]) / max(1, len(pcts[:3])) - sum(pcts[3:]) / max(1, len(pcts[3:]))) if len(pcts) >= 4 else 0
+
+    if len(pcts) >= 4:
+        trend = (sum(pcts[:3]) / max(1, len(pcts[:3]))) - (sum(pcts[3:]) / max(1, len(pcts[3:])))
+    else:
+        trend = 0
+
+    language = (user.get("language") or "en").strip().lower()
+
+    if language == "ar":
+        language_instruction = "Write the plan in Arabic."
+    else:
+        language_instruction = "Write the plan in English."
+
     ctx = "\n".join([
         "Weak topics (mastery %):",
         *[f"- {t['name']} ({t['subject']}): {int(t['score'])}%" for t in weak],
         "Upcoming deadlines:",
         *([f"- {t['title']} [{t.get('tier')}] due {t['deadline']}" for t in sched["queue"][:3]] or ["- none"]),
-        f"Recent accuracy trend: {'rising' if trend > 0 else 'falling'} ({round(trend, 1)} pts).",
+        f"Recent accuracy trend: {'rising' if trend > 0 else 'falling'} ({round(trend, 1)} pts)."
     ])
+
     try:
-        raw = await groq_chat([
-            {"role": "system", "content": "You are El-Peak, a sharp, encouraging study coach. Reply with STRICT JSON only, no markdown: {\"headline\":str,\"focus\":[{\"topic\":str,\"why\":str,\"drill\":str}],\"tips\":[4 strings],\"plan\":[{\"day\":str,\"task\":str} with exactly 7 entries],\"motivation\":str}"},
-            {"role": "user", "content": f"Build a 7-day revision plan from this student data:\n{ctx}"},
-        ], temperature=0.6, max_tokens=1200)
+        raw = await groq_chat_with_fallback(
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are El-Peak, a sharp, encouraging study coach. "
+                        "Reply with STRICT JSON only, no markdown: "
+                        '{"headline":str,"focus":[{"topic":str,"why":str,"drill":str}],'
+                        '"tips":[4 strings],"plan":[{"day":str,"task":str} with exactly 7 entries],'
+                        '"motivation":str}. '
+                        f"{language_instruction}"
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"Build a 7-day revision plan from this student data:\n{ctx}"
+                }
+            ],
+            tier=effective_tier_from_user(user),
+            temperature=0.6,
+            max_tokens=1200
+        )
+
         data = extract_json(raw)
-        data.setdefault("focus", []); data.setdefault("tips", []); data.setdefault("plan", [])
+
+        if not isinstance(data, dict):
+            raise ValueError("Coach response was not a JSON object.")
+
+        data.setdefault("headline", "Your 7-day summit plan.")
+        data.setdefault("focus", [])
+        data.setdefault("tips", [])
+        data.setdefault("plan", [])
+        data.setdefault("motivation", "Small consistent reps beat rare heroic sessions.")
         data["ai"] = True
+
         return data
+
     except Exception as e:
-        print(f"⚠️ Coach Fallback Triggered: {e}")
+        logger.warning("Coach fallback triggered: %s", str(e))
         return heuristic_coach(weak, trend)
 
-def heuristic_coach(weak, trend) -> dict:
-    focus = [{"topic": t["name"], "why": f"Mastery at {int(t['score'])}% — below your 65% safety line.", "drill": f"15-min mixed drill on {t['name']}, then a 5-question quiz to lock it in."} for t in weak[:3]]
-    plan, days = [], ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+def heuristic_coach(weak: List[dict], trend: float) -> dict:
+    focus = [
+        {
+            "topic": t["name"],
+            "why": f"Mastery at {int(t['score'])}% — below your 65% safety line.",
+            "drill": f"15-min mixed drill on {t['name']}, then a 5-question quiz to lock it in."
+        }
+        for t in weak[:3]
+    ]
+
+    plan = []
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
     for i, day in enumerate(days):
         if weak:
             t = weak[i % len(weak)]
-            task = (f"Drill '{t['name']}' — 25 min focus block + mini-quiz" if i % 2 == 0 else f"Retest '{t['name']}' and review wrong answers")
-        else: task = "Maintenance set across your strongest topics."
-        plan.append({"day": day, "task": task})
+            if i % 2 == 0:
+                task = f"Drill '{t['name']}' — 25 min focus block + mini-quiz."
+            else:
+                task = f"Retest '{t['name']}' and review wrong answers."
+        else:
+            task = "Maintenance set across your strongest topics."
+
+        plan.append({
+            "day": day,
+            "task": task
+        })
+
     return {
         "headline": f"Summit plan: shore up {len(weak)} weak ridge(s) before deadlines hit.",
         "focus": focus,
-        "tips": ["Attack your weakest topic first each session.", "Use spaced repetition.", "Interleave subjects.", "Simulate pressure: time your quizzes."],
+        "tips": [
+            "Attack your weakest topic first each session.",
+            "Use spaced repetition.",
+            "Interleave subjects.",
+            "Simulate pressure: time your quizzes."
+        ],
         "plan": plan,
-        "motivation": "Your trend line is data, not destiny. Every rep on a weak topic raises the whole range." if trend <= 0 else "Momentum is on your side — keep the streak alive.",
-        "ai": False,
+        "motivation": (
+            "Your trend line is data, not destiny. Every rep on a weak topic raises the whole range."
+            if trend <= 0 else
+            "Momentum is on your side — keep the streak alive."
+        ),
+        "ai": False
     }
 
-# --- AI TUTOR CHAT ---
+# -----------------------------
+# AI TUTOR
+# -----------------------------
+
 @app.post("/api/ask")
 async def ask_tutor(payload: AskIn, user: Annotated[dict, Depends(get_current_user)]):
+    await check_rate_limit(user["id"])
+
+    language = (user.get("language") or "en").strip().lower()
+
+    if language == "ar":
+        language_instruction = "If the user asks in Arabic, answer in Arabic. Otherwise answer clearly."
+    else:
+        language_instruction = "Answer primarily in English unless the user asks in Arabic."
+
+    sanitized_history = []
+
+    for item in payload.history[-12:]:
+        if not isinstance(item, dict):
+            continue
+
+        role = item.get("role")
+        content = str(item.get("content", ""))[:3000]
+
+        if role not in ("user", "assistant"):
+            continue
+
+        if not content.strip():
+            continue
+
+        sanitized_history.append({
+            "role": role,
+            "content": content
+        })
+
     messages = [
-        {"role": "system", "content": "You are El-Peak, a friendly, sharp AI study tutor. Explain concepts clearly. Use markdown for formatting. Keep answers concise but thorough."},
-        *payload.history,
-        {"role": "user", "content": payload.question}
+        {
+            "role": "system",
+            "content": (
+                "You are El-Peak, a friendly, sharp AI study tutor. "
+                "Explain concepts clearly. Use markdown for formatting. "
+                "Keep answers concise but thorough. "
+                f"{language_instruction}"
+            )
+        },
+        *sanitized_history,
+        {
+            "role": "user",
+            "content": payload.question[:5000]
+        }
     ]
+
     try:
-        reply = await groq_chat(messages, temperature=0.5, max_tokens=1000)
+        reply = await groq_chat_with_fallback(
+            messages=messages,
+            tier=effective_tier_from_user(user),
+            temperature=0.5,
+            max_tokens=1000
+        )
+
         return {"reply": reply}
+
     except Exception as e:
-        print(f"⚠️ Tutor Chat Error: {e}")
-        raise HTTPException(503, "El-Peak is thinking too hard right now.")
+        logger.error("Tutor Chat Error: %s", str(e))
+        raise HTTPException(503, "El-Peak is thinking too hard right now. Please try again.")
 
-# --- GROQ CORE ---
-async def groq_chat(messages: list, temperature: float = 0.6, max_tokens: int = 1200, model_override: str = None) -> str:
-    key = os.getenv("GROQ_API_KEY")
-    if not key: raise RuntimeError("Missing GROQ_API_KEY.")
-    
-    model_to_use = model_override if model_override else GROQ_MODEL
-    payload = {"model": model_to_use, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    
-    async with httpx.AsyncClient(timeout=45) as client:
-        r = await client.post(GROQ_URL, headers=headers, json=payload)
-        if r.status_code != 200:
-            try: err_msg = r.json().get("error", {}).get("message", str(r.json()))
-            except: err_msg = r.text
-            print(f"\n❌ GROQ API ERROR ({r.status_code}): {err_msg}\n")
-            raise RuntimeError(f"Groq API Error: {err_msg}")
-        return r.json()["choices"][0]["message"]["content"]
-
-def extract_json(text: str):
-    candidates = [text.strip()]
-    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    if fence: candidates.insert(0, fence.group(1).strip())
-    for c in candidates:
-        try: return json.loads(c)
-        except Exception: pass
-        lo, hi = c.find("{"), c.rfind("}")
-        if lo != -1 and hi > lo:
-            try: return json.loads(c[lo:hi + 1])
-            except Exception: pass
-    raise ValueError("No parseable JSON in model response")
+# -----------------------------
+# DEV RUNNER
+# -----------------------------
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=DEBUG
+    )
