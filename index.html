@@ -65,14 +65,12 @@
       --card-shadow:
         0 1px 0 rgba(255, 255, 255, 0.05) inset,
         0 0 0 1px rgba(255, 255, 255, 0.03),
-        0 4px 24px rgba(0, 0, 0, 0.3),
-        0 12px 48px rgba(0, 0, 0, 0.2);
+        0 8px 32px rgba(0, 0, 0, 0.3);
 
       --card-shadow-hover:
         0 1px 0 rgba(255, 255, 255, 0.1) inset,
         0 0 0 1px rgba(255, 255, 255, 0.06),
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        0 20px 60px rgba(99, 102, 241, 0.1);
+        0 12px 40px rgba(0, 0, 0, 0.4);
 
       --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
       --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
@@ -82,7 +80,7 @@
       --radius-lg: 20px;
       --radius-xl: 28px;
 
-      --blur: 24px;
+      --blur: 16px;
       --blur-strong: 40px;
 
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -114,16 +112,30 @@
       --card-shadow:
         0 1px 0 rgba(255, 255, 255, 0.8) inset,
         0 0 0 1px rgba(15, 23, 42, 0.04),
-        0 4px 24px rgba(15, 23, 42, 0.06),
-        0 12px 48px rgba(15, 23, 42, 0.08);
+        0 8px 32px rgba(15, 23, 42, 0.06);
 
       --card-shadow-hover:
         0 1px 0 rgba(255, 255, 255, 0.9) inset,
         0 0 0 1px rgba(99, 102, 241, 0.12),
-        0 8px 32px rgba(15, 23, 42, 0.1),
-        0 20px 60px rgba(99, 102, 241, 0.08);
+        0 12px 40px rgba(15, 23, 42, 0.1);
 
       --gradient-text: linear-gradient(135deg, #4f46e5 0%, #9333ea 40%, #0891b2 100%);
+    }
+
+    /* ================================================================
+       LENIS SMOOTH SCROLL CORE CSS
+       ================================================================ */
+    html.lenis, html.lenis body {
+      height: auto;
+    }
+    .lenis.lenis-smooth {
+      scroll-behavior: auto !important;
+    }
+    .lenis.lenis-smooth [data-lenis-prevent] {
+      overscroll-behavior: contain;
+    }
+    .lenis.lenis-stopped {
+      overflow: hidden;
     }
 
     /* ================================================================
@@ -131,7 +143,10 @@
        ================================================================ */
     *, *::before, *::after { box-sizing: border-box; }
 
-    /* Removed scroll-behavior: smooth to prevent conflict with Lenis */
+    html { 
+      overflow-x: hidden;
+      scroll-behavior: auto;
+    }
 
     body {
       margin: 0;
@@ -143,7 +158,6 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       transition: background 0.4s var(--ease);
-      -webkit-overflow-scrolling: touch;
     }
 
     button, input, select, textarea {
@@ -175,7 +189,7 @@
     .blob {
       position: absolute;
       border-radius: 50%;
-      filter: blur(120px);
+      filter: blur(80px); /* Reduced from 120px for GPU performance */
       opacity: 0.4;
       will-change: transform;
       mix-blend-mode: screen;
@@ -213,20 +227,21 @@
       animation: float-c 25s ease-in-out infinite;
     }
 
+    /* Removed scale() from animations to prevent expensive blur re-rasterization */
     @keyframes float-a {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      33% { transform: translate(60px, 40px) scale(1.1); }
-      66% { transform: translate(-40px, 60px) scale(0.95); }
+      0%, 100% { transform: translate(0, 0); }
+      33% { transform: translate(60px, 40px); }
+      66% { transform: translate(-40px, 60px); }
     }
     @keyframes float-b {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      33% { transform: translate(-50px, 30px) scale(1.08); }
-      66% { transform: translate(40px, -40px) scale(0.92); }
+      0%, 100% { transform: translate(0, 0); }
+      33% { transform: translate(-50px, 30px); }
+      66% { transform: translate(40px, -40px); }
     }
     @keyframes float-c {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      33% { transform: translate(30px, -50px) scale(1.05); }
-      66% { transform: translate(-50px, 20px) scale(1.1); }
+      0%, 100% { transform: translate(0, 0); }
+      33% { transform: translate(30px, -50px); }
+      66% { transform: translate(-50px, 20px); }
     }
 
     /* ================================================================
@@ -247,13 +262,11 @@
       border: 1px solid var(--glass-border);
       border-radius: var(--radius-lg);
       box-shadow: var(--card-shadow);
-      backdrop-filter: blur(var(--blur)) saturate(1.5);
-      -webkit-backdrop-filter: blur(var(--blur)) saturate(1.5);
+      backdrop-filter: blur(var(--blur)) saturate(1.2);
+      -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
       padding: 22px;
       transition: border-color 0.35s var(--ease), box-shadow 0.35s var(--ease), transform 0.35s var(--ease);
       position: relative;
-      will-change: transform;
-      transform: translateZ(0);
     }
 
     .card::before {
@@ -270,7 +283,7 @@
     .card:hover {
       border-color: var(--glass-border-strong);
       box-shadow: var(--card-shadow-hover);
-      transform: translateY(-2px) scale(1.005);
+      transform: translateY(-2px);
     }
 
     /* ================================================================
@@ -640,12 +653,11 @@
       gap: 12px;
       padding: 8px 16px;
       background: rgba(8, 9, 16, 0.65);
-      backdrop-filter: blur(24px) saturate(1.5);
-      -webkit-backdrop-filter: blur(24px) saturate(1.5);
+      backdrop-filter: blur(var(--blur)) saturate(1.2);
+      -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
       border: 1px solid var(--glass-border);
       border-radius: 999px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.1);
-      will-change: transform;
     }
 
     .logo {
@@ -711,10 +723,9 @@
       background: rgba(8, 9, 16, 0.65);
       border: 1px solid var(--glass-border);
       border-radius: 999px;
-      backdrop-filter: blur(24px) saturate(1.5);
-      -webkit-backdrop-filter: blur(24px) saturate(1.5);
+      backdrop-filter: blur(var(--blur)) saturate(1.2);
+      -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      will-change: transform;
     }
 
     .nav-btn {
@@ -1090,8 +1101,8 @@
       border-radius: var(--radius-lg);
       border: 1px solid var(--glass-border);
       background: var(--glass-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(var(--blur)) saturate(1.2);
+      -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
       transition: all 0.3s var(--ease);
       position: relative;
       overflow: hidden;
@@ -3158,14 +3169,15 @@
       updateQuizSourceUI();
     });
   </script>
-  <script src="https://unpkg.com/lenis@1.0.42/dist/lenis.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.0.42/dist/lenis.min.js"></script>
   <script>
-    // Initialize Lenis for buttery smooth scrolling without layout thrashing
+    // Initialize Lenis for buttery smooth scrolling
     if (typeof Lenis !== 'undefined') {
       const lenis = new Lenis({
         duration: 1.2,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         smoothWheel: true,
+        wheelMultiplier: 1,
         touchMultiplier: 2
       });
 
