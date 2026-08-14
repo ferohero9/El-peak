@@ -1,5 +1,5 @@
 """
-El-Peak — FastAPI backend v8 (Production Ready).
+El-Peak — FastAPI backend v9 (Production Ready, Edu-Stages, Rate Limits).
 """
 import io
 import os
@@ -47,7 +47,7 @@ except ImportError:
     pass
 
 # --- CONFIG ---
-app = FastAPI(title="El-Peak API", version="8.0")
+app = FastAPI(title="El-Peak API", version="9.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -119,10 +119,24 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI", "https://el-peak-production.up.railway.app/api/auth/google/callback")
 session_serializer = URLSafeSerializer(SECRET_KEY, salt="oauth")
 
+# --- RATE LIMITING ---
+# Prevents Groq API 429 crashes by enforcing a 15s cooldown per user
+_rate_limits = {} 
+RATE_LIMIT_SECONDS = 15
+
+def check_rate_limit(user_id: int):
+    now = time.time()
+    if now < _rate_limits.get(user_id, 0):
+        wait_time = int(_rate_limits[user_id] - now)
+        raise HTTPException(429, f"Rate limit: Please wait {wait_time} seconds before generating more AI content.")
+    _rate_limits[user_id] = now + RATE_LIMIT_SECONDS
+
 # --- SCHEMAS ---
 class SignupIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
+    user_type: str = "general" # 'school' or 'general'
+    grade: str | None = None # 'g1-6', 'g7-9', 'g10-12'
 
 class SubmitIn(BaseModel):
     topic_name: str = Field(min_length=1)
@@ -148,8 +162,10 @@ class CheckoutIn(BaseModel):
     tier: str
 
 class SettingsIn(BaseModel):
-    username: str | None = None  # Fixed: Allow empty username to prevent 422 errors
+    username: str | None = None
     language: str = "en"
+    user_type: str = "general"
+    grade: str | None = None
 
 class PasswordIn(BaseModel):
     old_password: str
@@ -191,7 +207,7 @@ async def signup(payload: SignupIn):
     if existing:
         raise HTTPException(400, "Email already registered")
     hashed_pw = hash_password(payload.password)
-    user = await db.create_user(payload.email, hashed_pw)
+    user = await db.create_user(payload.email, hashed_pw, payload.user_type, payload.grade)
     if not user:
         raise HTTPException(500, "Failed to create user")
     token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
@@ -251,7 +267,7 @@ async def get_settings(user: Annotated[dict, Depends(get_current_user)]):
 
 @app.put("/api/user/settings")
 async def update_settings(payload: SettingsIn, user: Annotated[dict, Depends(get_current_user)]):
-    await db.update_user_settings(user["id"], payload.username or "", payload.language)
+    await db.update_user_settings(user["id"], payload.username or "", payload.language, payload.user_type, payload.grade)
     return {"status": "success"}
 
 @app.put("/api/user/password")
@@ -383,65 +399,91 @@ async def recent(user: Annotated[dict, Depends(get_current_user)], limit: int = 
 async def heatmap(user: Annotated[dict, Depends(get_current_user)]):
     return await db.heatmap(user["id"])
 
-# --- QUIZ ENGINE ---
+# --- QUIZ ENGINE (EGYPTIAN CURRICULUM) ---
 STATIC_QUIZZES = {
-    "Mathematics": [
-        {"question": "What is the derivative of x³?", "options": ["3x²", "x²", "3x", "x³/3"], "answer_index": 0, "explanation": "Power rule: d/dx(xⁿ) = n·xⁿ⁻¹, so 3·x²."},
-        {"question": "Evaluate ∫ 2x dx.", "options": ["x² + C", "2x² + C", "x + C", "2 + C"], "answer_index": 0, "explanation": "Reverse power rule: ∫2x dx = x² + C."},
-        {"question": "Solve x² − 5x + 6 = 0.", "options": ["x = 2, 3", "x = −2, −3", "x = 1, 6", "x = 0, 5"], "answer_index": 0, "explanation": "Factors as (x−2)(x−3) = 0."},
-        {"question": "lim(x→0) sin(x)/x = ?", "options": ["1", "0", "∞", "undefined"], "answer_index": 0, "explanation": "A foundational limit: sin(x)/x → 1 as x → 0."},
-        {"question": "Slope of the tangent to y = x² at x = 2?", "options": ["4", "2", "8", "1"], "answer_index": 0, "explanation": "dy/dx = 2x; at x=2 the slope is 4."},
-    ],
-    "Physics": [
-        {"question": "The SI unit of force is the…", "options": ["Newton", "Joule", "Watt", "Pascal"], "answer_index": 0, "explanation": "1 N = 1 kg·m/s²."},
-        {"question": "Earth's gravitational acceleration ≈ ?", "options": ["9.8 m/s²", "9.8 m/s", "3.0 m/s²", "12.4 m/s²"], "answer_index": 0, "explanation": "g ≈ 9.81 m/s² at sea level."},
-        {"question": "Kinetic energy is given by…", "options": ["½mv²", "mv", "mgh", "ma"], "answer_index": 0, "explanation": "KE = ½mv²."},
-        {"question": "Newton's First Law describes…", "options": ["Inertia", "Action–reaction", "F = ma", "Universal gravitation"], "answer_index": 0, "explanation": "Bodies maintain their state of motion unless acted on by a net force."},
-        {"question": "Speed of light in vacuum ≈ ?", "options": ["3×10⁸ m/s", "3×10⁶ m/s", "3×10¹⁰ m/s", "9.8 m/s"], "answer_index": 0, "explanation": "c ≈ 299,792,458 m/s."},
-    ],
-    "Computer Science": [
-        {"question": "Big-O of binary search on a sorted array?", "options": ["O(log n)", "O(n)", "O(n log n)", "O(1)"], "answer_index": 0, "explanation": "Each step halves the search space → logarithmic."},
-        {"question": "Which structure is FIFO?", "options": ["Queue", "Stack", "Tree", "Hash map"], "answer_index": 0, "explanation": "First-In-First-Out: a queue."},
-        {"question": "HTTP 404 means…", "options": ["Not Found", "Server Error", "Unauthorized", "Redirect"], "answer_index": 0, "explanation": "404 = resource not found."},
-        {"question": "Which keyword defines a function in Python?", "options": ["def", "func", "fn", "lambda only"], "answer_index": 0, "explanation": "`def name():`."},
-        {"question": "Which SQL statement retrieves data?", "options": ["SELECT", "INSERT", "UPDATE", "ALTER"], "answer_index": 0, "explanation": "SELECT queries rows."},
-    ],
-    "History": [
-        {"question": "World War II ended in…", "options": ["1945", "1944", "1946", "1939"], "answer_index": 0, "explanation": "Europe surrendered May 1945."},
-        {"question": "The first crewed Moon landing was in…", "options": ["1969", "1965", "1972", "1959"], "answer_index": 0, "explanation": "Apollo 11, July 20 1969."},
-        {"question": "The Renaissance began in…", "options": ["Italy", "France", "England", "Spain"], "answer_index": 0, "explanation": "Started in Italian city-states like Florence in the 14th c."},
-        {"question": "First President of the United States?", "options": ["George Washington", "Thomas Jefferson", "John Adams", "Lincoln"], "answer_index": 0, "explanation": "Washington served 1789–1797."},
-        {"question": "The Berlin Wall fell in…", "options": ["1989", "1991", "1985", "1993"], "answer_index": 0, "explanation": "November 9, 1989."},
-    ],
-    "Biology": [
-        {"question": "The 'powerhouse of the cell' is the…", "options": ["Mitochondrion", "Nucleus", "Ribosome", "Golgi body"], "answer_index": 0, "explanation": "Mitochondria produce ATP."},
-        {"question": "Plants convert light energy via…", "options": ["Photosynthesis", "Respiration", "Fermentation", "Osmosis"], "answer_index": 0, "explanation": "6CO₂ + 6H₂O + light → C₆H₁₂O₆ + 6O₂."},
-        {"question": "DNA's structure is a…", "options": ["Double helix", "Single strand", "Triple ring", "Sheet"], "answer_index": 0, "explanation": "Watson & Crick (1953)."},
-        {"question": "Red blood cells primarily carry…", "options": ["Oxygen", "Hormones", "Antibodies", "Glucose"], "answer_index": 0, "explanation": "Hemoglobin transports O₂."},
-        {"question": "The largest organ of the human body is the…", "options": ["Skin", "Liver", "Brain", "Lungs"], "answer_index": 0, "explanation": "Skin is the largest organ."},
-    ],
+    "g1-6": { # Primary / ابتدائية
+        "Arabic": [
+            {"question": "كم عدد حروف اللغة العربية؟", "options": ["28 حرفاً", "26 حرفاً", "30 حرفاً", "32 حرفاً"], "answer_index": 0, "explanation": "اللغة العربية تحتوي على 28 حرفاً أساسياً."},
+            {"question": "ما هو الفعل؟", "options": ["كلمة تدل على حدث", "كلمة تدل على اسم", "كلمة تدل على مكان", "كلمة تدل على زمان"], "answer_index": 0, "explanation": "الفعل هو كلمة تدل على حدث في زمن معين."},
+            {"question": "ما جمع كلمة 'كتاب'؟", "options": ["كتب", "كتابات", "أكتب", "كُتب"], "answer_index": 0, "explanation": "جمع تكسير لكلمة كتاب هو 'كتب'."},
+        ],
+        "Math": [
+            {"question": "What is 5 + 7?", "options": ["12", "11", "13", "10"], "answer_index": 0, "explanation": "5 + 7 = 12."},
+            {"question": "What is 9 x 3?", "options": ["27", "21", "24", "12"], "answer_index": 0, "explanation": "9 multiplied by 3 is 27."},
+            {"question": "How many minutes in an hour?", "options": ["60", "50", "100", "24"], "answer_index": 0, "explanation": "There are 60 minutes in one hour."},
+        ],
+        "Science": [
+            {"question": "What do plants need to make food?", "options": ["Sunlight", "Plastic", "Rocks", "Metal"], "answer_index": 0, "explanation": "Plants use sunlight to make food via photosynthesis."},
+            {"question": "كم عدد حواس الإنسان؟", "options": ["5 حواس", "3 حواس", "7 حواس", "10 حواس"], "answer_index": 0, "explanation": "حواس الإنسان هي السمع، البصر، الشم، التذوق، اللمس."},
+        ]
+    },
+    "g7-9": { # Preparatory / إعدادية
+        "Arabic": [
+            {"question": "ما هو الفاعل في جملة 'ذاكر الطالب الدرس'؟", "options": ["الطالب", "ذاكر", "الدرس", "لا يوجد"], "answer_index": 0, "explanation": "الفاعل هو اسم مرفوع يأتي بعد الفعل ليدل على من قام بالفعل، وهنا 'الطالب'."},
+            {"question": "ما معنى كلمة 'عقيم'؟", "options": ["لا تثمر", "خصبة", "كبيرة", "صغيرة"], "answer_index": 0, "explanation": "عقيم تعني لا تثمر أو لا أمل فيها."},
+            {"question": "ما نوع 'أين' في اللغة العربية؟", "options": ["اسم استفهام", "فعل ماضي", "حرف جر", "اسم موصول"], "answer_index": 0, "explanation": "'أين' من أسماء الاستفهام التي تدل على المكان."},
+        ],
+        "Math": [
+            {"question": "What is the value of x in 2x + 4 = 10?", "options": ["3", "2", "4", "5"], "answer_index": 0, "explanation": "2x = 6, so x = 3."},
+            {"question": "What is the area of a triangle with base 4 and height 6?", "options": ["12", "24", "10", "48"], "answer_index": 0, "explanation": "Area = 1/2 * base * height = 1/2 * 4 * 6 = 12."},
+            {"question": "What is the LCM of 4 and 6?", "options": ["12", "24", "2", "8"], "answer_index": 0, "explanation": "The Least Common Multiple of 4 and 6 is 12."},
+        ],
+        "Science": [
+            {"question": "What is the powerhouse of the cell?", "options": ["Mitochondria", "Nucleus", "Ribosome", "Cytoplasm"], "answer_index": 0, "explanation": "Mitochondria produce ATP, the cell's energy currency."},
+            {"question": "What is the chemical symbol for water?", "options": ["H2O", "CO2", "O2", "NaCl"], "answer_index": 0, "explanation": "Water is made of 2 Hydrogen atoms and 1 Oxygen atom."},
+        ]
+    },
+    "g10-12": { # Secondary / ثانوية
+        "Arabic": [
+            {"question": "من قائل قصيدة 'النيل'؟", "options": ["حافظ إبراهيم", "أحمد شوقي", "إيليا أبو ماضي", "نزار قباني"], "answer_index": 0, "explanation": "قصيدة 'النيل' من أشهر قصائد حافظ إبراهيم."},
+            {"question": "ما هو المضاد لكلمة 'الصدق'؟", "options": ["الكذب", "الأمانة", "الخيانة", "الوفاء"], "answer_index": 0, "explanation": "المضاد (أو المتضاد) لكلمة الصدق هو الكذب."},
+            {"question": "ما نوع 'إن' في جملة 'إن العلم نور'؟", "options": ["حرف ناسخ", "فعل ناقص", "اسم موصول", "حرف جر"], "answer_index": 0, "explanation": "'إن' حرف ناسخ ينصب المبتدأ ويسمى اسمها، ويرفع الخبر."},
+        ],
+        "Math": [
+            {"question": "What is the derivative of sin(x)?", "options": ["cos(x)", "-cos(x)", "tan(x)", "-sin(x)"], "answer_index": 0, "explanation": "d/dx [sin(x)] = cos(x)."},
+            {"question": "What is the integral of 2x dx?", "options": ["x^2 + C", "2 + C", "x^2 / 2 + C", "2x^2 + C"], "answer_index": 0, "explanation": "The anti-derivative of 2x is x^2 + C."},
+            {"question": "What is log10(1000)?", "options": ["3", "2", "10", "100"], "answer_index": 0, "explanation": "10^3 = 1000, so log10(1000) = 3."},
+        ],
+        "Physics": [
+            {"question": "What is the unit of electric resistance?", "options": ["Ohm", "Volt", "Ampere", "Watt"], "answer_index": 0, "explanation": "Resistance is measured in Ohms (Ω)."},
+            {"question": "What is the acceleration due to gravity on Earth?", "options": ["9.8 m/s^2", "8.9 m/s^2", "10.2 m/s^2", "9.5 m/s^2"], "answer_index": 0, "explanation": "g ≈ 9.81 m/s^2 on Earth."},
+        ]
+    },
+    "general": { # General / General Knowledge
+        "General Knowledge": [
+            {"question": "What is the capital of Egypt?", "options": ["Cairo", "Alexandria", "Giza", "Luxor"], "answer_index": 0, "explanation": "Cairo is the capital and largest city of Egypt."},
+            {"question": "كم عدد القارات في العالم؟", "options": ["7 قارات", "5 قارات", "6 قارات", "8 قارات"], "answer_index": 0, "explanation": "يوجد 7 قارات في العالم."},
+            {"question": "What is the largest ocean on Earth?", "options": ["Pacific", "Atlantic", "Indian", "Arctic"], "answer_index": 0, "explanation": "The Pacific Ocean is the largest and deepest."},
+        ]
+    }
 }
 
-def _match_static(topic: str, n: int):
+def _match_static(topic: str, n: int, grade: str | None = "general"):
     key = topic.strip().lower()
+    bank_dict = STATIC_QUIZZES.get(grade, STATIC_QUIZZES["general"])
+    
     subject = None
-    for name in STATIC_QUIZZES:
+    for name in bank_dict:
         if name.lower() == key or name.lower() in key or key in name.lower():
             subject = name
             break
     if subject is None:
-        subject = random.choice(list(STATIC_QUIZZES))
-    bank = STATIC_QUIZZES[subject]
+        subject = random.choice(list(bank_dict.keys()))
+    bank = bank_dict[subject]
     qs = random.sample(bank, min(n, len(bank)))
     return {"topic": topic, "subject": subject, "questions": qs, "ai": False, "source": "static"}
 
 @app.get("/api/quiz/subjects")
-async def quiz_subjects():
-    return {"subjects": list(STATIC_QUIZZES.keys())}
+async def quiz_subjects(user: Annotated[dict, Depends(get_current_user)]):
+    user_settings = await db.get_user_by_id(user["id"])
+    grade = user_settings.get("grade", "general") if user_settings else "general"
+    return {"subjects": list(STATIC_QUIZZES.get(grade, STATIC_QUIZZES["general"]).keys())}
 
 @app.get("/api/quiz/static")
 async def quiz_static(user: Annotated[dict, Depends(get_current_user)], topic: str = "Mathematics", n: int = 4):
-    return _match_static(topic, max(3, min(5, n)))
+    user_settings = await db.get_user_by_id(user["id"])
+    grade = user_settings.get("grade", "general") if user_settings else "general"
+    return _match_static(topic, max(3, min(5, n)), grade)
 
 def _clean_questions(data, limit: int) -> list:
     qs = data.get("questions", data if isinstance(data, list) else [])
@@ -462,6 +504,10 @@ QUIZ_SCHEMA = ('{"questions":[{"question":"...","options":["A","B","C","D"],"ans
 
 @app.post("/api/quiz/ai")
 async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_user)]):
+    # 1. Check Rate Limit
+    check_rate_limit(user["id"])
+    
+    # 2. Check Tier Limits
     usage = await db.get_user_usage(user["id"])
     tier = usage["tier"]
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
@@ -471,9 +517,18 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
     
     groq_model = TIER_MODELS.get(tier, TIER_MODELS["free"])
     
+    # 3. Get Language & Add Anti-Hallucination Prompt for Arabic
     user_settings = await db.get_user_by_id(user["id"])
     lang = user_settings.get("language", "en") if user_settings else "en"
-    lang_instruction = "Please generate the questions, options, and explanations strictly in Arabic." if lang == "ar" else "Generate in English."
+    
+    if lang == "ar":
+        lang_instruction = (
+            "Please generate the questions, options, and explanations strictly in Arabic. "
+            "CRITICAL: If the topic involves Arabic poetry, literature, or history, you MUST be strictly factual. "
+            "DO NOT invent or hallucinate any poetry verses. If you don't know the exact verse, ask a general question about the poem's theme or author instead."
+        )
+    else:
+        lang_instruction = "Generate in English."
     
     messages = [
         {"role": "system", "content": f"You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — matching exactly this schema: {QUIZ_SCHEMA}. Vary the correct answer position. {lang_instruction}"},
@@ -489,7 +544,7 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
         return {"topic": payload.topic, "subject": "AI", "questions": clean, "ai": True, "source": "ai"}
     except Exception as e:
         print(f"⚠️ AI Quiz Error: {e}")
-        fallback = _match_static(payload.topic, 4)
+        fallback = _match_static(payload.topic, 4, user_settings.get("grade", "general") if user_settings else "general")
         fallback["note"] = "AI unavailable — served from the static bank."
         return fallback
 
@@ -497,6 +552,9 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
 async def quiz_pdf(file: UploadFile = File(...), difficulty: str = Form("mixed"), topic: str = Form(""), num_questions: int = Form(0), user: dict = Depends(get_current_user)):
     if not PDF_OCR_ENABLED:
         raise HTTPException(500, "PDF libraries not installed on server.")
+        
+    # 1. Check Rate Limit
+    check_rate_limit(user["id"])
         
     usage = await db.get_user_usage(user["id"])
     tier = usage["tier"]
