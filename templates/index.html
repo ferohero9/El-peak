@@ -434,7 +434,7 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
           <button class="src-card" data-src="ai"><div class="t" data-i18n="ai_generated">AI Generated</div><div class="d" data-i18n="ai_desc">Type any topic — the AI writes fresh MCQs.</div></button>
           <button class="src-card" data-src="pdf"><div class="t" data-i18n="upload_pdf">Upload PDF</div><div class="d" data-i18n="pdf_desc">Drop your book/notes. AI reads it & quizzes you.</div></button>
         </div>
-        <div class="panel on grid" id="panel-static">
+        <div class="panel on grid" id="panel-static" style="grid-template-columns: 1fr 1fr 1fr;">
           <div class="field">
             <label data-i18n="subject">Subject</label>
             <div class="custom-select" id="staticTopicSelect">
@@ -442,6 +442,7 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
               <div class="select-menu" id="staticTopicMenu"></div>
             </div>
           </div>
+          <div class="field"><label data-i18n="difficulty">Difficulty</label><div class="seg" id="diffStaticSeg"><button data-d="easy">Easy</button><button data-d="mixed" class="on">Mixed</button><button data-d="hard">Hard</button></div></div>
           <div class="field"><label data-i18n="length">Length</label><div class="seg" id="lenStatic"><button data-n="3">3</button><button data-n="4" class="on">4</button><button data-n="5">5</button></div></div>
         </div>
         <div class="panel grid" id="panel-ai">
@@ -1037,18 +1038,27 @@ window.addEventListener('resize', () => { const activeLink = $(".navlinks a.acti
 
 // --- Dynamic Difficulty Buttons ---
 function updateDifficultyButtons(grade) {
-    const diffSeg = $("#diffSeg");
-    const btns = diffSeg.querySelectorAll("button");
-    let labels = [];
-    if (grade === "g1-6") labels = ["1-2", "3-4", "5-6"];
-    else if (grade === "g7-9") labels = ["7", "8", "9"];
-    else if (grade === "g10-12") labels = ["10", "11", "12"];
-    else labels = ["Easy", "Mixed", "Hard"]; // general
+    const labels = grade === "g1-6" ? ["1-2", "3-4", "5-6"] :
+                   grade === "g7-9" ? ["7", "8", "9"] :
+                   grade === "g10-12" ? ["10", "11", "12"] : ["Easy", "Mixed", "Hard"];
     
-    btns.forEach((btn, i) => {
-        btn.textContent = labels[i];
-        btn.dataset.d = labels[i].toLowerCase();
-    });
+    // Update AI/PDF difficulty segment
+    const diffSeg = $("#diffSeg");
+    if (diffSeg) {
+        diffSeg.querySelectorAll("button").forEach((btn, i) => {
+            btn.textContent = labels[i];
+            btn.dataset.d = labels[i].toLowerCase();
+        });
+    }
+    
+    // Update Static difficulty segment
+    const diffStaticSeg = $("#diffStaticSeg");
+    if (diffStaticSeg) {
+        diffStaticSeg.querySelectorAll("button").forEach((btn, i) => {
+            btn.textContent = labels[i];
+            btn.dataset.d = labels[i].toLowerCase();
+        });
+    }
 }
 
 async function loadDashboard(){
@@ -1244,7 +1254,7 @@ lenAiSlider.oninput = () => { lenAiVal.textContent = lenAiSlider.value; };
 let src="static",pdfFile=null,quiz=null,qi=0,correct=0;
  $$(".src-card").forEach(b=>b.onclick=()=>{$$(".src-card").forEach(x=>x.classList.remove("on"));b.classList.add("on");src=b.dataset.src;$$(".panel").forEach(p=>p.classList.remove("on"));$("#panel-"+src).classList.add("on")});
 function segWire(id){$("#"+id).querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#"+id).querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on")})}
-segWire("lenStatic");segWire("diffSeg");
+segWire("lenStatic");segWire("diffSeg");segWire("diffStaticSeg");
 const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
 
  $("#drop").onclick=()=>$("#fileInput").click();
