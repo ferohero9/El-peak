@@ -19,6 +19,8 @@
       --bg-soft: rgba(255,255,255,.05);
       --card: rgba(255,255,255,.06);
       --card-border: rgba(255,255,255,.09);
+      --glass: rgba(255,255,255,.08);
+      --glass-border: rgba(255,255,255,.12);
       --text: #f8fafc;
       --muted: #94a3b8;
       --primary: #6366f1;
@@ -26,7 +28,8 @@
       --ok: #22c55e;
       --warn: #f59e0b;
       --bad: #ef4444;
-      --radius: 18px;
+      --radius: 20px;
+      --radius-sm: 14px;
       --shadow: 0 20px 60px rgba(0,0,0,.35);
       --font: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     }
@@ -36,6 +39,8 @@
       --bg-soft: rgba(15,23,42,.04);
       --card: rgba(255,255,255,.88);
       --card-border: rgba(15,23,42,.08);
+      --glass: rgba(255,255,255,.65);
+      --glass-border: rgba(15,23,42,.08);
       --text: #0f172a;
       --muted: #64748b;
       --shadow: 0 18px 50px rgba(15,23,42,.12);
@@ -68,6 +73,15 @@
       margin: 0 auto;
     }
 
+    .glass-card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      padding: 24px;
+    }
+
     .card {
       background: var(--card);
       border: 1px solid var(--card-border);
@@ -82,18 +96,28 @@
 
     .btn {
       border: 0;
-      border-radius: 14px;
+      border-radius: var(--radius-sm);
       padding: 11px 15px;
       cursor: pointer;
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       color: white;
       font-weight: 700;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(99,102,241,.4);
     }
 
     .btn.secondary {
       background: var(--bg-soft);
       color: var(--text);
       border: 1px solid var(--card-border);
+    }
+
+    .btn.secondary:hover {
+      background: var(--glass);
     }
 
     .btn.danger {
@@ -108,14 +132,31 @@
       font-size: 13px;
     }
 
+    .pill {
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      backdrop-filter: blur(10px);
+    }
+
     input, select, textarea {
       width: 100%;
       background: rgba(0,0,0,.12);
       color: var(--text);
       border: 1px solid var(--card-border);
-      border-radius: 14px;
+      border-radius: var(--radius-sm);
       padding: 12px 13px;
       outline: none;
+      transition: all 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.1);
     }
 
     body.light input,
@@ -140,18 +181,22 @@
 
     .auth-card {
       width: min(460px, 100%);
-      padding: 28px;
+      padding: 32px;
     }
 
     .brand {
-      font-size: 34px;
+      font-size: 36px;
       font-weight: 900;
       letter-spacing: .4px;
       margin: 0;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .brand-sub {
-      margin: 8px 0 20px;
+      margin: 8px 0 24px;
       color: var(--muted);
     }
 
@@ -160,7 +205,7 @@
       align-items: center;
       gap: 10px;
       color: var(--muted);
-      margin: 16px 0;
+      margin: 20px 0;
       font-size: 13px;
     }
 
@@ -180,19 +225,25 @@
     }
 
     .tab {
-      padding: 10px;
+      padding: 12px;
       text-align: center;
-      border-radius: 13px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--card-border);
       background: transparent;
       color: var(--muted);
       cursor: pointer;
       font-weight: 700;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      background: var(--bg-soft);
     }
 
     .tab.active {
-      background: var(--bg-soft);
+      background: var(--glass);
       color: var(--text);
+      border-color: var(--glass-border);
     }
 
     header.topbar {
@@ -205,7 +256,11 @@
 
     .logo {
       font-weight: 900;
-      font-size: 24px;
+      font-size: 26px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .top-actions {
@@ -215,21 +270,11 @@
       flex-wrap: wrap;
     }
 
-    .pill {
-      padding: 9px 12px;
-      border-radius: 999px;
-      background: var(--bg-soft);
-      border: 1px solid var(--card-border);
-      color: var(--muted);
-      font-size: 13px;
-      white-space: nowrap;
-    }
-
     nav.main-nav {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       overflow: auto;
-      padding: 10px 0 16px;
+      padding: 14px 0 20px;
       position: sticky;
       top: 0;
       z-index: 20;
@@ -237,20 +282,28 @@
     }
 
     .nav-btn {
-      border: 1px solid var(--card-border);
-      background: var(--card);
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
       color: var(--muted);
       border-radius: 999px;
-      padding: 10px 14px;
+      padding: 12px 20px;
       cursor: pointer;
       font-weight: 700;
       white-space: nowrap;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255,255,255,.12);
+      transform: translateY(-2px);
     }
 
     .nav-btn.active {
       color: white;
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       border-color: transparent;
+      box-shadow: 0 8px 20px rgba(99,102,241,.4);
     }
 
     main {
@@ -259,12 +312,12 @@
 
     .grid {
       display: grid;
-      gap: 14px;
+      gap: 16px;
     }
 
     .grid.stats {
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      margin-bottom: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      margin-bottom: 16px;
     }
 
     .grid.two {
@@ -275,35 +328,44 @@
       color: var(--muted);
       font-size: 13px;
       margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .stat-value {
-      font-size: 30px;
+      font-size: 32px;
       font-weight: 900;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .section-title {
-      margin: 0 0 14px;
-      font-size: 20px;
+      margin: 0 0 16px;
+      font-size: 22px;
+      font-weight: 800;
     }
 
     .topic-row {
-      margin-bottom: 13px;
+      margin-bottom: 16px;
     }
 
     .topic-row-head {
       display: flex;
       justify-content: space-between;
       gap: 10px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       font-size: 14px;
+      font-weight: 600;
     }
 
     .bar {
-      height: 10px;
+      height: 12px;
       border-radius: 999px;
       background: rgba(255,255,255,.08);
       overflow: hidden;
+      border: 1px solid var(--glass-border);
     }
 
     body.light .bar {
@@ -313,13 +375,15 @@
     .bar-fill {
       height: 100%;
       border-radius: 999px;
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+      transition: width 0.3s;
     }
 
     .list-item {
       display: flex;
       justify-content: space-between;
       gap: 10px;
-      padding: 11px 0;
+      padding: 14px 0;
       border-bottom: 1px solid var(--card-border);
       font-size: 14px;
     }
@@ -329,13 +393,15 @@
     .heatmap {
       display: grid;
       grid-template-columns: repeat(14, 1fr);
-      gap: 6px;
+      gap: 8px;
     }
 
     .heat-cell {
       aspect-ratio: 1;
-      border-radius: 7px;
+      border-radius: 8px;
       background: rgba(255,255,255,.08);
+      border: 1px solid var(--glass-border);
+      transition: all 0.2s;
     }
 
     body.light .heat-cell {
@@ -344,33 +410,40 @@
 
     .heat-cell.l1 { background: rgba(99,102,241,.28); }
     .heat-cell.l2 { background: rgba(99,102,241,.55); }
-    .heat-cell.l3 { background: rgba(99,102,241,.92); }
+    .heat-cell.l3 { background: rgba(99,102,241,.92); box-shadow: 0 0 12px rgba(99,102,241,.5); }
 
     .quiz-options {
       display: grid;
-      gap: 10px;
-      margin-top: 16px;
+      gap: 12px;
+      margin-top: 20px;
     }
 
     .option-btn {
       text-align: left;
-      padding: 13px 14px;
-      border-radius: 15px;
+      padding: 16px 18px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--card-border);
       background: var(--bg-soft);
       cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .option-btn:hover {
+      background: var(--glass);
+      border-color: var(--primary);
     }
 
     .option-btn.selected {
       border-color: var(--primary);
-      box-shadow: 0 0 0 1px var(--primary) inset;
+      background: var(--glass);
+      box-shadow: 0 0 0 2px var(--primary) inset;
     }
 
     .task-item {
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 8px;
-      padding: 13px 0;
+      gap: 12px;
+      padding: 16px 0;
       border-bottom: 1px solid var(--card-border);
     }
 
@@ -378,6 +451,7 @@
 
     .task-title {
       font-weight: 700;
+      font-size: 15px;
     }
 
     .task-actions {
@@ -389,14 +463,16 @@
 
     .badge {
       display: inline-block;
-      padding: 5px 8px;
+      padding: 6px 10px;
       border-radius: 999px;
       font-size: 11px;
       font-weight: 800;
-      background: var(--bg-soft);
-      border: 1px solid var(--card-border);
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
       color: var(--muted);
       margin-right: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .badge.ok { color: var(--ok); border-color: rgba(34,197,94,.25); }
@@ -404,45 +480,57 @@
     .badge.bad { color: var(--bad); border-color: rgba(239,68,68,.25); }
 
     .usage-bar {
-      margin: 12px 0 18px;
+      margin: 16px 0 22px;
     }
 
     .plans {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 14px;
-      margin-top: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
     }
 
     .plan-card {
-      padding: 18px;
-      border-radius: 18px;
-      border: 1px solid var(--card-border);
-      background: var(--bg-soft);
+      padding: 22px;
+      border-radius: var(--radius);
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      transition: all 0.2s;
+    }
+
+    .plan-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(99,102,241,.3);
     }
 
     .tutor-toggle {
       position: fixed;
-      right: 18px;
-      bottom: 18px;
-      width: 58px;
-      height: 58px;
+      right: 20px;
+      bottom: 20px;
+      width: 62px;
+      height: 62px;
       border-radius: 999px;
       border: 0;
-      font-size: 24px;
+      font-size: 26px;
       cursor: pointer;
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       color: white;
-      box-shadow: var(--shadow);
+      box-shadow: 0 8px 24px rgba(99,102,241,.5);
       z-index: 60;
+      transition: all 0.2s;
+    }
+
+    .tutor-toggle:hover {
+      transform: scale(1.1);
     }
 
     .tutor-panel {
       position: fixed;
-      right: 18px;
-      bottom: 88px;
-      width: min(420px, calc(100vw - 36px));
-      height: min(560px, 70vh);
+      right: 20px;
+      bottom: 92px;
+      width: min(440px, calc(100vw - 40px));
+      height: min(580px, 70vh);
       z-index: 70;
       display: flex;
       flex-direction: column;
@@ -453,15 +541,15 @@
       flex: 1;
       overflow: auto;
       display: grid;
-      gap: 10px;
-      padding: 14px;
+      gap: 12px;
+      padding: 16px;
     }
 
     .msg {
       max-width: 88%;
-      padding: 11px 13px;
-      border-radius: 16px;
-      line-height: 1.45;
+      padding: 13px 16px;
+      border-radius: 18px;
+      line-height: 1.5;
       font-size: 14px;
     }
 
@@ -469,57 +557,61 @@
       justify-self: end;
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       color: white;
+      box-shadow: 0 4px 12px rgba(99,102,241,.3);
     }
 
     .msg.assistant {
       justify-self: start;
-      background: var(--bg-soft);
-      border: 1px solid var(--card-border);
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(10px);
     }
 
     .tutor-input {
       display: flex;
-      gap: 8px;
-      padding: 12px;
+      gap: 10px;
+      padding: 14px;
       border-top: 1px solid var(--card-border);
+      background: var(--bg-soft);
     }
 
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,.55);
-      backdrop-filter: blur(8px);
+      background: rgba(0,0,0,.6);
+      backdrop-filter: blur(12px);
       display: grid;
       place-items: center;
       z-index: 90;
-      padding: 18px;
+      padding: 20px;
     }
 
     .modal-card {
-      width: min(760px, 100%);
+      width: min(780px, 100%);
       max-height: 90vh;
       overflow: auto;
-      padding: 22px;
+      padding: 28px;
     }
 
     .toast-wrap {
       position: fixed;
       left: 50%;
-      bottom: 22px;
+      bottom: 24px;
       transform: translateX(-50%);
       z-index: 100;
       display: grid;
-      gap: 8px;
-      width: min(560px, calc(100vw - 24px));
+      gap: 10px;
+      width: min(580px, calc(100vw - 28px));
     }
 
     .toast {
-      padding: 13px 15px;
-      border-radius: 15px;
-      background: var(--card);
-      border: 1px solid var(--card-border);
+      padding: 15px 18px;
+      border-radius: var(--radius-sm);
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
       box-shadow: var(--shadow);
       font-size: 14px;
+      backdrop-filter: blur(10px);
     }
 
     .toast.error {
@@ -542,14 +634,14 @@
       }
 
       nav.main-nav {
-        padding-bottom: 12px;
+        padding-bottom: 14px;
       }
     }
   </style>
 </head>
 <body>
   <div id="authView" class="auth-wrap hidden">
-    <div class="card auth-card">
+    <div class="glass-card auth-card">
       <h1 class="brand">El-Peak ▲</h1>
       <p class="brand-sub" data-i18n="tagline">Sign in to sync your ascent.</p>
 
@@ -569,7 +661,7 @@
         <label for="loginPassword" data-i18n="password">Password</label>
         <input id="loginPassword" type="password" autocomplete="current-password" required />
 
-        <button class="btn" style="width:100%; margin-top:16px" data-i18n="logIn">Log In</button>
+        <button class="btn" style="width:100%; margin-top:18px" data-i18n="logIn">Log In</button>
       </form>
 
       <form id="signupForm" class="hidden">
@@ -593,7 +685,7 @@
           <option value="g10-12">Secondary (10-12)</option>
         </select>
 
-        <button class="btn" style="width:100%; margin-top:16px" data-i18n="signUp">Sign Up</button>
+        <button class="btn" style="width:100%; margin-top:18px" data-i18n="signUp">Sign Up</button>
       </form>
     </div>
   </div>
@@ -603,7 +695,7 @@
       <div class="logo">El-Peak ▲</div>
 
       <div class="top-actions">
-        <div class="pill" id="streakPill">0 days</div>
+        <div class="pill" id="streakPill">🔥 0 days</div>
         <div class="pill" id="tierPill">Free</div>
         <button class="btn secondary small" id="themeBtn">◐</button>
         <button class="btn secondary small" id="logoutBtn" data-i18n="logout">Logout</button>
@@ -621,51 +713,56 @@
     <main>
       <!-- DASHBOARD -->
       <section id="view-dashboard">
+        <div class="glass-card" style="margin-bottom:16px">
+          <h2 class="section-title">Your Ascent</h2>
+          <p class="muted">Track your mastery, analyze recent attempts, and keep your streak alive. Every quiz updates your Peak Score.</p>
+        </div>
+
         <div class="grid stats">
-          <div class="card">
+          <div class="glass-card">
             <div class="stat-label" data-i18n="peakScore">Peak Score</div>
             <div class="stat-value" id="statPeak">0</div>
           </div>
 
-          <div class="card">
+          <div class="glass-card">
             <div class="stat-label" data-i18n="dayStreak">Day Streak</div>
             <div class="stat-value" id="statStreak">0</div>
           </div>
 
-          <div class="card">
+          <div class="glass-card">
             <div class="stat-label" data-i18n="reps7">7-Day Reps</div>
             <div class="stat-value" id="statReps">0</div>
           </div>
 
-          <div class="card">
+          <div class="glass-card">
             <div class="stat-label" data-i18n="avgAccuracy">Avg Accuracy</div>
             <div class="stat-value" id="statAvg">0%</div>
           </div>
 
-          <div class="card">
+          <div class="glass-card">
             <div class="stat-label" data-i18n="weakTopics">Weak Topics</div>
             <div class="stat-value" id="statWeak">0</div>
           </div>
 
-          <div class="card">
+          <div class="glass-card">
             <div class="stat-label" data-i18n="bestTopic">Best Topic</div>
-            <div class="stat-value" id="statBest" style="font-size:18px; line-height:1.35;">—</div>
+            <div class="stat-value" id="statBest" style="font-size:20px; line-height:1.35;">—</div>
           </div>
         </div>
 
         <div class="grid two">
-          <div class="card">
-            <h3 class="section-title" data-i18n="masteryTopics">Mastery Topics</h3>
+          <div class="glass-card">
+            <h3 class="section-title" data-i18n="masteryRadar">Mastery Radar</h3>
             <div id="topicList"></div>
           </div>
 
-          <div class="card">
+          <div class="glass-card">
             <h3 class="section-title" data-i18n="recentAttempts">Recent Attempts</h3>
             <div id="recentList"></div>
           </div>
         </div>
 
-        <div class="card" style="margin-top:14px">
+        <div class="glass-card" style="margin-top:16px">
           <h3 class="section-title" data-i18n="activityHeatmap">Activity Heatmap</h3>
           <div id="heatmap" class="heatmap"></div>
         </div>
@@ -673,17 +770,19 @@
 
       <!-- QUIZ -->
       <section id="view-quiz" class="hidden">
-        <div class="card" id="quizConfigCard">
+        <div class="glass-card" id="quizConfigCard">
           <h3 class="section-title" data-i18n="quizEngine">Quiz Engine</h3>
+          <p class="muted small">Expedition</p>
 
           <label for="quizSource" data-i18n="source">Source</label>
           <select id="quizSource">
-            <option value="static" data-i18n="staticBank">Static Bank</option>
+            <option value="static" data-i18n="staticBank">⚡ GROQ Static Bank</option>
             <option value="ai" data-i18n="aiGenerated">AI Generated</option>
-            <option value="pdf" data-i18n="pdfUpload">PDF Upload</option>
+            <option value="pdf" data-i18n="pdfUpload">Upload PDF</option>
           </select>
 
           <div id="staticConfig">
+            <p class="muted small" style="margin:12px 0 8px">Curated question banks for 5 core subjects.</p>
             <label for="staticSubject" data-i18n="subject">Subject</label>
             <select id="staticSubject"></select>
 
@@ -706,6 +805,7 @@
           </div>
 
           <div id="aiConfig" class="hidden">
+            <p class="muted small" style="margin:12px 0 8px">Type any topic — the AI writes fresh MCQs.</p>
             <label for="aiTopic" data-i18n="topic">Topic</label>
             <input id="aiTopic" placeholder="Algebra, Photosynthesis, French Revolution..." />
 
@@ -727,7 +827,8 @@
           </div>
 
           <div id="pdfConfig" class="hidden">
-            <label for="pdfFile" data-i18n="pdfFile">PDF File</label>
+            <p class="muted small" style="margin:12px 0 8px">Drop your book/notes. AI reads it & quizzes you.</p>
+            <label for="pdfFile" data-i18n="pdfFile">Your PDF book / notes</label>
             <input id="pdfFile" type="file" accept="application/pdf" />
 
             <label for="pdfTopic" data-i18n="topicLabelOptional">Topic label (optional)</label>
@@ -749,10 +850,10 @@
             </select>
           </div>
 
-          <button id="startQuizBtn" class="btn" style="margin-top:18px" data-i18n="beginAscent">Begin Ascent →</button>
+          <button id="startQuizBtn" class="btn" style="margin-top:20px" data-i18n="beginAscent">Begin Ascent →</button>
         </div>
 
-        <div class="card hidden" id="quizPlayerCard" style="margin-top:14px">
+        <div class="glass-card hidden" id="quizPlayerCard" style="margin-top:16px">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
             <h3 class="section-title" id="quizTitle">Quiz</h3>
             <button class="btn danger small" id="exitQuizBtn" data-i18n="exit">Exit</button>
@@ -760,40 +861,43 @@
 
           <div class="muted small" id="quizProgress">Q 1/1</div>
 
-          <div id="questionText" style="margin-top:16px; font-size:22px; font-weight:800; line-height:1.45;"></div>
+          <div id="questionText" style="margin-top:20px; font-size:24px; font-weight:800; line-height:1.5;"></div>
 
-          <div id="questionContext" class="muted small" style="margin-top:8px;"></div>
+          <div id="questionContext" class="muted small" style="margin-top:10px;"></div>
 
           <div id="questionOptions" class="quiz-options"></div>
 
-          <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+          <div style="display:flex; justify-content:flex-end; margin-top:22px;">
             <button id="nextQuestionBtn" class="btn" disabled data-i18n="next">Next →</button>
           </div>
         </div>
 
-        <div class="card hidden" id="quizResultCard" style="margin-top:14px">
+        <div class="glass-card hidden" id="quizResultCard" style="margin-top:16px">
           <h3 class="section-title" data-i18n="ascentComplete">Ascent Complete</h3>
-          <div id="quizResultText" style="font-size:34px; font-weight:900; margin:10px 0 16px;"></div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="btn secondary" id="againQuizBtn" data-i18n="again">Again</button>
-            <button class="btn" id="dashboardAfterQuizBtn" data-i18n="dashboard">Dashboard</button>
+          <div id="quizResultText" style="font-size:36px; font-weight:900; margin:12px 0 20px; background: linear-gradient(135deg, var(--primary), var(--primary-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="btn secondary" id="againQuizBtn" data-i18n="again">↺ Again</button>
+            <button class="btn" id="dashboardAfterQuizBtn" data-i18n="dashboard">Dashboard ▲</button>
           </div>
         </div>
       </section>
 
       <!-- SCHEDULER -->
       <section id="view-scheduler" class="hidden">
-        <div class="card">
-          <h3 class="section-title" data-i18n="newObjective">New Objective</h3>
+        <div class="glass-card">
+          <h3 class="section-title" data-i18n="priorityQueue">Priority Queue</h3>
+          <p class="muted small">Tasks are ranked automatically based on deadline urgency and your current topic weakness.</p>
 
-          <div class="grid" style="grid-template-columns: 2fr 1fr 1fr auto; align-items:end; gap:10px;">
+          <h4 style="margin-top:20px" data-i18n="newObjective">New Objective</h4>
+
+          <div class="grid" style="grid-template-columns: 2fr 1fr 1fr auto; align-items:end; gap:12px;">
             <div>
               <label for="taskTitle" data-i18n="title">Title</label>
               <input id="taskTitle" placeholder="Physics assignment" />
             </div>
 
             <div>
-              <label for="taskTopic" data-i18n="linkedTopic">Linked topic</label>
+              <label for="taskTopic" data-i18n="linkedTopic">Linked topic (optional)</label>
               <input id="taskTopic" placeholder="Electricity" />
             </div>
 
@@ -802,23 +906,24 @@
               <input id="taskDeadline" type="datetime-local" />
             </div>
 
-            <button class="btn" id="addTaskBtn" data-i18n="add">Add</button>
+            <button class="btn" id="addTaskBtn" data-i18n="add">+ Add to Queue</button>
           </div>
         </div>
 
-        <div class="grid two" style="margin-top:14px">
-          <div class="card">
-            <h3 class="section-title" data-i18n="priorityQueue">Priority Queue</h3>
+        <div class="grid two" style="margin-top:16px">
+          <div class="glass-card">
+            <h3 class="section-title" data-i18n="queue">Queue</h3>
             <div id="scheduleQueue"></div>
           </div>
 
-          <div class="card">
+          <div class="glass-card">
             <h3 class="section-title" data-i18n="radarBlips">Radar Blips</h3>
+            <p class="muted small">weak & unscheduled</p>
             <div id="scheduleSuggestions"></div>
           </div>
         </div>
 
-        <div class="card" style="margin-top:14px">
+        <div class="glass-card" style="margin-top:16px">
           <h3 class="section-title" data-i18n="cleared">Cleared</h3>
           <div id="scheduleCleared"></div>
         </div>
@@ -826,68 +931,70 @@
 
       <!-- COACH -->
       <section id="view-coach" class="hidden">
-        <div class="card">
+        <div class="glass-card">
           <h3 class="section-title" data-i18n="summitPlan">Summit Plan</h3>
           <p class="muted" data-i18n="coachDescription">
             Powered by Groq. It analyzes weak topics, deadlines, and your accuracy trend, then builds a 7-day revision plan.
           </p>
 
-          <button id="generateCoachBtn" class="btn" data-i18n="generatePlan">Generate Revision Plan</button>
+          <button id="generateCoachBtn" class="btn" data-i18n="generatePlan">⚡ Generate Revision Plan</button>
 
-          <div id="coachOutput" style="margin-top:18px"></div>
+          <div id="coachOutput" style="margin-top:22px"></div>
         </div>
       </section>
 
       <!-- PROFILE -->
       <section id="view-profile" class="hidden">
         <div class="grid two">
-          <div class="card">
+          <div class="glass-card">
             <h3 class="section-title" data-i18n="accountUsage">Account & Usage</h3>
 
             <div id="usageSummary"></div>
 
             <div class="usage-bar">
-              <div class="small muted" id="aiUsageLabel">AI Questions</div>
-              <div class="bar"><div class="bar-fill" id="aiUsageBar" style="width:0%; background:var(--primary);"></div></div>
+              <div class="small muted" id="aiUsageLabel">AI Questions (Monthly)</div>
+              <div class="bar"><div class="bar-fill" id="aiUsageBar" style="width:0%;"></div></div>
             </div>
 
             <div class="usage-bar">
-              <div class="small muted" id="pdfUsageLabel">PDF Uploads</div>
-              <div class="bar"><div class="bar-fill" id="pdfUsageBar" style="width:0%; background:var(--ok);"></div></div>
+              <div class="small muted" id="pdfUsageLabel">PDF Uploads (Monthly)</div>
+              <div class="bar"><div class="bar-fill" id="pdfUsageBar" style="width:0%; background: linear-gradient(90deg, var(--ok), #4ade80);"></div></div>
             </div>
 
-            <h3 class="section-title" style="margin-top:22px" data-i18n="upgradePlan">Upgrade Plan</h3>
+            <h3 class="section-title" style="margin-top:26px" data-i18n="upgradePlan">Upgrade Plan</h3>
+            <p class="muted small">Unlock higher usage limits and the powerful Llama 3.3 70B model.</p>
 
             <div class="plans">
               <div class="plan-card">
                 <h3>Plus</h3>
-                <div style="font-size:28px; font-weight:900;">99 EGP <span class="muted small">/ month</span></div>
-                <ul class="muted small">
+                <div style="font-size:30px; font-weight:900; margin:10px 0;">99 EGP <span class="muted small">/ month</span></div>
+                <ul class="muted small" style="padding-left:18px;">
                   <li>500 AI Questions</li>
                   <li>50 PDF Uploads</li>
-                  <li>Better AI model</li>
+                  <li>GPT-OSS-20B Model</li>
                 </ul>
-                <button class="btn" data-tier="plus" data-i18n="proceedPayment">Proceed to Payment</button>
+                <button class="btn" data-tier="plus" style="width:100%; margin-top:12px;" data-i18n="proceedPayment">Proceed to Payment →</button>
               </div>
 
               <div class="plan-card">
                 <h3>Pro</h3>
-                <div style="font-size:28px; font-weight:900;">199 EGP <span class="muted small">/ month</span></div>
-                <ul class="muted small">
+                <div style="font-size:30px; font-weight:900; margin:10px 0;">199 EGP <span class="muted small">/ month</span></div>
+                <ul class="muted small" style="padding-left:18px;">
                   <li>2000 AI Questions</li>
                   <li>200 PDF Uploads</li>
-                  <li>Best AI model</li>
+                  <li>LLAMA-3.3-70B Model</li>
                 </ul>
-                <button class="btn" data-tier="pro" data-i18n="proceedPayment">Proceed to Payment</button>
+                <button class="btn" data-tier="pro" style="width:100%; margin-top:12px;" data-i18n="proceedPayment">Proceed to Payment →</button>
               </div>
             </div>
 
-            <h3 class="section-title" style="margin-top:22px" data-i18n="recentPayments">Recent Payments</h3>
+            <h3 class="section-title" style="margin-top:26px" data-i18n="recentPayments">Recent Payments</h3>
             <div id="paymentsList"></div>
           </div>
 
-          <div class="card">
+          <div class="glass-card">
             <h3 class="section-title" data-i18n="settings">Settings</h3>
+            <p class="muted small">Preferences</p>
 
             <label for="settingsEmail" data-i18n="email">Email</label>
             <input id="settingsEmail" disabled />
@@ -915,9 +1022,9 @@
               <option value="g10-12">Secondary (10-12)</option>
             </select>
 
-            <button class="btn" id="saveSettingsBtn" style="margin-top:16px" data-i18n="saveChanges">Save Changes</button>
+            <button class="btn" id="saveSettingsBtn" style="margin-top:18px" data-i18n="saveChanges">Save Changes</button>
 
-            <h3 class="section-title" style="margin-top:24px" data-i18n="security">Security</h3>
+            <h3 class="section-title" style="margin-top:28px" data-i18n="security">Security</h3>
 
             <label for="oldPassword" data-i18n="currentPassword">Current Password</label>
             <input id="oldPassword" type="password" autocomplete="current-password" />
@@ -925,7 +1032,7 @@
             <label for="newPassword" data-i18n="newPassword">New Password</label>
             <input id="newPassword" type="password" autocomplete="new-password" />
 
-            <button class="btn secondary" id="updatePasswordBtn" style="margin-top:16px" data-i18n="updatePassword">Update Password</button>
+            <button class="btn secondary" id="updatePasswordBtn" style="margin-top:18px" data-i18n="updatePassword">Update Password</button>
           </div>
         </div>
       </section>
@@ -934,11 +1041,12 @@
 
   <button id="tutorToggle" class="tutor-toggle hidden">✦</button>
 
-  <div id="tutorPanel" class="card tutor-panel hidden">
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 14px 0;">
+  <div id="tutorPanel" class="glass-card tutor-panel hidden">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 16px 0;">
       <strong>El-Peak Tutor</strong>
       <button class="btn secondary small" id="tutorClose">✕</button>
     </div>
+    <p class="muted small" style="padding:0 16px;">Powered by Groq · Online</p>
 
     <div id="tutorMessages" class="tutor-messages">
       <div class="msg assistant">Hey! I'm your AI tutor. Ask me anything about your studies.</div>
@@ -951,7 +1059,7 @@
   </div>
 
   <div id="upgradeModal" class="modal-backdrop hidden">
-    <div class="card modal-card">
+    <div class="glass-card modal-card">
       <h2 data-i18n="limitReached">Limit Reached</h2>
       <p class="muted" data-i18n="limitDescription">
         You've used all your available credits for this cycle. Upgrade to keep your ascent going.
@@ -960,26 +1068,27 @@
       <div class="plans">
         <div class="plan-card">
           <h3>Plus</h3>
-          <div style="font-size:26px; font-weight:900;">99 EGP <span class="muted small">/ month</span></div>
+          <div style="font-size:28px; font-weight:900; margin:8px 0;">99 EGP <span class="muted small">/ month</span></div>
           <ul class="muted small">
             <li>500 AI Questions</li>
             <li>50 PDF Uploads</li>
           </ul>
-          <button class="btn" data-tier="plus" data-i18n="proceedPayment">Proceed to Payment</button>
+          <button class="btn" data-tier="plus" style="width:100%" data-i18n="proceedPayment">Proceed to Payment</button>
         </div>
 
         <div class="plan-card">
           <h3>Pro</h3>
-          <div style="font-size:26px; font-weight:900;">199 EGP <span class="muted small">/ month</span></div>
+          <div style="font-size:28px; font-weight:900; margin:8px 0;">199 EGP <span class="muted small">/ month</span></div>
           <ul class="muted small">
             <li>2000 AI Questions</li>
             <li>200 PDF Uploads</li>
+            <li>70B Model</li>
           </ul>
-          <button class="btn" data-tier="pro" data-i18n="proceedPayment">Proceed to Payment</button>
+          <button class="btn" data-tier="pro" style="width:100%" data-i18n="proceedPayment">Proceed to Payment</button>
         </div>
       </div>
 
-      <div style="margin-top:16px; text-align:right;">
+      <div style="margin-top:18px; text-align:right;">
         <button class="btn secondary" id="maybeLaterBtn" data-i18n="maybeLater">Maybe Later</button>
       </div>
     </div>
@@ -1028,14 +1137,14 @@
         avgAccuracy: "Avg Accuracy",
         weakTopics: "Weak Topics",
         bestTopic: "Best Topic",
-        masteryTopics: "Mastery Topics",
+        masteryRadar: "Mastery Radar",
         recentAttempts: "Recent Attempts",
         activityHeatmap: "Activity Heatmap",
         quizEngine: "Quiz Engine",
         source: "Source",
-        staticBank: "Static Bank",
+        staticBank: "⚡ GROQ Static Bank",
         aiGenerated: "AI Generated",
-        pdfUpload: "PDF Upload",
+        pdfUpload: "Upload PDF",
         subject: "Subject",
         difficulty: "Difficulty",
         easy: "Easy",
@@ -1043,7 +1152,7 @@
         hard: "Hard",
         length: "Length",
         topic: "Topic",
-        pdfFile: "PDF File",
+        pdfFile: "Your PDF book / notes",
         topicLabelOptional: "Topic label (optional)",
         autoOptimized: "Auto-optimized",
         beginAscent: "Begin Ascent →",
@@ -1054,18 +1163,19 @@
         again: "Again",
         newObjective: "New Objective",
         title: "Title",
-        linkedTopic: "Linked topic",
+        linkedTopic: "Linked topic (optional)",
         deadline: "Deadline",
-        add: "Add",
+        add: "+ Add to Queue",
         priorityQueue: "Priority Queue",
         radarBlips: "Radar Blips",
+        queue: "Queue",
         cleared: "Cleared",
         summitPlan: "Summit Plan",
         coachDescription: "Powered by Groq. It analyzes weak topics, deadlines, and your accuracy trend, then builds a 7-day revision plan.",
-        generatePlan: "Generate Revision Plan",
+        generatePlan: "⚡ Generate Revision Plan",
         accountUsage: "Account & Usage",
         upgradePlan: "Upgrade Plan",
-        proceedPayment: "Proceed to Payment",
+        proceedPayment: "Proceed to Payment →",
         recentPayments: "Recent Payments",
         settings: "Settings",
         username: "Username",
@@ -1103,12 +1213,12 @@
         avgAccuracy: "متوسط الدقة",
         weakTopics: "مواضيع ضعيفة",
         bestTopic: "أفضل موضوع",
-        masteryTopics: "مستوى الإتقان",
+        masteryRadar: "رادار الإتقان",
         recentAttempts: "المحاولات الأخيرة",
         activityHeatmap: "نشاط التعلم",
         quizEngine: "محرك الاختبارات",
         source: "المصدر",
-        staticBank: "بنك الأسئلة",
+        staticBank: "⚡ بنك الأسئلة",
         aiGenerated: "أسئلة بالذكاء الاصطناعي",
         pdfUpload: "رفع PDF",
         subject: "المادة",
@@ -1134,6 +1244,7 @@
         add: "إضافة",
         priorityQueue: "قائمة الأولويات",
         radarBlips: "نقاط الرادار",
+        queue: "القائمة",
         cleared: "تم الإنجاز",
         summitPlan: "خطة القمة",
         coachDescription: "مدعوم من Groq. يحلل المواضيع الضعيفة والمواعيد النهائية واتجاه الدقة ثم يبني خطة مراجعة لمدة ٧ أيام.",
@@ -1372,8 +1483,8 @@
       const aiPct = usage.ai_limit ? Math.min(100, (usage.ai_used / usage.ai_limit) * 100) : 0;
       const pdfPct = usage.pdf_limit ? Math.min(100, (usage.pdf_used / usage.pdf_limit) * 100) : 0;
 
-      $("aiUsageLabel").textContent = `AI Questions: ${usage.ai_used} / ${usage.ai_limit}`;
-      $("pdfUsageLabel").textContent = `PDF Uploads: ${usage.pdf_used} / ${usage.pdf_limit}`;
+      $("aiUsageLabel").textContent = `AI Questions (Monthly): ${usage.ai_used} / ${usage.ai_limit}`;
+      $("pdfUsageLabel").textContent = `PDF Uploads (Monthly): ${usage.pdf_used} / ${usage.pdf_limit}`;
 
       $("aiUsageBar").style.width = `${aiPct}%`;
       $("pdfUsageBar").style.width = `${pdfPct}%`;
@@ -1394,7 +1505,7 @@
       $("statWeak").textContent = stats.weak_count ?? 0;
       $("statBest").textContent = stats.best_topic || "—";
 
-      $("streakPill").textContent = `${stats.streak ?? 0} days`;
+      $("streakPill").textContent = `🔥 ${stats.streak ?? 0} days`;
 
       const topicList = $("topicList");
       topicList.innerHTML = "";
@@ -1429,9 +1540,8 @@
           fill.className = "bar-fill";
           fill.style.width = `${score}%`;
 
-          if (score < 50) fill.style.background = "var(--bad)";
-          else if (score < 75) fill.style.background = "var(--warn)";
-          else fill.style.background = "var(--ok)";
+          if (score < 50) fill.style.background = "linear-gradient(90deg, var(--bad), #f87171)";
+          else if (score < 75) fill.style.background = "linear-gradient(90deg, var(--warn), #fbbf24)";
 
           bar.appendChild(fill);
 
@@ -1747,7 +1857,7 @@
       meta.textContent = `${task.topic || "No topic"} · ${task.deadline}`;
 
       const badges = document.createElement("div");
-      badges.style.marginTop = "6px";
+      badges.style.marginTop = "8px";
 
       const priority = document.createElement("span");
       priority.className = "badge";
@@ -1857,16 +1967,16 @@
 
         let html = "";
 
-        html += `<h2 style="margin:8px 0 10px;"></h2>`;
+        html += `<h2 style="margin:10px 0 12px;"></h2>`;
         html += `<div class="muted" id="coachHeadline"></div>`;
 
         if (data.focus && data.focus.length) {
-          html += `<h3 style="margin-top:18px">Focus</h3>`;
+          html += `<h3 style="margin-top:20px">Focus</h3>`;
           data.focus.forEach(item => {
             html += `
-              <div class="card" style="margin-bottom:10px; padding:13px;">
+              <div class="glass-card" style="margin-bottom:12px; padding:16px;">
                 <strong class="focus-topic"></strong>
-                <div class="muted small focus-why" style="margin:6px 0;"></div>
+                <div class="muted small focus-why" style="margin:8px 0;"></div>
                 <div class="small focus-drill"></div>
               </div>
             `;
@@ -1874,14 +1984,14 @@
         }
 
         if (data.plan && data.plan.length) {
-          html += `<h3 style="margin-top:18px">7-Day Plan</h3><div id="coachPlan"></div>`;
+          html += `<h3 style="margin-top:20px">7-Day Plan</h3><div id="coachPlan"></div>`;
         }
 
         if (data.tips && data.tips.length) {
-          html += `<h3 style="margin-top:18px">Tips</h3><ul id="coachTips" class="muted small"></ul>`;
+          html += `<h3 style="margin-top:20px">Tips</h3><ul id="coachTips" class="muted small"></ul>`;
         }
 
-        html += `<div class="card" style="margin-top:18px; padding:14px;"><em id="coachMotivation"></em></div>`;
+        html += `<div class="glass-card" style="margin-top:20px; padding:16px;"><em id="coachMotivation"></em></div>`;
 
         output.innerHTML = html;
 
@@ -2055,7 +2165,6 @@
       }
     }
 
-    // Events
     document.addEventListener("DOMContentLoaded", async () => {
       applyTheme();
       applyI18n();
