@@ -446,7 +446,7 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
         </div>
         <div class="panel grid" id="panel-ai">
           <div class="field"><label data-i18n="any_topic">Any topic</label><input id="aiTopic" placeholder="e.g. Photosynthesis, Cold War…" data-i18n-ph="any_topic_ph"></div>
-          <div class="field"><label data-i18n="difficulty">Difficulty</label><div class="seg" id="diffSeg"><button data-d="easy" data-i18n="easy">Easy</button><button data-d="mixed" class="on" data-i18n="mixed">Mixed</button><button data-d="hard" data-i18n="hard">Hard</button></div></div>
+          <div class="field"><label data-i18n="difficulty">Difficulty</label><div class="seg" id="diffSeg"><!-- dynamically populated --></div></div>
           <div class="field"><label data-i18n="length">Length</label><div class="slider-container"><input type="range" min="1" max="30" value="4" class="custom-range" id="lenAiSlider"><div class="slider-val" id="lenAiVal">4</div></div></div>
         </div>
         <div class="panel grid" id="panel-pdf">
@@ -817,6 +817,7 @@ document.documentElement.dataset.theme = savedTheme;
 
 let token = localStorage.getItem("ep-token");
 let currentLang = localStorage.getItem("ep-lang") || "en";
+let currentGrade = "general"; // Will be fetched from settings
 
 async function api(p, o={}) {
   let r;
@@ -849,6 +850,11 @@ function showApp() {
     loadDashboard();
     loadProfile();
     applyLanguage(currentLang);
+    // Fetch user settings to update difficulty buttons
+    api("/api/user/settings").then(settings => {
+        currentGrade = settings.grade || "general";
+        updateDifficultyButtons(currentGrade);
+    }).catch(()=>{});
 }
 
 function logout() {
@@ -1010,6 +1016,27 @@ function go(v){
 window.addEventListener('load', () => { const activeLink = $(".navlinks a.active"); if(activeLink) moveSlider(activeLink); });
 window.addEventListener('resize', () => { const activeLink = $(".navlinks a.active"); if(activeLink) moveSlider(activeLink); });
 
+// --- Dynamic Difficulty Buttons ---
+function updateDifficultyButtons(grade) {
+    const diffSeg = $("#diffSeg");
+    diffSeg.innerHTML = "";
+    let options = [];
+    if (grade === "g1-6") options = ["1-2", "3-4", "5-6"];
+    else if (grade === "g7-9") options = ["7", "8", "9"];
+    else if (grade === "g10-12") options = ["10", "11", "12"];
+    else options = ["Easy", "Mixed", "Hard"]; // general
+    
+    options.forEach((opt, i) => {
+        const btn = document.createElement("button");
+        btn.dataset.d = opt.toLowerCase();
+        btn.textContent = opt;
+        if (i === 1) btn.classList.add("on"); // Default select middle one
+        diffSeg.appendChild(btn);
+    });
+    segWire("diffSeg");
+}
+updateDifficultyButtons("general"); // Initialize with general
+
 async function loadDashboard(){
   try{
     const [stats,topics,recent,heat,usage]=await Promise.all([api("/api/stats"),api("/api/topics"),api("/api/recent?limit=20"),api("/api/heatmap"),api("/api/usage")]);
@@ -1070,6 +1097,8 @@ async function loadSettings() {
         
         settingsUserType = settings.user_type || "general";
         settingsUserGrade = settings.grade || "g1-6";
+        currentGrade = settingsUserGrade; // Update global grade
+        updateDifficultyButtons(currentGrade); // Update quiz buttons based on settings
         
         const typeText = $("#settingsTypeSelect .select-text");
         typeText.textContent = translations[currentLang][settingsUserType] || settingsUserType;
@@ -1092,6 +1121,8 @@ wireSelect("settingsTypeSelect", "settingsTypeMenu", (val) => {
 });
 wireSelect("settingsGradeSelect", "settingsGradeMenu", (val) => {
     settingsUserGrade = val;
+    currentGrade = val;
+    updateDifficultyButtons(currentGrade);
 });
 
  $("#btnSaveSettings").onclick = async () => {
@@ -1228,16 +1259,16 @@ const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
     qi=0;correct=0;$("#setupCard").hidden=true;$("#resultCard").hidden=true;$("#playCard").hidden=false;renderQ();
     if(quiz.note)toast(quiz.note);
   } catch(e) {
-      if (e.message.toLowerCase().includes("limit")) {
-          showUpgradeModal();
-      } else if (e.message.toLowerCase().includes("rate limit")) {
-          // Handle Rate Limiting
+      const msg = e.message.toLowerCase();
+      if (msg.includes("rate limit") || msg.includes("wait")) {
+          // Handle Rate Limiting UI (Countdown)
           const waitMatch = e.message.match(/\d+/);
           const waitTime = waitMatch ? parseInt(waitMatch[0]) : 15;
-          toast(`⏳ Please wait ${waitTime}s before generating more AI content.`);
+          toast(`⏳ Rate limit: Please wait ${waitTime}s before generating more AI content.`);
           let timeLeft = waitTime;
+          btn.disabled = true;
           const interval = setInterval(() => {
-              btn.textContent = `⏳ ${timeLeft}s...`;
+              btn.innerHTML = `⏳ ${timeLeft}s...`;
               timeLeft--;
               if (timeLeft < 0) {
                   clearInterval(interval);
@@ -1247,12 +1278,20 @@ const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
                   btn.classList.remove("loading");
               }
           }, 1000);
+      } else if (msg.includes("limit")) {
+          showUpgradeModal();
+          btn.classList.remove("loading");
+          btn.disabled = false;
       } else {
           toast("⚠ " + e.message);
+          btn.classList.remove("loading");
+          btn.disabled = false;
       }
   }
-  btn.classList.remove("loading");
-  if(!btn.textContent.includes("s...")) btn.disabled = false;
+  if(!btn.textContent.includes("s...")) {
+      btn.classList.remove("loading");
+      btn.disabled = false;
+  }
 };
 function renderQ(){
   const q=quiz.questions[qi];
