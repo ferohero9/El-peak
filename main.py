@@ -1,5 +1,5 @@
 """
-El-Peak — FastAPI backend v10 (Production Ready, Edu-Stages, Rate Limits).
+El-Peak — FastAPI backend v11 (Production Ready, Edu-Stages, Rate Limits).
 """
 import io
 import os
@@ -47,7 +47,7 @@ except ImportError:
     pass
 
 # --- CONFIG ---
-app = FastAPI(title="El-Peak API", version="10.0")
+app = FastAPI(title="El-Peak API", version="11.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -401,66 +401,162 @@ async def heatmap(user: Annotated[dict, Depends(get_current_user)]):
 # --- QUIZ ENGINE (EGYPTIAN CURRICULUM) ---
 STATIC_QUIZZES = {
     "g1-6": { # Primary / ابتدائية
-        "Arabic (اللغة العربية)": [
-            {"question": "كم عدد حروف اللغة العربية؟", "options": ["28 حرفاً", "26 حرفاً", "30 حرفاً", "32 حرفاً"], "answer_index": 0, "explanation": "اللغة العربية تحتوي على 28 حرفاً أساسياً."},
-            {"question": "ما هو الفعل في جملة 'ذاكر الطالب الدرس'؟", "options": ["ذاكر", "الطالب", "الدرس", "لا يوجد"], "answer_index": 0, "explanation": "الفعل هو كلمة تدل على حدث، وهنا 'ذاكر'."},
-            {"question": "ما جمع كلمة 'كتاب'؟", "options": ["كتب", "كتابات", "أكتب", "كُتب"], "answer_index": 0, "explanation": "جمع تكسير لكلمة كتاب هو 'كتب'."},
-            {"question": "ما مضاد كلمة 'النشاط'؟", "options": ["الكسل", "القوة", "الضعف", "النوم"], "answer_index": 0, "explanation": "مضاد (عكس) كلمة النشاط هو الكسل."}
-        ],
-        "Math (الرياضيات)": [
-            {"question": "What is 5 + 7?", "options": ["12", "11", "13", "10"], "answer_index": 0, "explanation": "5 + 7 = 12."},
-            {"question": "What is 9 x 3?", "options": ["27", "21", "24", "12"], "answer_index": 0, "explanation": "9 multiplied by 3 is 27."},
-            {"question": "How many sides does a triangle have?", "options": ["3", "4", "5", "6"], "answer_index": 0, "explanation": "A triangle has 3 sides."},
-            {"question": "What is the shape of a ball?", "options": ["Sphere", "Cube", "Cylinder", "Pyramid"], "answer_index": 0, "explanation": "A ball is shaped like a sphere."}
-        ],
-        "Science (العلوم)": [
-            {"question": "What do plants need to make food?", "options": ["Sunlight", "Plastic", "Rocks", "Metal"], "answer_index": 0, "explanation": "Plants use sunlight to make food via photosynthesis."},
-            {"question": "كم عدد حواس الإنسان؟", "options": ["5 حواس", "3 حواس", "7 حواس", "10 حواس"], "answer_index": 0, "explanation": "حواس الإنسان هي السمع، البصر، الشم، التذوق، اللمس."}
-        ]
+        "Arabic (اللغة العربية)": {
+            "1-2": [
+                {"question": "كم عدد حروف اللغة العربية؟", "options": ["28 حرفاً", "26 حرفاً", "30 حرفاً", "32 حرفاً"], "answer_index": 0, "explanation": "اللغة العربية تحتوي على 28 حرفاً أساسياً."},
+                {"question": "ما جمع كلمة 'قلم'؟", "options": ["أقلام", "كتب", "قلمة", "قوالم"], "answer_index": 0, "explanation": "جمع تكسير لكلمة قلم هو 'أقلام'."},
+                {"question": "ما مضاد كلمة 'كبير'؟", "options": ["صغير", "طويل", "ضخم", "قصير"], "answer_index": 0, "explanation": "عكس كلمة كبير هو صغير."}
+            ],
+            "3-4": [
+                {"question": "ما هو الفعل في جملة 'ذاكر الطالب الدرس'؟", "options": ["ذاكر", "الطالب", "الدرس", "لا يوجد"], "answer_index": 0, "explanation": "الفعل هو كلمة تدل على حدث، وهنا 'ذاكر'."},
+                {"question": "كم نوعاً للفعل الماضي؟", "options": ["3 أنواع", "نوعان", "4 أنواع", "نوع واحد"], "answer_index": 0, "explanation": "الفعل الماضي يكون: صحيح، معتل، مهموز."},
+                {"question": "ما مرادف كلمة 'سعيد'؟", "options": ["فرح", "حزين", "غاضب", "متعب"], "answer_index": 0, "explanation": "مرادف (مثل) كلمة سعيد هو فرح."}
+            ],
+            "5-6": [
+                {"question": "ما نوع 'إن' في جملة 'إن العلم نور'؟", "options": ["حرف ناسخ", "فعل ناقص", "اسم موصول", "حرف جر"], "answer_index": 0, "explanation": "'إن' حرف ناسخ ينصب المبتدأ."},
+                {"question": "ما هو المفعول المطلق؟", "options": ["مصدر يؤكد الفعل", "اسم يدل على زمن", "اسم يدل على مكان", "اسم يدل على آلة"], "answer_index": 0, "explanation": "المفعول المطلق هو مصدر يؤكد حدث الفعل."},
+                {"question": "ما جمع كلمة 'بحر'؟", "options": ["بحار", "أبحر", "بُحُور", "كل ما سبق"], "answer_index": 3, "explanation": "كلمة بحر تجمع على 'بحار' و'أبحر' و'بُحُور'."}
+            ]
+        },
+        "Math (الرياضيات)": {
+            "1-2": [
+                {"question": "What is 5 + 7?", "options": ["12", "11", "13", "10"], "answer_index": 0, "explanation": "5 + 7 = 12."},
+                {"question": "What is 9 - 4?", "options": ["5", "6", "4", "3"], "answer_index": 0, "explanation": "9 - 4 = 5."},
+                {"question": "What shape is a ball?", "options": ["Sphere", "Cube", "Triangle", "Square"], "answer_index": 0, "explanation": "A ball is shaped like a sphere."}
+            ],
+            "3-4": [
+                {"question": "What is 6 x 8?", "options": ["48", "42", "56", "36"], "answer_index": 0, "explanation": "6 multiplied by 8 is 48."},
+                {"question": "What is 1/2 as a decimal?", "options": ["0.5", "0.2", "1.2", "0.05"], "answer_index": 0, "explanation": "1 divided by 2 is 0.5."},
+                {"question": "How many sides does a pentagon have?", "options": ["5", "6", "4", "7"], "answer_index": 0, "explanation": "A pentagon has 5 sides."}
+            ],
+            "5-6": [
+                {"question": "What is the LCM of 4 and 6?", "options": ["12", "24", "2", "8"], "answer_index": 0, "explanation": "The Least Common Multiple of 4 and 6 is 12."},
+                {"question": "Solve for x: 3x = 15", "options": ["5", "3", "12", "45"], "answer_index": 0, "explanation": "x = 15 / 3 = 5."},
+                {"question": "What is the area of a triangle with base 4 and height 6?", "options": ["12", "24", "10", "48"], "answer_index": 0, "explanation": "Area = 1/2 * base * height = 1/2 * 4 * 6 = 12."}
+            ]
+        },
+        "Science (العلوم)": {
+            "1-2": [
+                {"question": "كم عدد حواس الإنسان؟", "options": ["5 حواس", "3 حواس", "7 حواس", "10 حواس"], "answer_index": 0, "explanation": "حواس الإنسان هي السمع، البصر، الشم، التذوق، اللمس."},
+                {"question": "What do plants need to grow?", "options": ["Sunlight", "Darkness", "Plastic", "Rocks"], "answer_index": 0, "explanation": "Plants need sunlight to make food."}
+            ],
+            "3-4": [
+                {"question": "What are the three states of matter?", "options": ["Solid, Liquid, Gas", "Hot, Cold, Warm", "Big, Small, Medium", "Red, Blue, Green"], "answer_index": 0, "explanation": "Matter can be solid, liquid, or gas."},
+                {"question": "ما هو الكوكب الذي نعيش عليه؟", "options": ["الأرض", "المريخ", "المشتري", "القمر"], "answer_index": 0, "explanation": "نعيش على كوكب الأرض."}
+            ],
+            "5-6": [
+                {"question": "What organ pumps blood?", "options": ["Heart", "Lungs", "Brain", "Liver"], "answer_index": 0, "explanation": "The heart pumps blood throughout the body."},
+                {"question": "ما هي وظيفة الجذور في النبات؟", "options": ["تثبت النبات وتمتص الماء", "تصنع الغذاء", "تنشر البذور", "تخزن الغذاء"], "answer_index": 0, "explanation": "الجذور تثبت النبات في التربة وتمتص منها الماء والأملاح."}
+            ]
+        }
     },
     "g7-9": { # Preparatory / إعدادية
-        "Arabic (اللغة العربية)": [
-            {"question": "ما نوع كلمة 'طالب' في جملة 'الطالبُ مجتهدٌ'؟", "options": ["مبتدأ", "خبر", "فعل", "حرف"], "answer_index": 0, "explanation": "'الطالب' مبتدأ مرفوع وعلامة رفعه الضمة."},
-            {"question": "ما هو التشبيه في قولنا 'الجندي كالأسد'؟", "options": ["حيث شبه الجندي بالأسد", "استعارة", "كناية", "طباق"], "answer_index": 0, "explanation": "في هذا التشبيه، شبه الكاتب الجندي بالأسد في الشجاعة."},
-            {"question": "من هو شاعر النيل؟", "options": ["حافظ إبراهيم", "أحمد شوقي", "إيليا أبو ماضي", "نزار قباني"], "answer_index": 0, "explanation": "حافظ إبراهيم هو شاعر النيل."}
-        ],
-        "Math (الرياضيات)": [
-            {"question": "What is the value of x in 2x + 4 = 10?", "options": ["3", "2", "4", "5"], "answer_index": 0, "explanation": "2x = 6, so x = 3."},
-            {"question": "What is the area of a triangle with base 4 and height 6?", "options": ["12", "24", "10", "48"], "answer_index": 0, "explanation": "Area = 1/2 * base * height = 1/2 * 4 * 6 = 12."},
-            {"question": "What is the LCM of 4 and 6?", "options": ["12", "24", "2", "8"], "answer_index": 0, "explanation": "The Least Common Multiple of 4 and 6 is 12."},
-            {"question": "What is the sum of angles in a triangle?", "options": ["180 degrees", "90 degrees", "360 degrees", "270 degrees"], "answer_index": 0, "explanation": "The sum of interior angles of a triangle is always 180 degrees."}
-        ],
-        "Science (العلوم)": [
-            {"question": "What is the powerhouse of the cell?", "options": ["Mitochondria", "Nucleus", "Ribosome", "Cytoplasm"], "answer_index": 0, "explanation": "Mitochondria produce ATP, the cell's energy currency."},
-            {"question": "What is the chemical symbol for water?", "options": ["H2O", "CO2", "O2", "NaCl"], "answer_index": 0, "explanation": "Water is made of 2 Hydrogen atoms and 1 Oxygen atom."}
-        ]
+        "Arabic (اللغة العربية)": {
+            "7": [
+                {"question": "ما نوع كلمة 'طالب' في جملة 'الطالبُ مجتهدٌ'؟", "options": ["مبتدأ", "خبر", "فعل", "حرف"], "answer_index": 0, "explanation": "'الطالب' مبتدأ مرفوع وعلامة رفعه الضمة."},
+                {"question": "ما هو التشبيه في قولنا 'الجندي كالأسد'؟", "options": ["حيث شبه الجندي بالأسد", "استعارة", "كناية", "طباق"], "answer_index": 0, "explanation": "في هذا التشبيه، شبه الكاتب الجندي بالأسد في الشجاعة."}
+            ],
+            "8": [
+                {"question": "الجار والمجرور في جملة 'ذهبت إلى المدرسة'؟", "options": ["إلى المدرسة", "ذهبت", "المدرسة", "لا يوجد"], "answer_index": 0, "explanation": "حرف الجر 'إلى' واسمه 'المدرسة' يسميان الجار والمجرور."},
+                {"question": "اسم الإشارة للقريب هو؟", "options": ["هذا", "ذلك", "أولئك", "هؤلاء"], "answer_index": 0, "explanation": "'هذا' يدل على المفرد القريب."}
+            ],
+            "9": [
+                {"question": "من هو شاعر النيل؟", "options": ["حافظ إبراهيم", "أحمد شوقي", "إيليا أبو ماضي", "نزار قباني"], "answer_index": 0, "explanation": "حافظ إبراهيم هو شاعر النيل."},
+                {"question": "ما الفرق بين التشبيه والاستعارة؟", "options": ["التشبيه يذكر المشبه والمشبه به", "لا يوجد فرق", "الاستعارة أقصر", "التشبيه يحذف المشبه"], "answer_index": 0, "explanation": "في التشبيه يذكر المشبه والمشبه به، بينما في الاستعارة يذكر أحدهما ويدل على الآخر."}
+            ]
+        },
+        "Math (الرياضيات)": {
+            "7": [
+                {"question": "If x + 5 = 12, what is x?", "options": ["7", "5", "17", "12"], "answer_index": 0, "explanation": "x = 12 - 5 = 7."},
+                {"question": "What is the area of a rectangle with length 4 and width 3?", "options": ["12", "7", "14", "1"], "answer_index": 0, "explanation": "Area = length * width = 4 * 3 = 12."}
+            ],
+            "8": [
+                {"question": "What is the sum of angles in a triangle?", "options": ["180 degrees", "90 degrees", "360 degrees", "270 degrees"], "answer_index": 0, "explanation": "The sum of interior angles of a triangle is always 180 degrees."},
+                {"question": "Solve: 2(x - 3) = 8", "options": ["7", "5", "11", "4"], "answer_index": 0, "explanation": "2x - 6 = 8 => 2x = 14 => x = 7."}
+            ],
+            "9": [
+                {"question": "What is the value of x in x^2 = 81?", "options": ["9", "8", "10", "7"], "answer_index": 0, "explanation": "9 * 9 = 81."},
+                {"question": "What is the slope of a horizontal line?", "options": ["0", "1", "Undefined", "-1"], "answer_index": 0, "explanation": "A horizontal line has no steepness, so its slope is 0."}
+            ]
+        },
+        "Science (العلوم)": {
+            "7": [
+                {"question": "What is the powerhouse of the cell?", "options": ["Mitochondria", "Nucleus", "Ribosome", "Cytoplasm"], "answer_index": 0, "explanation": "Mitochondria produce ATP, the cell's energy currency."},
+                {"question": "What is the chemical symbol for water?", "options": ["H2O", "CO2", "O2", "NaCl"], "answer_index": 0, "explanation": "Water is made of 2 Hydrogen atoms and 1 Oxygen atom."}
+            ],
+            "8": [
+                {"question": "What force pulls objects towards Earth?", "options": ["Gravity", "Friction", "Magnetism", "Tension"], "answer_index": 0, "explanation": "Gravity is the force that attracts objects toward the center of the Earth."},
+                {"question": "ما هي وحدة قياس القوة؟", "options": ["نيوتن", "جول", "واط", "متر"], "answer_index": 0, "explanation": "تقاس القوة بوحدة نيوتن."}
+            ],
+            "9": [
+                {"question": "What is the atomic number of Oxygen?", "options": ["8", "6", "16", "12"], "answer_index": 0, "explanation": "Oxygen has 8 protons in its nucleus."},
+                {"question": "What type of energy is stored in food?", "options": ["Chemical", "Kinetic", "Potential", "Nuclear"], "answer_index": 0, "explanation": "Food stores chemical energy in its bonds."}
+            ]
+        }
     },
     "g10-12": { # Secondary / ثانوية
-        "Arabic (اللغة العربية)": [
-            {"question": "ما هو المفعول المطلق في جملة 'انتصر الجيش انتصاراً عظيماً'؟", "options": ["انتصاراً", "الجيش", "عظيماً", "انتصر"], "answer_index": 0, "explanation": "المفعول المطلق هو مصدر يؤكد الفعل، وهنا 'انتصاراً'."},
-            {"question": "من قائل مسرحية 'مجنون ليلى'؟", "options": ["أحمد شوقي", "توفيق الحكيم", "نجيب محفوظ", "أحمد أمين"], "answer_index": 0, "explanation": "مسرحية مجنون ليلى من أشهر أعمال أمير الشعراء أحمد شوقي."},
-            {"question": "ما الفرق بين التشبيه والاستعارة؟", "options": ["التشبيه يذكر المشبه والمشبه به", "لا يوجد فرق", "الاستعارة أقصر", "التشبيه يحذف المشبه"], "answer_index": 0, "explanation": "في التشبيه يذكر المشبه والمشبه به، بينما في الاستعارة يذكر أحدهما ويدل على الآخر."}
-        ],
-        "Math (الرياضيات)": [
-            {"question": "What is the derivative of sin(x)?", "options": ["cos(x)", "-cos(x)", "tan(x)", "-sin(x)"], "answer_index": 0, "explanation": "d/dx [sin(x)] = cos(x)."},
-            {"question": "What is the integral of 2x dx?", "options": ["x^2 + C", "2 + C", "x^2 / 2 + C", "2x^2 + C"], "answer_index": 0, "explanation": "The anti-derivative of 2x is x^2 + C."},
-            {"question": "What is log10(1000)?", "options": ["3", "2", "10", "100"], "answer_index": 0, "explanation": "10^3 = 1000, so log10(1000) = 3."}
-        ],
-        "Physics (الفيزياء)": [
-            {"question": "What is the unit of electric resistance?", "options": ["Ohm", "Volt", "Ampere", "Watt"], "answer_index": 0, "explanation": "Resistance is measured in Ohms (Ω)."},
-            {"question": "What is the acceleration due to gravity on Earth?", "options": ["9.8 m/s^2", "8.9 m/s^2", "10.2 m/s^2", "9.5 m/s^2"], "answer_index": 0, "explanation": "g ≈ 9.81 m/s^2 on Earth."}
-        ]
+        "Arabic (اللغة العربية)": {
+            "10": [
+                {"question": "ما هو المفعول المطلق في جملة 'انتصر الجيش انتصاراً عظيماً'؟", "options": ["انتصاراً", "الجيش", "عظيماً", "انتصر"], "answer_index": 0, "explanation": "المفعول المطلق هو مصدر يؤكد الفعل، وهنا 'انتصاراً'."},
+                {"question": "من قائل مسرحية 'مجنون ليلى'؟", "options": ["أحمد شوقي", "توفيق الحكيم", "نجيب محفوظ", "أحمد أمين"], "answer_index": 0, "explanation": "مسرحية مجنون ليلى من أشهر أعمال أمير الشعراء أحمد شوقي."}
+            ],
+            "11": [
+                {"question": "البلاغة علم يبحث فيه عن؟", "options": ["المحسنات والصور البيانية", "النحو والإعراب", "تاريخ الأدب", "الكتابة الإنشائية"], "answer_index": 0, "explanation": "علم البلاغة يبحث في المحسنات البديعية والمعنوية والصور البيانية."},
+                {"question": "التشبيه هو؟", "options": ["تشبيه شيء بشيء لبيان وجه الشبه", "إسناد معنى لشيء ليس منه", "ذكر الشيء بلفظه", "ذكر الشيء بضده"], "answer_index": 0, "explanation": "التشبيه هو عقد مماثلة بين طرفين لبيان وجه الشبه."}
+            ],
+            "12": [
+                {"question": "ما هي مدرسة الإحياء والبعث؟", "options": ["مدرسة أدبية تهتم بتقليد الشعر القديم", "مدرسة حديثة ترفض الشعر", "مدرسة تكتب الرواية فقط", "مدرسة تنتمي للأدب المهجري"], "answer_index": 0, "explanation": "مدرسة الإحياء والبعث هي مدرسة شعرية حافظت على القديم وأضافت إليه روحاً جديدة."},
+                {"question": "ما الفرق بين الوراقة والطباعة؟", "options": ["الوراقة كتابة يدوية والطباعة آلية", "لا فرق", "الوراقة أحدث", "الطباعة تستخدم الحبر"], "answer_index": 0, "explanation": "الوراقة هي صناعة الكتابة على الورق يدوياً، بينما الطباعة تتم بواسطة الآلات."}
+            ]
+        },
+        "Math (الرياضيات)": {
+            "10": [
+                {"question": "What is log10(100)?", "options": ["2", "10", "0.1", "100"], "answer_index": 0, "explanation": "10^2 = 100, so log10(100) = 2."},
+                {"question": "What is the value of sin(30)?", "options": ["1/2", "1", "√3/2", "0"], "answer_index": 0, "explanation": "sin(30) = 1/2."}
+            ],
+            "11": [
+                {"question": "What is the derivative of x^3?", "options": ["3x^2", "x^2", "3x", "3"], "answer_index": 0, "explanation": "d/dx(x^n) = n*x^(n-1)."},
+                {"question": "What is the limit of (x^2 - 1)/(x - 1) as x approaches 1?", "options": ["2", "1", "0", "Undefined"], "answer_index": 0, "explanation": "Factoring gives (x-1)(x+1)/(x-1) = x+1. At x=1, value is 2."}
+            ],
+            "12": [
+                {"question": "What is the integral of 2x dx?", "options": ["x^2 + C", "2 + C", "x^2 / 2 + C", "2x^2 + C"], "answer_index": 0, "explanation": "The anti-derivative of 2x is x^2 + C."},
+                {"question": "What is the determinant of [[2,0],[0,2]]?", "options": ["4", "0", "2", "1"], "answer_index": 0, "explanation": "2*2 - 0*0 = 4."}
+            ]
+        },
+        "Physics (الفيزياء)": {
+            "10": [
+                {"question": "What is the unit of force?", "options": ["Newton", "Joule", "Watt", "Pascal"], "answer_index": 0, "explanation": "Force is measured in Newtons (N)."},
+                {"question": "What is the acceleration due to gravity on Earth?", "options": ["9.8 m/s^2", "8.9 m/s^2", "10.2 m/s^2", "9.5 m/s^2"], "answer_index": 0, "explanation": "g ≈ 9.8 m/s^2 on Earth."}
+            ],
+            "11": [
+                {"question": "What is Ohm's Law?", "options": ["V = I * R", "P = I * V", "V = I / R", "R = V * I"], "answer_index": 0, "explanation": "Voltage equals current times resistance."},
+                {"question": "What type of wave is light?", "options": ["Transverse", "Longitudinal", "Mechanical", "Sound"], "answer_index": 0, "explanation": "Light is a transverse electromagnetic wave."}
+            ],
+            "12": [
+                {"question": "What is the charge of an electron?", "options": ["Negative", "Positive", "Neutral", "Variable"], "answer_index": 0, "explanation": "Electrons carry a negative elementary charge."},
+                {"question": "What is the speed of light in vacuum?", "options": ["3 x 10^8 m/s", "3 x 10^6 m/s", "3 x 10^10 m/s", "9.8 m/s"], "answer_index": 0, "explanation": "c ≈ 300,000,000 m/s."}
+            ]
+        }
     },
     "general": { # General / General Knowledge
-        "General Knowledge": [
-            {"question": "What is the capital of Egypt?", "options": ["Cairo", "Alexandria", "Giza", "Luxor"], "answer_index": 0, "explanation": "Cairo is the capital and largest city of Egypt."},
-            {"question": "كم عدد القارات في العالم؟", "options": ["7 قارات", "5 قارات", "6 قارات", "8 قارات"], "answer_index": 0, "explanation": "يوجد 7 قارات في العالم."},
-            {"question": "What is the largest ocean on Earth?", "options": ["Pacific", "Atlantic", "Indian", "Arctic"], "answer_index": 0, "explanation": "The Pacific Ocean is the largest and deepest."}
-        ]
+        "General Knowledge": {
+            "easy": [
+                {"question": "What is the capital of Egypt?", "options": ["Cairo", "Alexandria", "Giza", "Luxor"], "answer_index": 0, "explanation": "Cairo is the capital and largest city of Egypt."},
+                {"question": "كم عدد القارات في العالم؟", "options": ["7 قارات", "5 قارات", "6 قارات", "8 قارات"], "answer_index": 0, "explanation": "يوجد 7 قارات في العالم."}
+            ],
+            "mixed": [
+                {"question": "What is the largest ocean on Earth?", "options": ["Pacific", "Atlantic", "Indian", "Arctic"], "answer_index": 0, "explanation": "The Pacific Ocean is the largest and deepest."},
+                {"question": "ما هو أطول نهر في العالم؟", "options": ["النيل", "الأمازون", "المسيسيبي", "اليانغتسي"], "answer_index": 0, "explanation": "نهر النيل هو أطول نهر في العالم."}
+            ],
+            "hard": [
+                {"question": "What is the chemical symbol for Gold?", "options": ["Au", "Ag", "Gd", "Go"], "answer_index": 0, "explanation": "Au comes from the Latin word 'aurum'."},
+                {"question": "ما هي عاصمة اليابان؟", "options": ["طوكيو", "كيوتو", "أوساكا", "سيول"], "answer_index": 0, "explanation": "طوكيو هي عاصمة اليابان."}
+            ]
+        }
     }
 }
 
-def _match_static(topic: str, n: int, grade: str | None = "general"):
+def _match_static(topic: str, n: int, grade: str = "general", difficulty: str = "mixed"):
     key = topic.strip().lower()
     bank_dict = STATIC_QUIZZES.get(grade, STATIC_QUIZZES["general"])
     
@@ -471,8 +567,19 @@ def _match_static(topic: str, n: int, grade: str | None = "general"):
             break
     if subject is None:
         subject = random.choice(list(bank_dict.keys()))
-    bank = bank_dict[subject]
-    qs = random.sample(bank, min(n, len(bank)))
+        
+    subject_bank = bank_dict[subject]
+    
+    # Get questions for the specific difficulty, fallback to "mixed" or "easy" if not found
+    questions = subject_bank.get(difficulty, subject_bank.get("mixed", subject_bank.get("easy", [])))
+    if not questions:
+        # If still no questions, just grab whatever is available in the subject
+        for diff_qs in subject_bank.values():
+            if diff_qs:
+                questions = diff_qs
+                break
+                
+    qs = random.sample(questions, min(n, len(questions)))
     return {"topic": topic, "subject": subject, "questions": qs, "ai": False, "source": "static"}
 
 @app.get("/api/quiz/subjects")
@@ -482,10 +589,10 @@ async def quiz_subjects(user: Annotated[dict, Depends(get_current_user)]):
     return {"subjects": list(STATIC_QUIZZES.get(grade, STATIC_QUIZZES["general"]).keys())}
 
 @app.get("/api/quiz/static")
-async def quiz_static(user: Annotated[dict, Depends(get_current_user)], topic: str = "Mathematics", n: int = 4):
+async def quiz_static(user: Annotated[dict, Depends(get_current_user)], topic: str = "Mathematics", n: int = 4, difficulty: str = "mixed"):
     user_settings = await db.get_user_by_id(user["id"])
     grade = user_settings.get("grade", "general") if user_settings else "general"
-    return _match_static(topic, max(3, min(5, n)), grade)
+    return _match_static(topic, max(3, min(5, n)), grade, difficulty)
 
 def _clean_questions(data, limit: int) -> list:
     qs = data.get("questions", data if isinstance(data, list) else [])
@@ -543,7 +650,7 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
         return {"topic": payload.topic, "subject": "AI", "questions": clean, "ai": True, "source": "ai"}
     except Exception as e:
         print(f"⚠️ AI Quiz Error: {e}")
-        fallback = _match_static(payload.topic, 4, user_settings.get("grade", "general") if user_settings else "general")
+        fallback = _match_static(payload.topic, 4, user_settings.get("grade", "general") if user_settings else "general", payload.difficulty)
         fallback["note"] = "AI unavailable — served from the static bank."
         return fallback
 
