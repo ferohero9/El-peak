@@ -35,9 +35,13 @@
   --shadow-hover:0 16px 40px rgba(79,70,229,0.1);
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:auto}
-html.lenis,html.lenis body{height:auto}
-.lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain}
+/* Official Lenis CSS to ensure proper smooth scroll behavior */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
 body{font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100vh;overflow-x:hidden;transition:background .5s var(--smooth), color .5s var(--smooth)}
 button{font-family:inherit;cursor:pointer;outline:none;border:none;background:none;color:inherit}
 input,select{font-family:inherit;outline:none;background:none;color:inherit}
@@ -844,16 +848,15 @@ function ago(s){const d=(Date.now()-new Date(s))/1e3;if(d<60)return"just now";if
 function count(el,to,suf=""){const t0=performance.now(),dur=800;function f(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e)+suf;if(p<1)requestAnimationFrame(f)}requestAnimationFrame(f)}
 
 // Lenis smooth scrolling. Falls back to native scrolling when reduced motion is enabled or Lenis fails to load.
+// Refined configuration to ensure mouse-wheel scrolling feels fluid and responsive.
 let lenis = null;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 if (window.Lenis && !reducedMotion) {
   lenis = new Lenis({
     autoRaf: true,
-    anchors: true,
-    allowNestedScroll: true,
-    stopInertiaOnNavigate: true,
     smoothWheel: true,
-    lerp: 0.095
+    lerp: 0.1,
+    wheelMultiplier: 1
   });
   $$(".chat-body, .select-menu, .heat").forEach(el => el.setAttribute("data-lenis-prevent", ""));
 }
@@ -989,8 +992,8 @@ function wireSelect(selectId, menuId, onChange) {
     sel.querySelector(".select-trigger").onclick = (e) => {
         e.stopPropagation();
         const wasOpen = sel.classList.contains("open");
-        closeAllDropdowns(sel);
-        if (!wasOpen) sel.classList.add("open");
+        closeAllDropdowns(); // Close all dropdowns first
+        if (!wasOpen) sel.classList.add("open"); // If this one was closed, open it. If it was open, it stays closed.
     };
     $$(`#${menuId} .select-option`).forEach(opt => {
         opt.onclick = () => {
@@ -1319,8 +1322,8 @@ const langMenu = $("#langMenu");
 langSelect.querySelector(".select-trigger").onclick = (e) => {
     e.stopPropagation();
     const wasOpen = langSelect.classList.contains("open");
-    closeAllDropdowns(langSelect);
-    if (!wasOpen) langSelect.classList.add("open");
+    closeAllDropdowns(); // Close all dropdowns first
+    if (!wasOpen) langSelect.classList.add("open"); // Toggle this one
 };
  $$("#langMenu .select-option").forEach(opt => {
     opt.onclick = () => {
@@ -1365,8 +1368,8 @@ let staticTopicValue = "";
 staticSelect.querySelector(".select-trigger").onclick = (e) => {
     e.stopPropagation();
     const wasOpen = staticSelect.classList.contains("open");
-    closeAllDropdowns(staticSelect);
-    if (!wasOpen) staticSelect.classList.add("open");
+    closeAllDropdowns(); // Close all dropdowns first
+    if (!wasOpen) staticSelect.classList.add("open"); // Toggle this one
 };
 api("/api/quiz/subjects").then(d => {
   staticMenu.innerHTML = d.subjects.map(s => `<div class="select-option" data-val="${s}">${s}</div>`).join("");
