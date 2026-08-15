@@ -10,7 +10,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
 <style>
 :root, [data-theme="dark"] {
   --bg:#070710; --ink:#f8fafc; --muted:#94a3b8; 
@@ -47,6 +46,11 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 .blob.b2{width:500px;height:500px;background:#22d3ee;bottom:-150px;right:-50px;animation-delay:-8s}
 .blob.b3{width:450px;height:450px;background:#a855f7;top:30%;right:20%;animation-delay:-16s}
 @keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.1)}}
+@media (prefers-reduced-motion: reduce){
+  .blob{animation:none}
+  html{scroll-behavior:auto}
+  *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}
+}
 
 /* Auth Screen */
 #authView{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -57,6 +61,7 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 .auth-sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:24px}
 .google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,0.1);border:none;margin-bottom:20px;padding:12px 24px;border-radius:100px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .2s var(--spring)}
 .google-btn:hover{transform:translateY(-2px)}
+.google-btn:disabled{opacity:.6;pointer-events:none}
 .google-btn svg{width:18px;height:18px}
 .auth-divider{width:100%;display:flex;align-items:center;gap:12px;margin-bottom:20px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em}
 .auth-divider::before, .auth-divider::after{content:"";flex:1;height:1px;background:var(--glass-border)}
@@ -330,7 +335,7 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
             <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
           <div class="select-menu" id="authTypeMenu">
-            <div class="select-option" data-val="general">General</div>
+            <div class="select-option selected" data-val="general">General</div>
             <div class="select-option" data-val="school">School Student</div>
           </div>
         </div>
@@ -344,7 +349,7 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
             <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
           <div class="select-menu" id="authGradeMenu">
-            <div class="select-option" data-val="g1-6">Primary (1-6)</div>
+            <div class="select-option selected" data-val="g1-6">Primary (1-6)</div>
             <div class="select-option" data-val="g7-9">Preparatory (7-9)</div>
             <div class="select-option" data-val="g10-12">Secondary (10-12)</div>
           </div>
@@ -752,7 +757,7 @@ const translations = {
     peak_score: "درجة الذروة", day_streak: "أيام متتالية", reps_7: "تكرارات الأسبوع", avg_acc: "متوسط الدقة", weak_topics: "مواضيع ضعيفة", best_topic: "أفضل موضوع",
     mastery_radar: "رادار الإتقان", score_trend: "اتجاه الدرجات", recent_attempts: "المحاولات الأخيرة", ascent_log: "سجل الصعود", sessions: "جلسات",
     quiz_engine: "محرك الاختبارات", expedition: "البعثة", static_bank: "بنك الأسئلة", static_desc: "بنوك أسئلة منظمة لـ 5 مواد أساسية.",
-    ai_generated: "توليد بالذكاء الاصطناعي", ai_desc: "اكتب أي موضوع — يقوم الذكاء الاصطناعي بكتابة أسئلة اختيار من متعدد.", upload_pdf: "رفع ملف PDF", pdf_desc: "أ drop كتابك/ملاحظاتك. يقرأها الذكاء الاصطناعي ويختبرك.",
+    ai_generated: "توليد بالذكاء الاصطناعي", ai_desc: "اكتب أي موضوع — يقوم الذكاء الاصطناعي بكتابة أسئلة اختيار من متعدد.", upload_pdf: "رفع ملف PDF", pdf_desc: "ارفع كتابك أو ملاحظاتك بصيغة PDF. يقرأها الذكاء الاصطناعي ويختبرك فيها.",
     subject: "المادة", length: "الطول", any_topic: "أي موضوع", any_topic_ph: "مثال: التمثيل الضوئي، الحرب الباردة…", difficulty: "الصعوبة", easy: "سهل", mixed: "مختلط", hard: "صعب",
     your_pdf: "ملف PDF الخاص بك / ملاحظاتك", drop_pdf: "⬆ أسقط ملف PDF هنا أو انقر للتصفح", topic_label: "اسم الموضوع (اختياري)", topic_label_ph: "افتراضي اسم الملف",
     auto_length: "طول محسن تلقائياً", ai_decides: "الذكاء الاصطناعي يحدد الكمية المناسبة", begin_ascent: "ابدأ الصعود", exit: "خروج", next: "التالي", ascent_complete: "اكتمل الصعود",
@@ -822,9 +827,8 @@ function toast(m){const t=document.createElement("div");t.className="toast";t.te
 function ago(s){const d=(Date.now()-new Date(s))/1e3;if(d<60)return"just now";if(d<3600)return Math.floor(d/60)+"m ago";if(d<86400)return Math.floor(d/3600)+"h ago";return Math.floor(d/86400)+"d ago"}
 function count(el,to,suf=""){const t0=performance.now(),dur=800;function f(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e)+suf;if(p<1)requestAnimationFrame(f)}requestAnimationFrame(f)}
 
-const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
-function raf(time) { lenis.raf(time); requestAnimationFrame(raf); } requestAnimationFrame(raf);
-const scrollToTop = () => lenis.scrollTo(0, { immediate: false });
+// Native smooth scroll (CSS `scroll-behavior:smooth` on <html> handles the easing).
+const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
 const savedTheme = localStorage.getItem("ep-theme") || "dark";
 document.documentElement.dataset.theme = savedTheme;
@@ -969,24 +973,45 @@ wireSelect("authGradeSelect", "authGradeMenu", (val) => {
 };
 
  $("#btnGoogle").onclick = async () => {
+    const btn = $("#btnGoogle");
+    btn.disabled = true;
     try {
         const r = await fetch("/api/auth/google");
         const data = await r.json();
         if (data.auth_url) {
             window.location.href = data.auth_url;
+            return;
         }
+        throw new Error("No auth URL returned.");
     } catch (e) {
         toast("⚠ Google login failed to start.");
+        btn.disabled = false;
     }
 };
 
+// Google OAuth redirect handler.
+// The backend never puts the raw JWT in the URL (that would leak via logs/history/referrers).
+// Instead /api/auth/google/callback redirects here with a short-lived one-time "oauth_code",
+// which must be exchanged for a real token via POST /api/auth/google/exchange.
 const urlParams = new URLSearchParams(window.location.search);
-const googleToken = urlParams.get('token');
-if (googleToken) {
-    token = googleToken;
-    localStorage.setItem("ep-token", token);
+const oauthCode = urlParams.get('oauth_code');
+if (oauthCode) {
     window.history.replaceState({}, document.title, "/");
-    showApp();
+    (async () => {
+        try {
+            const data = await api("/api/auth/google/exchange", {
+                method: "POST",
+                body: { code: oauthCode }
+            });
+            token = data.token;
+            localStorage.setItem("ep-token", token);
+            showApp();
+        } catch (e) {
+            $("#authView").style.display = "flex";
+            applyLanguage(currentLang);
+            toast("⚠ Google sign-in failed: " + e.message);
+        }
+    })();
 }
 
 if (urlParams.get('upgraded') === 'true') {
@@ -1380,6 +1405,7 @@ async function loadSchedule(){
 let chatHistory = [];
  $("#chatFab").onclick=()=>{$("#chatWin").classList.toggle("open");if($("#chatWin").classList.contains("open"))$("#chatInput").focus();}
  $("#chatClose").onclick=()=>$("#chatWin").classList.remove("open");
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#chatWin").classList.contains("open")) $("#chatWin").classList.remove("open"); });
 function addMsg(role, text) {
   const body = $("#chatBody");
   const div = document.createElement("div");
