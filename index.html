@@ -87,7 +87,7 @@ nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;displ
 .navlinks a{padding:8px 14px;border-radius:100px;color:var(--muted);text-decoration:none;font-weight:500;font-size:12.5px;transition:color .3s;position:relative;z-index:2;white-space:nowrap}
 .navlinks a:hover{color:var(--ink)}
 .navlinks a.active{color:var(--accent-text)}
-.nav-slider{position:absolute;top:4px;height:calc(100% - 8px);background:var(--accent);border-radius:100px;z-index:1;transition:all .4s var(--spring);box-shadow:0 4px 15px var(--accent-glow)}
+.nav-slider{position:absolute;top:4px;height:calc(100% - 8px);background:var(--accent);border-radius:100px;z-index:1;transition:all .45s var(--spring);box-shadow:0 4px 15px var(--accent-glow)}
 .navright{display:flex;align-items:center;gap:12px;padding-right:8px}
 .chip{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--glass-strong);padding:6px 12px;border-radius:100px;border:1px solid var(--glass-border)}
 .chip .flame{color:var(--amber)}
@@ -152,6 +152,8 @@ h2.sec{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:20px
 .badge.static{color:var(--mint);border-color:rgba(52,211,153,0.3)}
 .badge.pdf{color:var(--coral);border-color:rgba(251,113,133,0.3)}
 .custom-select{position:relative;width:100%;z-index:10}
+/* Fix: raise z-index of open dropdown so its menu always appears above neighbouring dropdowns */
+.custom-select.open{z-index:30}
 .select-trigger{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px;font-weight:500;cursor:pointer}
 .select-trigger .arrow{width:16px;height:16px;transition:transform .3s var(--spring);opacity:0.7}
 .custom-select.open .select-trigger .arrow{transform:rotate(180deg)}
@@ -904,6 +906,7 @@ async function api(p, o={}) {
 }
 
 function showApp() {
+    closeAllDropdowns();
     $("#authView").style.display = "none";
     $("#appView").style.display = "block";
     currentView = $(".view.active")?.id.replace("view-", "") || "dashboard";
@@ -921,6 +924,7 @@ function showApp() {
 }
 
 function logout() {
+    closeAllDropdowns();
     localStorage.removeItem("ep-token");
     token = null;
     if (lenis) lenis.stop();
@@ -936,8 +940,8 @@ if (token) {
     applyLanguage(currentLang);
 }
 
- $("#tabLogin").onclick = () => { $("#tabLogin").classList.add("active"); $("#tabSignup").classList.remove("active"); $("#formLogin").classList.add("active"); $("#formSignup").classList.remove("active"); };
- $("#tabSignup").onclick = () => { $("#tabSignup").classList.add("active"); $("#tabLogin").classList.remove("active"); $("#formSignup").classList.add("active"); $("#formLogin").classList.remove("active"); };
+ $("#tabLogin").onclick = () => { closeAllDropdowns(); $("#tabLogin").classList.add("active"); $("#tabSignup").classList.remove("active"); $("#formLogin").classList.add("active"); $("#formSignup").classList.remove("active"); };
+ $("#tabSignup").onclick = () => { closeAllDropdowns(); $("#tabSignup").classList.add("active"); $("#tabLogin").classList.remove("active"); $("#formSignup").classList.add("active"); $("#formLogin").classList.remove("active"); };
 
  $("#btnLogin").onclick = async () => {
     const btn = $("#btnLogin"); btn.classList.add("loading"); btn.disabled = true;
@@ -961,13 +965,33 @@ if (token) {
     btn.classList.remove("loading"); btn.disabled = false;
 };
 
+// === Dropdown Manager =============================================
+// Ensures only one custom-select dropdown can be open at any time.
+// Previously each dropdown registered its own document click handler
+// with stopPropagation on the trigger, which meant opening dropdown B
+// never closed dropdown A. This centralised manager fixes that.
+function closeAllDropdowns(except) {
+  $$(".custom-select.open").forEach(sel => {
+    if (sel !== except) sel.classList.remove("open");
+  });
+}
+// Single document-level handler — closes all dropdowns when clicking outside any .custom-select.
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".custom-select")) closeAllDropdowns();
+});
+// =================================================================
+
 // --- Auth Type & Grade Logic ---
 function wireSelect(selectId, menuId, onChange) {
     const sel = $(`#${selectId}`);
     if (!sel) return;
     const menu = $(`#${menuId}`);
-    sel.querySelector(".select-trigger").onclick = (e) => { e.stopPropagation(); sel.classList.toggle("open"); };
-    document.addEventListener("click", (e) => { if (!sel.contains(e.target)) sel.classList.remove("open"); });
+    sel.querySelector(".select-trigger").onclick = (e) => {
+        e.stopPropagation();
+        const wasOpen = sel.classList.contains("open");
+        closeAllDropdowns(sel);
+        if (!wasOpen) sel.classList.add("open");
+    };
     $$(`#${menuId} .select-option`).forEach(opt => {
         opt.onclick = () => {
             const val = opt.dataset.val;
@@ -1071,6 +1095,7 @@ function moveSlider(activeLink) {
 
 function go(v){
     if (!v) return;
+    closeAllDropdowns();
     if (v === currentView) {
       scrollToTop();
       return;
@@ -1291,8 +1316,12 @@ wireSelect("settingsGradeSelect", "settingsGradeMenu", (val) => {
 
 const langSelect = $("#langSelect");
 const langMenu = $("#langMenu");
-langSelect.querySelector(".select-trigger").onclick = (e) => { e.stopPropagation(); langSelect.classList.toggle("open"); };
-document.addEventListener("click", (e) => { if (!langSelect.contains(e.target)) langSelect.classList.remove("open"); });
+langSelect.querySelector(".select-trigger").onclick = (e) => {
+    e.stopPropagation();
+    const wasOpen = langSelect.classList.contains("open");
+    closeAllDropdowns(langSelect);
+    if (!wasOpen) langSelect.classList.add("open");
+};
  $$("#langMenu .select-option").forEach(opt => {
     opt.onclick = () => {
         currentLang = opt.dataset.val;
@@ -1333,8 +1362,12 @@ function renderRecent(recent){
 const staticSelect = $("#staticTopicSelect");
 const staticMenu = $("#staticTopicMenu");
 let staticTopicValue = "";
-staticSelect.querySelector(".select-trigger").onclick = (e) => { e.stopPropagation(); staticSelect.classList.toggle("open"); };
-document.addEventListener("click", (e) => { if (!staticSelect.contains(e.target)) staticSelect.classList.remove("open"); });
+staticSelect.querySelector(".select-trigger").onclick = (e) => {
+    e.stopPropagation();
+    const wasOpen = staticSelect.classList.contains("open");
+    closeAllDropdowns(staticSelect);
+    if (!wasOpen) staticSelect.classList.add("open");
+};
 api("/api/quiz/subjects").then(d => {
   staticMenu.innerHTML = d.subjects.map(s => `<div class="select-option" data-val="${s}">${s}</div>`).join("");
   if(d.subjects.length) {
