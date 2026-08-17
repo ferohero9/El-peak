@@ -25,6 +25,11 @@
   --shadow-hover:0 16px 40px rgba(0,0,0,0.3);
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Spring/wobble tuning knobs for page transitions. Adjust duration for overall
+     settle time; the keyframe offsets below control how many oscillations occur
+     and how large they are (i.e. the "damping"). */
+  --wobble-duration: 0.62s;
+  --wobble-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 [data-theme="light"] {
   --bg:#eef2f7; --ink:#0f172a; --muted:#64748b;
@@ -118,14 +123,43 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24
 .view.active > *:not([hidden]):nth-child(4){animation-delay:0.35s}
 @keyframes staggerIn{from{opacity:0;transform:translateY(20px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 
-/* Subtle directional transitions between app views. Existing layout and glass styling stay unchanged. */
-.view{will-change:opacity,transform}
+/* Subtle directional transitions between app views. Existing layout and glass styling stay unchanged.
+   PERF NOTE: will-change is applied ONLY while a view carries .is-leaving/.is-entering (below),
+   never globally on .view — six permanently-promoted layers is wasted GPU memory. It is stripped
+   again on animationend via JS (see stripWillChange in the script). */
+.view.is-leaving,
+.view.is-entering{will-change:opacity,transform}
 .view.is-leaving{display:block !important;pointer-events:none;animation:viewOut .26s var(--smooth) both}
 .view.is-entering{animation:viewInRight .52s var(--smooth) both}
 .view.is-entering.from-left{animation-name:viewInLeft}
 @keyframes viewOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(8px) scale(.985)}}
 @keyframes viewInRight{from{opacity:0;transform:translate3d(28px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
 @keyframes viewInLeft{from{opacity:0;transform:translate3d(-28px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+
+/* Spring / wobble variant — a damped, multi-oscillation "elastic" settle instead of the
+   single-overshoot ease above. Applied via the .wobble modifier class (added/removed in JS)
+   so the plain viewInRight/viewInLeft keyframes remain the fallback (e.g. reduced-motion).
+   TUNING: the % offsets are the "beats" of the oscillation — moving 55/75/90 closer together
+   or reducing their transform magnitudes = tighter/less bouncy (more damping). Spreading them
+   further apart or increasing the offsets = looser, bouncier (less damping). --wobble-duration
+   is the overall settle time (stiffness proxy: shorter duration reads as "stiffer"). */
+@keyframes viewInWobbleRight{
+  0%   {opacity:0; transform:translate3d(28px,8px,0) scale(.96)}
+  55%  {opacity:1; transform:translate3d(-6px,-2px,0) scale(1.015)}
+  75%  {transform:translate3d(3px,1px,0) scale(.997)}
+  90%  {transform:translate3d(-1px,0,0) scale(1.001)}
+  100% {opacity:1; transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes viewInWobbleLeft{
+  0%   {opacity:0; transform:translate3d(-28px,8px,0) scale(.96)}
+  55%  {opacity:1; transform:translate3d(6px,-2px,0) scale(1.015)}
+  75%  {transform:translate3d(-3px,1px,0) scale(.997)}
+  90%  {transform:translate3d(1px,0,0) scale(1.001)}
+  100% {opacity:1; transform:translate3d(0,0,0) scale(1)}
+}
+.view.is-entering.wobble{animation:viewInWobbleRight var(--wobble-duration) var(--wobble-ease) both}
+.view.is-entering.wobble.from-left{animation-name:viewInWobbleLeft}
+
 @media (prefers-reduced-motion: reduce){.view.is-leaving,.view.is-entering{animation:none}}
 .view-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
 .view-header .text-block{flex:1;min-width:250px}
@@ -847,28 +881,67 @@ function toast(m){const t=document.createElement("div");t.className="toast";t.te
 function ago(s){const d=(Date.now()-new Date(s))/1e3;if(d<60)return"just now";if(d<3600)return Math.floor(d/60)+"m ago";if(d<86400)return Math.floor(d/3600)+"h ago";return Math.floor(d/86400)+"d ago"}
 function count(el,to,suf=""){const t0=performance.now(),dur=800;function f(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e)+suf;if(p<1)requestAnimationFrame(f)}requestAnimationFrame(f)}
 
-// Lenis smooth scrolling. Falls back to native scrolling when reduced motion is enabled or Lenis fails to load.
-// Refined configuration to ensure mouse-wheel scrolling feels fluid and responsive.
-let lenis = null;
+// =====================================================================
+// LENIS SMOOTH SCROLLING — manual RAF loop
+// -----------------------------------------------------------------------
+// Using a manual requestAnimationFrame loop (instead of autoRaf:true) gives
+// us a single cancellable handle, which we need to cleanly stop/restart
+// Lenis around auth transitions and page-view changes without leaking
+// frames. TUNING: `lerp` is the main "smoothness" knob — lower (e.g. 0.07)
+// = smoother/slower catch-up to the target scroll position, higher
+// (e.g. 0.15-0.2) = snappier/more responsive. `duration` affects only
+// programmatic scrollTo() calls, not wheel input.
+// =====================================================================
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-if (window.Lenis && !reducedMotion) {
-  lenis = new Lenis({
-    autoRaf: true,
+let lenis = null;
+let lenisRafId = null;
+
+function initLenis() {
+  if (reducedMotion || !window.Lenis) return null;
+
+  const instance = new Lenis({
+    duration: 1.1,
+    easing: t => 1 - Math.pow(1 - t, 3), // ease-out cubic for scrollTo() calls
     smoothWheel: true,
-    lerp: 0.1,
-    wheelMultiplier: 1
+    wheelMultiplier: 1,
+    lerp: 0.1
   });
+
+  function raf(time) {
+    instance.raf(time);
+    lenisRafId = requestAnimationFrame(raf);
+  }
+  lenisRafId = requestAnimationFrame(raf);
+
   $$(".chat-body, .select-menu, .heat").forEach(el => el.setAttribute("data-lenis-prevent", ""));
+
+  return instance;
 }
+
+lenis = initLenis();
 
 let currentView = $(".view.active")?.id.replace("view-", "") || "dashboard";
 let transitionTimer = null;
 
+// Smooth scroll — used for same-view "scroll to top" clicks only (nav link
+// re-clicked while already on that view). NOT used for view-change resets,
+// see resetScrollForTransition() below — running two scroll animations at
+// once (transition + smooth scroll) competes for the same frame budget.
 const scrollToTop = () => {
   if (lenis) {
     lenis.scrollTo(0, { duration: 0.7, force: true });
   } else {
     window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+  }
+};
+
+// Instant reset — used right before a view transition starts, so scroll
+// position doesn't fight the transition's own transform animation.
+const resetScrollForTransition = () => {
+  if (lenis) {
+    lenis.scrollTo(0, { immediate: true });
+  } else {
+    window.scrollTo(0, 0);
   }
 };
 
@@ -1096,6 +1169,17 @@ function moveSlider(activeLink) {
   slider.style.width = activeLink.offsetWidth + "px";
 }
 
+// Strip will-change once a view's enter/exit animation is done. Leaving it
+// on indefinitely (e.g. as a static class on .view) forces the browser to
+// keep every view's compositor layer resident at all times — with six
+// views in the DOM that's real, avoidable GPU memory pressure.
+function stripWillChangeOnEnd(el) {
+  const clear = () => { el.style.willChange = "auto"; };
+  el.addEventListener("animationend", clear, { once: true });
+  // Safety net in case animationend doesn't fire (e.g. display:none mid-flight)
+  setTimeout(clear, 900);
+}
+
 function go(v){
     if (!v) return;
     closeAllDropdowns();
@@ -1115,22 +1199,28 @@ function go(v){
 
     if (transitionTimer) clearTimeout(transitionTimer);
 
+    // Reset scroll instantly BEFORE the transition starts — running a smooth
+    // scroll and the view transition at once competes for the same frame
+    // budget and reads as janky. See resetScrollForTransition() above.
+    resetScrollForTransition();
+
     $$(".view").forEach(x => {
-      x.classList.remove("is-leaving", "is-entering", "from-left");
+      x.classList.remove("is-leaving", "is-entering", "from-left", "wobble");
       if (x !== currentViewEl && x !== nextView) x.classList.remove("active");
     });
 
     if (!reducedMotion && currentViewEl) currentViewEl.classList.add("is-leaving");
+    if (currentViewEl) stripWillChangeOnEnd(currentViewEl);
 
     const reveal = () => {
       if (currentViewEl) currentViewEl.classList.remove("active", "is-leaving");
-      nextView.classList.remove("is-leaving", "is-entering", "from-left");
-      nextView.classList.add("active", "is-entering");
+      nextView.classList.remove("is-leaving", "is-entering", "from-left", "wobble");
+      nextView.classList.add("active", "is-entering", "wobble");
       if (direction === "left") nextView.classList.add("from-left");
       void nextView.offsetWidth;
+      stripWillChangeOnEnd(nextView);
 
       currentView = v;
-      scrollToTop();
 
       const activeLink = $(`.navlinks a[data-view="${v}"]`) || $(`.mobilenav a[data-view="${v}"]`);
       $$(".navlinks a, .mobilenav a").forEach(a=>a.classList.remove("active"));
@@ -1150,9 +1240,9 @@ function go(v){
       applyLanguage(currentLang);
 
       setTimeout(() => {
-        nextView.classList.remove("is-entering", "from-left");
+        nextView.classList.remove("is-entering", "from-left", "wobble");
         if (lenis) lenis.resize();
-      }, reducedMotion ? 0 : 560);
+      }, reducedMotion ? 0 : 640);
     };
 
     transitionTimer = setTimeout(reveal, reducedMotion ? 0 : 250);
