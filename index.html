@@ -25,9 +25,6 @@
   --shadow-hover:0 16px 40px rgba(0,0,0,0.3);
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --smooth: cubic-bezier(0.16, 1, 0.3, 1);
-  /* Spring/wobble tuning knobs for page transitions. Adjust duration for overall
-     settle time; the keyframe offsets below control how many oscillations occur
-     and how large they are (i.e. the "damping"). */
   --wobble-duration: 0.62s;
   --wobble-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -118,49 +115,22 @@ nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;displ
 main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24px 100px}
 .view{display:none}
 .view.active{display:block}
-.view.active > *:not([hidden]){animation:staggerIn 0.6s var(--smooth) backwards}
+.view.active > *:not([hidden]){animation:staggerIn 0.4s var(--smooth) backwards}
 .view.active > *:not([hidden]):nth-child(1){animation-delay:0.05s}
-.view.active > *:not([hidden]):nth-child(2){animation-delay:0.15s}
-.view.active > *:not([hidden]):nth-child(3){animation-delay:0.25s}
-.view.active > *:not([hidden]):nth-child(4){animation-delay:0.35s}
-@keyframes staggerIn{from{opacity:0;transform:translateY(20px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.view.active > *:not([hidden]):nth-child(2){animation-delay:0.1s}
+.view.active > *:not([hidden]):nth-child(3){animation-delay:0.15s}
+.view.active > *:not([hidden]):nth-child(4){animation-delay:0.2s}
+@keyframes staggerIn{from{opacity:0;transform:translateY(15px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 
-/* Subtle directional transitions between app views. Existing layout and glass styling stay unchanged.
-   PERF NOTE: will-change is applied ONLY while a view carries .is-leaving/.is-entering (below),
-   never globally on .view — six permanently-promoted layers is wasted GPU memory. It is stripped
-   again on animationend via JS (see stripWillChange in the script). */
+/* Snappy and Fluid View Transitions */
 .view.is-leaving,
 .view.is-entering{will-change:opacity,transform}
-.view.is-leaving{display:block !important;pointer-events:none;animation:viewOut .25s var(--smooth) both}
-.view.is-entering{animation:viewInRight .52s var(--smooth) both}
+.view.is-leaving{display:block !important;pointer-events:none;animation:viewOut .2s var(--smooth) both}
+.view.is-entering{animation:viewInRight .4s var(--smooth) both}
 .view.is-entering.from-left{animation-name:viewInLeft}
 @keyframes viewOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(8px) scale(.985)}}
-@keyframes viewInRight{from{opacity:0;transform:translate3d(28px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
-@keyframes viewInLeft{from{opacity:0;transform:translate3d(-28px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
-
-/* Spring / wobble variant — a damped, multi-oscillation "elastic" settle instead of the
-   single-overshoot ease above. Applied via the .wobble modifier class (added/removed in JS)
-   so the plain viewInRight/viewInLeft keyframes remain the fallback (e.g. reduced-motion).
-   TUNING: the % offsets are the "beats" of the oscillation — moving 55/75/90 closer together
-   or reducing their transform magnitudes = tighter/less bouncy (more damping). Spreading them
-   further apart or increasing the offsets = looser, bouncier (less damping). --wobble-duration
-   is the overall settle time (stiffness proxy: shorter duration reads as "stiffer"). */
-@keyframes viewInWobbleRight{
-  0%   {opacity:0; transform:translate3d(28px,8px,0) scale(.96)}
-  55%  {opacity:1; transform:translate3d(-6px,-2px,0) scale(1.015)}
-  75%  {transform:translate3d(3px,1px,0) scale(.997)}
-  90%  {transform:translate3d(-1px,0,0) scale(1.001)}
-  100% {opacity:1; transform:translate3d(0,0,0) scale(1)}
-}
-@keyframes viewInWobbleLeft{
-  0%   {opacity:0; transform:translate3d(-28px,8px,0) scale(.96)}
-  55%  {opacity:1; transform:translate3d(6px,-2px,0) scale(1.015)}
-  75%  {transform:translate3d(-3px,1px,0) scale(.997)}
-  90%  {transform:translate3d(1px,0,0) scale(1.001)}
-  100% {opacity:1; transform:translate3d(0,0,0) scale(1)}
-}
-.view.is-entering.wobble{animation:viewInWobbleRight var(--wobble-duration) var(--wobble-ease) both}
-.view.is-entering.wobble.from-left{animation-name:viewInWobbleLeft}
+@keyframes viewInRight{from{opacity:0;transform:translate3d(20px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+@keyframes viewInLeft{from{opacity:0;transform:translate3d(-20px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
 
 /* @media (prefers-reduced-motion: reduce){.view.is-leaving,.view.is-entering{animation:none}} */
 .view-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
@@ -1177,7 +1147,7 @@ function stripWillChangeOnEnd(el) {
   const clear = () => { el.style.willChange = "auto"; };
   el.addEventListener("animationend", clear, { once: true });
   // Safety net in case animationend doesn't fire (e.g. display:none mid-flight)
-  setTimeout(clear, 900);
+  setTimeout(clear, 500); // Lowered to match faster animation
 }
 
 function go(v){
@@ -1205,7 +1175,7 @@ function go(v){
     resetScrollForTransition();
 
     $$(".view").forEach(x => {
-      x.classList.remove("is-leaving", "is-entering", "from-left", "wobble");
+      x.classList.remove("is-leaving", "is-entering", "from-left", "wobble"); // Ensure wobble is cleaned up
       if (x !== currentViewEl && x !== nextView) x.classList.remove("active");
     });
 
@@ -1214,8 +1184,8 @@ function go(v){
 
     const reveal = () => {
       if (currentViewEl) currentViewEl.classList.remove("active", "is-leaving");
-      nextView.classList.remove("is-leaving", "is-entering", "from-left", "wobble");
-      nextView.classList.add("active", "is-entering", "wobble");
+      nextView.classList.remove("is-leaving", "is-entering", "from-left", "wobble"); 
+      nextView.classList.add("active", "is-entering"); // Removed "wobble"
       if (direction === "left") nextView.classList.add("from-left");
       void nextView.offsetWidth;
       stripWillChangeOnEnd(nextView);
@@ -1240,12 +1210,12 @@ function go(v){
       applyLanguage(currentLang);
 
       setTimeout(() => {
-        nextView.classList.remove("is-entering", "from-left", "wobble");
+        nextView.classList.remove("is-entering", "from-left", "wobble"); // Clean up wobble class
         if (lenis) lenis.resize();
-      }, reducedMotion ? 0 : 640);
+      }, reducedMotion ? 0 : 400); // Lowered to match 0.4s entry animation
     };
 
-    transitionTimer = setTimeout(reveal, reducedMotion ? 0 : 250);
+    transitionTimer = setTimeout(reveal, reducedMotion ? 0 : 200); // Matches 0.2s exit
 }
 
  $$("[data-view]").forEach(a => {
