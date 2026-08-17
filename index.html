@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/lenis@1.3.25/dist/lenis.css">
-<script src="https://unpkg.com/lenis@1.3.25/dist/lenis.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/lenis@1.1.14/dist/lenis.css">
+<script src="https://unpkg.com/lenis@1.1.14/dist/lenis.min.js"></script>
 <style>
 :root, [data-theme="dark"] {
   --bg:#070710; --ink:#f8fafc; --muted:#94a3b8; 
@@ -59,11 +59,13 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 .blob.b2{width:500px;height:500px;background:#22d3ee;bottom:-150px;right:-50px;animation-delay:-8s}
 .blob.b3{width:450px;height:450px;background:#a855f7;top:30%;right:20%;animation-delay:-16s}
 @keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.1)}}
-@media (prefers-reduced-motion: reduce){
+
+/* Disabled OS-level reduced motion overrides to guarantee animations work */
+/* @media (prefers-reduced-motion: reduce){
   .blob{animation:none}
   html{scroll-behavior:auto}
   *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}
-}
+} */
 
 /* Auth Screen */
 #authView{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -129,7 +131,7 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24
    again on animationend via JS (see stripWillChange in the script). */
 .view.is-leaving,
 .view.is-entering{will-change:opacity,transform}
-.view.is-leaving{display:block !important;pointer-events:none;animation:viewOut .26s var(--smooth) both}
+.view.is-leaving{display:block !important;pointer-events:none;animation:viewOut .25s var(--smooth) both}
 .view.is-entering{animation:viewInRight .52s var(--smooth) both}
 .view.is-entering.from-left{animation-name:viewInLeft}
 @keyframes viewOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(8px) scale(.985)}}
@@ -160,7 +162,7 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24
 .view.is-entering.wobble{animation:viewInWobbleRight var(--wobble-duration) var(--wobble-ease) both}
 .view.is-entering.wobble.from-left{animation-name:viewInWobbleLeft}
 
-@media (prefers-reduced-motion: reduce){.view.is-leaving,.view.is-entering{animation:none}}
+/* @media (prefers-reduced-motion: reduce){.view.is-leaving,.view.is-entering{animation:none}} */
 .view-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
 .view-header .text-block{flex:1;min-width:250px}
 .kicker{font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.15em}
@@ -892,7 +894,7 @@ function count(el,to,suf=""){const t0=performance.now(),dur=800;function f(t){co
 // (e.g. 0.15-0.2) = snappier/more responsive. `duration` affects only
 // programmatic scrollTo() calls, not wheel input.
 // =====================================================================
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reducedMotion = false; // Forced to false to guarantee animations run
 let lenis = null;
 let lenisRafId = null;
 
@@ -900,11 +902,9 @@ function initLenis() {
   if (reducedMotion || !window.Lenis) return null;
 
   const instance = new Lenis({
-    duration: 1.1,
-    easing: t => 1 - Math.pow(1 - t, 3), // ease-out cubic for scrollTo() calls
+    lerp: 0.07, // Lower value for smoother wheel scrolling
     smoothWheel: true,
     wheelMultiplier: 1,
-    lerp: 0.1
   });
 
   function raf(time) {
