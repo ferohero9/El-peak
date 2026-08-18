@@ -1697,34 +1697,54 @@ async def remove(task_id: int, user: Annotated[dict, Depends(get_current_user)])
 @app.get("/api/coach")
 async def coach(user: Annotated[dict, Depends(get_current_user)]):
     await check_rate_limit(user["id"])
+    topics = await db.get_topics(user["id"])
+    sched = await db.get_schedule(user["id"])
+    recent = await db.recent_attempts(user["id"], 6)
+    
+    # P-Fix: Sanitize topics to prevent crashes from NULL DB values
+    safe_topics = []
+    for t in topics:
+        safe_topics.append({
+            "name": t.get("name") or "Unknown Topic",
+            "subject": t.get("subject") or "General",
+            "score": float(t.get("score") if t.get("score") is not None else 50.0)
+        })
+        
+    weak = sorted([t for t in safe_topics if t["score"] < 65], key=lambda t: t["score"])[:4]
+    if not weak:
+        weak = sorted(safe_topics, key=lambda t: t["score"])[:2]
+        
+    pcts = [a["pct"] for a in recent if a.get("pct") is not None]
+    if len(pcts) >= 4:
+        trend = (sum(pcts[:3]) / max(1, len(pcts[:3]))) - (sum(pcts[3:]) / max(1, len(pcts[3:])))
+    else:
+        trend = 0
+        
+    language = (user.get("language") or "en").strip().lower()
+    if language == "ar":
+        language_instruction = "Write the plan in Arabic."
+    else:
+        language_instruction = "Write the plan in English."
+        
+    # P-Fix: Safely extract schedule deadlines
+    deadlines = []
+    for t in sched.get("queue", [])[:3]:
+        title = t.get("title") or "Task"
+        tier = t.get("tier") or "PLANNED"
+        deadline = t.get("deadline") or "soon"
+        deadlines.append(f"- {title} [{tier}] due {deadline}")
+    if not deadlines:
+        deadlines = ["- none"]
 
-    # P1.1 + P2.2: per-user coach plan cached ~1 hour in Redis
-    cache_key = make_coach_cache_key(user["id"])
-
-    async def generate():
-        topics = await db.get_topics(user["id"])
-        sched = await db.get_schedule(user["id"])
-        recent = await db.recent_attempts(user["id"], 6)
-        weak = sorted([t for t in topics if t["score"] < 65], key=lambda t: t["score"])[:4]
-        if not weak:
-            weak = sorted(topics, key=lambda t: t["score"])[:2]
-        pcts = [a["pct"] for a in recent]
-        if len(pcts) >= 4:
-            trend = (sum(pcts[:3]) / max(1, len(pcts[:3]))) - (sum(pcts[3:]) / max(1, len(pcts[3:])))
-        else:
-            trend = 0
-        language = (user.get("language") or "en").strip().lower()
-        if language == "ar":
-            language_instruction = "Write the plan in Arabic."
-        else:
-            language_instruction = "Write the plan in English."
-        ctx = "\n".join([
-            "Weak topics (mastery %):",
-            *[f"- {t['name']} ({t['subject']}): {int(t['score'])}%" for t in weak],
-            "Upcoming deadlines:",
-            *([f"- {t['title']} [{t.get('tier')}] due {t['deadline']}" for t in sched["queue"][:3]] or ["- none"]),
-            f"Recent accuracy trend: {'rising' if trend > 0 else 'falling'} ({round(trend, 1)} pts)."
-        ])
+    ctx = "\n".join([
+        "Weak topics (mastery %):",
+        *[f"- {t['name']} ({t['subject']}): {int(t['score'])}%" for t in weak],
+        "Upcoming deadlines:",
+        *deadlines,
+        f"Recent accuracy trend: {'rising' if trend > 0 else 'falling'} ({round(trend, 1)} pts)."
+    ])
+    
+    try:
         raw = await groq_chat_with_fallback(
             messages=[
                 {
@@ -1755,20 +1775,11 @@ async def coach(user: Annotated[dict, Depends(get_current_user)]):
         data.setdefault("tips", [])
         data.setdefault("plan", [])
         data.setdefault("motivation", "Small consistent reps beat rare heroic sessions.")
-        return data
-
-    try:
-        data, was_cached = await single_flight_cached(cache_key, COACH_CACHE_TTL, generate)
         data["ai"] = True
-        data["cached"] = was_cached
         return data
     except Exception as e:
         logger.warning("Coach fallback triggered: %s", str(e))
-        topics = await db.get_topics(user["id"])
-        weak = sorted([t for t in topics if t["score"] < 65], key=lambda t: t["score"])[:4]
-        if not weak:
-            weak = sorted(topics, key=lambda t: t["score"])[:2]
-        return heuristic_coach(weak, 0)
+        return heuristic_coach(weak, trend)
 
 def heuristic_coach(weak: List[dict], trend: float) -> dict:
     focus = [
@@ -1811,7 +1822,6 @@ def heuristic_coach(weak: List[dict], trend: float) -> dict:
         ),
         "ai": False
     }
-
 # -----------------------------
 # AI TUTOR
 # -----------------------------
