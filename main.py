@@ -1,22 +1,12 @@
 """
-El-Peak — FastAPI backend v12.1 (P0 hardening)
+El-Peak — FastAPI backend v12.2 (P1 hardening)
 Production-oriented, safer, more reliable, improved quiz engine,
 better payments, better AI handling, better PDF pipeline.
 
-P0 changes:
-- CPU-bound work (bcrypt, fitz, tesseract) moved off the event loop via run_in_threadpool.
-- asyncio.Semaphore gates concurrent PDF/OCR jobs (per worker).
-- Single shared httpx.AsyncClient created in lifespan (Groq/Paymob/Google).
-- GZipMiddleware + Cache-Control headers on the app shell.
-- Production hardening: SECRET_KEY strength check, ALLOWED_ORIGINS required in prod,
-  simulated payments impossible in prod, IP throttle on login/signup.
-
-NOTE ON MULTI-WORKER STATE (P0.2):
-- PDF_SEMAPHORE and HTTP_CLIENT are per-process. That is intentional and safe:
-  the semaphore limits CPU per worker, and HTTP clients must not be shared across processes.
-- Rate limiting (AI + IP) is DB-backed, so it is correct across workers.
-- Any future in-process cache / single-flight locks (P1) will be per-worker only;
-  moving them to Redis is explicitly deferred to P2.
+P1 changes:
+- AI response caching with single-flight protection for Quiz and Coach endpoints.
+- Scheduled background cleanup task replacing startup-only cleanup.
+- Observability wired up (Sentry + Prometheus metrics).
 """
 import io
 import os
@@ -46,6 +36,12 @@ from pydantic import BaseModel, Field, EmailStr
 import jwt
 import bcrypt
 from itsdangerous import URLSafeSerializer, BadSignature
+
+# P1.4: Observability
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
+from prometheus_fastapi_instrumentator import Instrumentator
 
 import database as db
 
@@ -184,6 +180,7 @@ TIER_MODELS = {
     "plus": "openai/gpt-oss-20b",
     "pro": "llama-3.3-70b-versatile"
 }
+# P1.2: Preserved fallback chain acts as our circuit breaker.
 TIER_FALLBACK_MODELS = {
     "free": [
         "llama-3.1-8b-instant"
@@ -494,18 +491,42 @@ class GoogleExchangeIn(BaseModel):
 async def lifespan(app: FastAPI):
     await init_http_client()
     await db.init_db()
-    await db.cleanup_old_pdf_attempts()
+    
+    # P1.3: Start background cleanup task
+    cleanup_task = asyncio.create_task(db.run_periodic_cleanup())
+    
+    # P1.4: Observability
+    sentry_dsn = os.getenv("SENTRY_DSN")
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            traces_sample_rate=0.1,
+            integrations=[StarletteIntegration(), FastApiIntegration()],
+        )
+        logger.info("Sentry initialized.")
+        
     logger.info("El-Peak startup complete.")
     yield
+    
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+        
     await close_http_client()
     await db.close_pool()
     logger.info("El-Peak shutdown complete.")
 
 app = FastAPI(
     title="El-Peak API",
-    version="12.1",
+    version="12.2",
     lifespan=lifespan
 )
+
+# P1.4: Metrics
+if os.getenv("ENABLE_METRICS", "true").lower() in ("1", "true", "yes", "on"):
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 # P0.4: gzip anything above 500 bytes (HTML shell, JSON payloads).
 app.add_middleware(GZipMiddleware, minimum_size=500)
@@ -1409,74 +1430,109 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
         )
     language = (user.get("language") or "en").strip().lower()
     grade = normalize_grade(user.get("grade"))
-    if language == "ar":
-        lang_instruction = (
-            "Please generate the questions, options, and explanations strictly in Arabic. "
-            "CRITICAL: If the topic involves Arabic poetry, literature, or history, you MUST be strictly factual. "
-            "DO NOT invent or hallucinate poetry verses. If you do not know the exact verse, ask a general question "
-            "about the poem's theme or author instead."
-        )
-    else:
-        lang_instruction = "Generate in English."
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — "
-                f"matching exactly this schema: {QUIZ_SCHEMA}. "
-                "Vary the correct answer position. "
-                f"{lang_instruction}"
+    
+    # P1.1: AI Cache & Single-Flight
+    cache_key = db.make_ai_quiz_cache_key(payload.topic, grade, payload.difficulty, num_questions, language)
+    lock = await db.get_single_flight_lock(cache_key)
+    
+    async with lock:
+        cached = await db.get_ai_cache(cache_key, ttl_seconds=7 * 24 * 3600)
+        if cached:
+            clean = cached.get("questions", [])
+            session_id = await db.create_quiz_session(
+                user_id=user["id"],
+                topic=payload.topic,
+                source="ai",
+                difficulty=payload.difficulty,
+                questions=clean
             )
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Generate exactly {num_questions} {payload.difficulty} multiple-choice questions about "
-                f"'{payload.topic}' for a student in grade group {grade}. "
-                "Each must have 4 plausible options and a one-sentence explanation."
+            # Still record usage/quota consumption on cache hit
+            await db.increment_usage(user["id"], ai_questions=num_questions)
+            await db.log_usage_event(user["id"], "ai_question", num_questions, tier)
+            return {
+                "topic": payload.topic,
+                "subject": "AI",
+                "grade": grade,
+                "difficulty": payload.difficulty,
+                "questions": clean,
+                "ai": True,
+                "source": "ai",
+                "session_id": session_id,
+                "cached": True
+            }
+
+        if language == "ar":
+            lang_instruction = (
+                "Please generate the questions, options, and explanations strictly in Arabic. "
+                "CRITICAL: If the topic involves Arabic poetry, literature, or history, you MUST be strictly factual. "
+                "DO NOT invent or hallucinate poetry verses. If you do not know the exact verse, ask a general question "
+                "about the poem's theme or author instead."
             )
-        }
-    ]
-    try:
-        max_tokens = max(1200, num_questions * 250)
-        raw = await groq_chat_with_fallback(
-            messages=messages,
-            tier=tier,
-            temperature=0.7,
-            max_tokens=max_tokens
-        )
-        clean = _clean_questions(extract_json(raw), num_questions)
-        if not clean:
-            raise ValueError("Empty question set from AI.")
-        session_id = await db.create_quiz_session(
-            user_id=user["id"],
-            topic=payload.topic,
-            source="ai",
-            difficulty=payload.difficulty,
-            questions=clean
-        )
-        await db.increment_usage(user["id"], ai_questions=num_questions)
-        await db.log_usage_event(user["id"], "ai_question", num_questions, tier)
-        return {
-            "topic": payload.topic,
-            "subject": "AI",
-            "grade": grade,
-            "difficulty": payload.difficulty,
-            "questions": clean,
-            "ai": True,
-            "source": "ai",
-            "session_id": session_id
-        }
-    except Exception as e:
-        logger.warning("AI Quiz Error: %s", str(e))
-        fallback = _match_static(
-            topic=payload.topic,
-            n=min(4, num_questions),
-            grade=grade,
-            difficulty=payload.difficulty
-        )
-        fallback["note"] = "AI unavailable — served from the static bank."
-        return fallback
+        else:
+            lang_instruction = "Generate in English."
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — "
+                    f"matching exactly this schema: {QUIZ_SCHEMA}. "
+                    "Vary the correct answer position. "
+                    f"{lang_instruction}"
+                )
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Generate exactly {num_questions} {payload.difficulty} multiple-choice questions about "
+                    f"'{payload.topic}' for a student in grade group {grade}. "
+                    "Each must have 4 plausible options and a one-sentence explanation."
+                )
+            }
+        ]
+        try:
+            max_tokens = max(1200, num_questions * 250)
+            raw = await groq_chat_with_fallback(
+                messages=messages,
+                tier=tier,
+                temperature=0.7,
+                max_tokens=max_tokens
+            )
+            clean = _clean_questions(extract_json(raw), num_questions)
+            if not clean:
+                raise ValueError("Empty question set from AI.")
+                
+            # Cache the successful generation
+            await db.set_ai_cache(cache_key, {"questions": clean})
+            
+            session_id = await db.create_quiz_session(
+                user_id=user["id"],
+                topic=payload.topic,
+                source="ai",
+                difficulty=payload.difficulty,
+                questions=clean
+            )
+            await db.increment_usage(user["id"], ai_questions=num_questions)
+            await db.log_usage_event(user["id"], "ai_question", num_questions, tier)
+            return {
+                "topic": payload.topic,
+                "subject": "AI",
+                "grade": grade,
+                "difficulty": payload.difficulty,
+                "questions": clean,
+                "ai": True,
+                "source": "ai",
+                "session_id": session_id
+            }
+        except Exception as e:
+            logger.warning("AI Quiz Error: %s", str(e))
+            fallback = _match_static(
+                topic=payload.topic,
+                n=min(4, num_questions),
+                grade=grade,
+                difficulty=payload.difficulty
+            )
+            fallback["note"] = "AI unavailable — served from the static bank."
+            return fallback
 
 @app.post("/api/quiz/pdf")
 async def quiz_pdf(
@@ -1650,65 +1706,79 @@ async def remove(task_id: int, user: Annotated[dict, Depends(get_current_user)])
 @app.get("/api/coach")
 async def coach(user: Annotated[dict, Depends(get_current_user)]):
     await check_rate_limit(user["id"])
-    topics = await db.get_topics(user["id"])
-    sched = await db.get_schedule(user["id"])
-    recent = await db.recent_attempts(user["id"], 6)
-    weak = sorted([t for t in topics if t["score"] < 65], key=lambda t: t["score"])[:4]
-    if not weak:
-        weak = sorted(topics, key=lambda t: t["score"])[:2]
-    pcts = [a["pct"] for a in recent]
-    if len(pcts) >= 4:
-        trend = (sum(pcts[:3]) / max(1, len(pcts[:3]))) - (sum(pcts[3:]) / max(1, len(pcts[3:])))
-    else:
-        trend = 0
-    language = (user.get("language") or "en").strip().lower()
-    if language == "ar":
-        language_instruction = "Write the plan in Arabic."
-    else:
-        language_instruction = "Write the plan in English."
-    ctx = "\n".join([
-        "Weak topics (mastery %):",
-        *[f"- {t['name']} ({t['subject']}): {int(t['score'])}%" for t in weak],
-        "Upcoming deadlines:",
-        *([f"- {t['title']} [{t.get('tier')}] due {t['deadline']}" for t in sched["queue"][:3]] or ["- none"]),
-        f"Recent accuracy trend: {'rising' if trend > 0 else 'falling'} ({round(trend, 1)} pts)."
-    ])
-    try:
-        raw = await groq_chat_with_fallback(
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are El-Peak, a sharp, encouraging study coach. "
-                        "Reply with STRICT JSON only, no markdown: "
-                        '{"headline":str,"focus":[{"topic":str,"why":str,"drill":str}],'
-                        '"tips":[4 strings],"plan":[{"day":str,"task":str} with exactly 7 entries],'
-                        '"motivation":str}. '
-                        f"{language_instruction}"
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": f"Build a 7-day revision plan from this student data:\n{ctx}"
-                }
-            ],
-            tier=effective_tier_from_user(user),
-            temperature=0.6,
-            max_tokens=1200
-        )
-        data = extract_json(raw)
-        if not isinstance(data, dict):
-            raise ValueError("Coach response was not a JSON object.")
-        data.setdefault("headline", "Your 7-day summit plan.")
-        data.setdefault("focus", [])
-        data.setdefault("tips", [])
-        data.setdefault("plan", [])
-        data.setdefault("motivation", "Small consistent reps beat rare heroic sessions.")
-        data["ai"] = True
-        return data
-    except Exception as e:
-        logger.warning("Coach fallback triggered: %s", str(e))
-        return heuristic_coach(weak, trend)
+    
+    # P1.1 Coach cache (1 hour rolling)
+    cache_key = db.make_coach_cache_key(user["id"])
+    lock = await db.get_single_flight_lock(cache_key)
+    
+    async with lock:
+        cached = await db.get_ai_cache(cache_key, ttl_seconds=3600)
+        if cached:
+            cached["ai"] = True
+            cached["cached"] = True
+            return cached
+
+        topics = await db.get_topics(user["id"])
+        sched = await db.get_schedule(user["id"])
+        recent = await db.recent_attempts(user["id"], 6)
+        weak = sorted([t for t in topics if t["score"] < 65], key=lambda t: t["score"])[:4]
+        if not weak:
+            weak = sorted(topics, key=lambda t: t["score"])[:2]
+        pcts = [a["pct"] for a in recent]
+        if len(pcts) >= 4:
+            trend = (sum(pcts[:3]) / max(1, len(pcts[:3]))) - (sum(pcts[3:]) / max(1, len(pcts[3:])))
+        else:
+            trend = 0
+        language = (user.get("language") or "en").strip().lower()
+        if language == "ar":
+            language_instruction = "Write the plan in Arabic."
+        else:
+            language_instruction = "Write the plan in English."
+        ctx = "\n".join([
+            "Weak topics (mastery %):",
+            *[f"- {t['name']} ({t['subject']}): {int(t['score'])}%" for t in weak],
+            "Upcoming deadlines:",
+            *([f"- {t['title']} [{t.get('tier')}] due {t['deadline']}" for t in sched["queue"][:3]] or ["- none"]),
+            f"Recent accuracy trend: {'rising' if trend > 0 else 'falling'} ({round(trend, 1)} pts)."
+        ])
+        try:
+            raw = await groq_chat_with_fallback(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are El-Peak, a sharp, encouraging study coach. "
+                            "Reply with STRICT JSON only, no markdown: "
+                            '{"headline":str,"focus":[{"topic":str,"why":str,"drill":str}],'
+                            '"tips":[4 strings],"plan":[{"day":str,"task":str} with exactly 7 entries],'
+                            '"motivation":str}. '
+                            f"{language_instruction}"
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Build a 7-day revision plan from this student data:\n{ctx}"
+                    }
+                ],
+                tier=effective_tier_from_user(user),
+                temperature=0.6,
+                max_tokens=1200
+            )
+            data = extract_json(raw)
+            if not isinstance(data, dict):
+                raise ValueError("Coach response was not a JSON object.")
+            data.setdefault("headline", "Your 7-day summit plan.")
+            data.setdefault("focus", [])
+            data.setdefault("tips", [])
+            data.setdefault("plan", [])
+            data.setdefault("motivation", "Small consistent reps beat rare heroic sessions.")
+            data["ai"] = True
+            
+            await db.set_ai_cache(cache_key, data)
+            return data
+        except Exception as e:
+            logger.warning("Coach fallback triggered: %s", str(e))
+            return heuristic_coach(weak, trend)
 
 def heuristic_coach(weak: List[dict], trend: float) -> dict:
     focus = [
