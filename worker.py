@@ -1,16 +1,74 @@
 """
 El-Peak — ARQ Background Worker (P2.5)
-Processes CPU-heavy PDF/OCR tasks off the main web event loop.
-Run with: arq worker.WorkerSettings
+Processes CPU-heavy PDF extraction + OCR + Groq quiz generation off the
+web dyno. The web app enqueues `process_pdf_quiz` and polls for results;
+this process executes the job.
+
+Run with:
+    arq worker.WorkerSettings
+
+Required env (same as web app):
+    DATABASE_URL  — Neon pooled connection string
+    REDIS_URL     — shared Redis (ARQ queue + results)
+    GROQ_API_KEY
+
+Optional env:
+    WORKER_MAX_JOBS     — concurrent jobs per worker process (default 2;
+                          this replaces the old in-web-process semaphore)
+    WORKER_JOB_TIMEOUT  — seconds before a job is killed (default 300)
+
+Design notes:
+- This file is intentionally self-contained (own Groq helpers, own PDF
+  helpers) so the worker process does not import the FastAPI app.
+- CPU-bound fitz/tesseract work runs in a thread executor so the worker's
+  event loop stays responsive.
+- Quota accounting (pdf_uploads + usage events) happens HERE, after a
+  successful generation, matching the old synchronous flow.
 """
-import os
 import io
+import os
 import re
 import json
+import shutil
 import logging
 import asyncio
-from arq.worker import Worker
+from typing import Any, List
+
+import httpx
 from arq.connections import RedisSettings
+
+import database as db
+
+logger = logging.getLogger("el-peak.worker")
+
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+# Mirrors main.py tier routing; kept local so the worker stays standalone.
+TIER_MODELS = {
+    "free": "llama-3.1-8b-instant",
+    "plus": "openai/gpt-oss-20b",
+    "pro": "llama-3.3-70b-versatile"
+}
+TIER_FALLBACK_MODELS = {
+    "free": [
+        "llama-3.1-8b-instant"
+    ],
+    "plus": [
+        "openai/gpt-oss-20b",
+        "llama-3.1-8b-instant"
+    ],
+    "pro": [
+        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-20b",
+        "llama-3.1-8b-instant"
+    ]
+}
+
+QUIZ_SCHEMA = (
+    '{"questions":[{"question": "...", "options":["A","B","C","D"],'
+    '"answer_index":0, "explanation": "...", "context": "exact quote from text if pdf"}]}'
+)
 
 # Optional PDF dependencies
 try:
@@ -24,18 +82,158 @@ except Exception:
     Image = None
     PDF_IMPORT_OK = False
 
-import httpx
-import database as db
+PDF_TESSERACT_OK = shutil.which("tesseract") is not None
+PDF_OCR_ENABLED = PDF_IMPORT_OK and PDF_TESSERACT_OK
 
-logger = logging.getLogger("el-peak.worker")
+# -----------------------------
+# GROQ HELPERS
+# -----------------------------
+def _unique_models(models: List[str]) -> List[str]:
+    seen = set()
+    out = []
+    for model in models:
+        if model and model not in seen:
+            seen.add(model)
+            out.append(model)
+    return out
 
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-QUIZ_SCHEMA = (
-    '{"questions":[{"question": "...", "options":["A","B","C","D"],'
-    '"answer_index":0, "explanation": "...", "context": "exact quote from text if pdf"}]}'
-)
+async def groq_chat(
+    client: httpx.AsyncClient,
+    messages: List[dict],
+    temperature: float = 0.6,
+    max_tokens: int = 1200,
+    model_override: str = None,
+    timeout: int = 60
+) -> str:
+    key = os.getenv("GROQ_API_KEY")
+    if not key:
+        raise RuntimeError("Missing GROQ_API_KEY.")
+    payload = {
+        "model": model_override or GROQ_MODEL,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens
+    }
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json"
+    }
+    r = await client.post(GROQ_URL, headers=headers, json=payload, timeout=timeout)
+    if r.status_code != 200:
+        try:
+            err = r.json()
+            err_msg = err.get("error", {}).get("message", str(err))
+        except Exception:
+            err_msg = r.text
+        logger.error("GROQ API ERROR %s: %s", r.status_code, err_msg)
+        raise RuntimeError(f"Groq API Error: {err_msg}")
+    data = r.json()
+    return data["choices"][0]["message"]["content"]
 
+async def groq_chat_with_fallback(
+    client: httpx.AsyncClient,
+    messages: List[dict],
+    tier: str,
+    temperature: float = 0.6,
+    max_tokens: int = 1200
+) -> str:
+    tier = (tier or "free").strip().lower()
+    models = [TIER_MODELS.get(tier, GROQ_MODEL)]
+    models.extend(TIER_FALLBACK_MODELS.get(tier, [GROQ_MODEL]))
+    models = _unique_models(models)
+    last_error = None
+    for model in models:
+        try:
+            return await groq_chat(
+                client,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                model_override=model
+            )
+        except Exception as e:
+            last_error = e
+            logger.warning("Groq model %s failed: %s", model, str(e))
+            continue
+    raise last_error or RuntimeError("Groq unavailable.")
+
+# -----------------------------
+# JSON / QUESTION CLEANING
+# -----------------------------
+def extract_json(text: str) -> Any:
+    candidates = [text.strip()]
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if fence:
+        candidates.insert(0, fence.group(1).strip())
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+        lo = candidate.find("{")
+        hi = candidate.rfind("}")
+        if lo != -1 and hi > lo:
+            try:
+                return json.loads(candidate[lo:hi + 1])
+            except Exception:
+                pass
+    raise ValueError("No parseable JSON in model response")
+
+def _clean_questions(data: Any, limit: int) -> List[dict]:
+    if isinstance(data, list):
+        qs = data
+    elif isinstance(data, dict):
+        qs = data.get("questions", [])
+    else:
+        qs = []
+    clean = []
+    for q in qs[:limit]:
+        if not isinstance(q, dict):
+            continue
+        question = str(q.get("question", "")).strip()
+        raw_options = q.get("options", [])
+        if not isinstance(raw_options, list):
+            continue
+        options = []
+        for opt in raw_options[:6]:
+            opt_str = str(opt).strip()
+            if opt_str:
+                options.append(opt_str)
+        if not question or len(options) < 3:
+            continue
+        answer_index = None
+        try:
+            answer_index = int(q.get("answer_index", 0))
+        except Exception:
+            answer_index = None
+        if answer_index is None or answer_index < 0 or answer_index >= len(options):
+            answer_text = str(q.get("answer", "")).strip().lower()
+            found = False
+            if answer_text:
+                for i, opt in enumerate(options):
+                    if opt.strip().lower() == answer_text:
+                        answer_index = i
+                        found = True
+                        break
+            if not found:
+                answer_index = 0
+        explanation = str(q.get("explanation", "—")).strip() or "—"
+        context = str(q.get("context", "")).strip()
+        clean.append({
+            "question": question,
+            "options": options,
+            "answer_index": answer_index,
+            "explanation": explanation,
+            "context": context
+        })
+    return clean
+
+# -----------------------------
+# PDF / OCR (CPU-bound, run in executor)
+# -----------------------------
 def _ocr_page(page, dpi: int = 130) -> str:
+    if not PDF_OCR_ENABLED:
+        return ""
     pix = page.get_pixmap(dpi=dpi)
     img = Image.open(io.BytesIO(pix.tobytes("png")))
     try:
@@ -59,7 +257,7 @@ def _extract_pdf_text_sync(data: bytes, max_pages: int, max_ocr_pages: int) -> s
             except Exception:
                 continue
         text = re.sub(r"\s+", " ", text).strip()
-        if len(text) < 200:
+        if len(text) < 200 and PDF_OCR_ENABLED:
             ocr_text = ""
             for page in doc[:min(len(doc), max_ocr_pages)]:
                 try:
@@ -74,67 +272,159 @@ def _extract_pdf_text_sync(data: bytes, max_pages: int, max_ocr_pages: int) -> s
         except Exception:
             pass
 
-async def process_pdf_quiz(ctx, user_id: int, data_hex: str, difficulty: str, topic: str, num_questions: int, language: str, grade: str):
+# -----------------------------
+# ARQ JOB
+# -----------------------------
+async def process_pdf_quiz(
+    ctx,
+    user_id: int,
+    data_hex: str,
+    difficulty: str,
+    label: str,
+    num_questions: int,
+    language: str,
+    grade: str,
+    tier: str,
+    max_pages: int,
+    max_ocr_pages: int
+):
     """
-    ARQ Job: Extracts text from PDF, calls Groq, saves to DB.
+    Argument order MUST match main.py's enqueue_job call:
+    (user_id, data_hex, difficulty, label, num_questions, language, grade,
+     tier, max_pages, max_ocr_pages)
+    Returns a dict; on failure returns {"error": "..."} which the status
+    endpoint surfaces to the client.
     """
-    await db.init_db()
-    data = bytes.fromhex(data_hex)
-    
+    if not PDF_IMPORT_OK:
+        return {"error": "PDF libraries are not installed on the worker."}
+
     try:
-        text = _extract_pdf_text_sync(data, 60, 15) # Using Pro limits as max safe bound
+        data = bytes.fromhex(data_hex)
+    except Exception:
+        return {"error": "Corrupted upload payload."}
+
+    # CPU-bound work off the event loop
+    loop = asyncio.get_running_loop()
+    try:
+        text = await loop.run_in_executor(
+            None,
+            _extract_pdf_text_sync,
+            data,
+            max_pages,
+            max_ocr_pages
+        )
     except ValueError as e:
         return {"error": str(e)}
-        
+    except Exception as e:
+        logger.error("PDF extraction crashed for user %s: %s", user_id, e)
+        return {"error": "PDF extraction failed."}
+
     if len(text) < 200:
-        return {"error": "Not enough readable text in this PDF."}
-        
+        return {
+            "error": "Not enough readable text in this PDF. If it is scanned, OCR may need better quality."
+        }
+
     if not num_questions or num_questions <= 0:
-        if len(text) > 6000: num_questions = 5
-        elif len(text) > 2500: num_questions = 4
-        else: num_questions = 3
-        
-    label = topic.strip() or "PDF Upload"
+        if len(text) > 6000:
+            num_questions = 5
+        elif len(text) > 2500:
+            num_questions = 4
+        else:
+            num_questions = 3
+    num_questions = min(num_questions, 30)
+
     excerpt = text[:12000]
-    
+    if (language or "en").strip().lower() == "ar":
+        lang_instruction = (
+            "Please generate the questions, options, and explanations strictly in Arabic. "
+            "CRITICAL: If the document involves Arabic poetry, literature, or history, you MUST be strictly factual."
+        )
+    else:
+        lang_instruction = "Generate in English."
+
     messages = [
         {
             "role": "system",
-            "content": f"You are El-Peak's quiz engine. Reply with STRICT JSON only: {QUIZ_SCHEMA}"
+            "content": (
+                "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — "
+                f"matching exactly this schema: {QUIZ_SCHEMA}. "
+                "Vary the correct answer position. "
+                f"{lang_instruction}"
+            )
         },
         {
             "role": "user",
-            "content": f"Using ONLY the excerpt below from '{label}', write exactly {num_questions} {difficulty} multiple-choice questions.\n\nEXCERPT:\n" + excerpt
+            "content": (
+                f"Using ONLY the excerpt below from the student's document '{label}', write exactly "
+                f"{num_questions} {difficulty} multiple-choice questions. "
+                "Make them smart: test conceptual understanding, application, or inference rather than just rote memorization. "
+                "Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote "
+                "(max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt
+            )
         }
     ]
-    
-    key = os.getenv("GROQ_API_KEY")
-    payload = {"model": "llama-3.3-70b-versatile", "messages": messages, "temperature": 0.6, "max_tokens": 2000}
-    
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.post(GROQ_URL, headers={"Authorization": f"Bearer {key}"}, json=payload)
-        r.raise_for_status()
-        raw = r.json()["choices"][0]["message"]["content"]
-        
-    # Simplified JSON extraction for worker
+
+    client = ctx["http"]
     try:
-        data_dict = json.loads(raw)
-        clean = data_dict.get("questions", [])
-    except Exception:
-        clean = []
-        
+        raw = await groq_chat_with_fallback(
+            client,
+            messages=messages,
+            tier=tier,
+            temperature=0.6,
+            max_tokens=2000
+        )
+        clean = _clean_questions(extract_json(raw), num_questions)
+    except Exception as e:
+        logger.error("PDF quiz Groq error for user %s: %s", user_id, e)
+        return {"error": "AI is unavailable right now. Please try again."}
+
     if not clean:
         return {"error": "Empty question set from PDF AI."}
-        
-    session_id = await db.create_quiz_session(user_id, label, "pdf", difficulty, clean)
+
+    session_id = await db.create_quiz_session(
+        user_id=user_id,
+        topic=label,
+        source="pdf",
+        difficulty=difficulty,
+        questions=clean
+    )
+    # Quota accounting happens here, after success (same as old sync flow).
     await db.increment_usage(user_id, pdf_uploads=1)
-    await db.log_usage_event(user_id, "pdf_upload", 1, "pro") # Simplified tier logic for worker
-    
+    await db.log_usage_event(user_id, "pdf_upload", 1, tier)
+
+    return {
+        "topic": label,
+        "subject": "PDF",
+        "difficulty": difficulty,
+        "questions": clean,
+        "ai": True,
+        "source": "pdf",
+        "session_id": session_id
+    }
+
+# -----------------------------
+# ARQ LIFECYCLE + SETTINGS
+# -----------------------------
+async def startup(ctx):
+    await db.init_db()
+    ctx["http"] = httpx.AsyncClient(
+        timeout=httpx.Timeout(60.0, connect=10.0),
+        limits=httpx.Limits(max_connections=20, max_keepalive_connections=5)
+    )
+    logger.info("ARQ worker started.")
+
+async def shutdown(ctx):
+    await ctx["http"].aclose()
     await db.close_pool()
-    return {"questions": clean, "session_id": session_id, "topic": label}
+    logger.info("ARQ worker stopped.")
 
 class WorkerSettings:
     functions = [process_pdf_quiz]
+    on_startup = startup
+    on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(os.getenv("REDIS_URL", "redis://localhost:6379"))
-    max_jobs = 2
-    job_timeout = 300 # 5 minutes
+    # Concurrency cap per worker process (replaces the old web-process semaphore).
+    max_jobs = int(os.getenv("WORKER_MAX_JOBS", "2"))
+    job_timeout = int(os.getenv("WORKER_JOB_TIMEOUT", "300"))
+    # Keep results for 1 hour so the polling endpoint can retrieve them.
+    keep_result = 3600
