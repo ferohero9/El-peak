@@ -1,8 +1,9 @@
 """
-El-Peak — Data Layer v12.2 (P1 hardening)
-PostgreSQL multi-user data layer with improved safety,
-payments, quiz sessions, OAuth codes, rate limiting,
-AI caching, and scheduled background cleanup.
+El-Peak — Data Layer v12.3 (P2 hardening)
+PostgreSQL multi-user data layer.
+P2 changes:
+- Added `created_date DATE` columns to attempts, usage_events, payments, quiz_sessions.
+- Migrated all SUBSTR(created_at) date-math queries to use `created_date` for index efficiency.
 """
 import os
 import json
@@ -56,7 +57,8 @@ CREATE TABLE IF NOT EXISTS attempts (
     total INTEGER NOT NULL,
     pct REAL NOT NULL,
     source TEXT DEFAULT 'static',
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    created_date DATE
 );
 CREATE TABLE IF NOT EXISTS tasks (
     id SERIAL PRIMARY KEY,
@@ -78,7 +80,8 @@ CREATE TABLE IF NOT EXISTS payments (
     status TEXT DEFAULT 'pending',
     raw_payload TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT
+    updated_at TEXT,
+    created_date DATE
 );
 CREATE TABLE IF NOT EXISTS quiz_sessions (
     id SERIAL PRIMARY KEY,
@@ -89,7 +92,8 @@ CREATE TABLE IF NOT EXISTS quiz_sessions (
     questions JSONB NOT NULL,
     status TEXT DEFAULT 'active',
     created_at TEXT NOT NULL,
-    completed_at TEXT
+    completed_at TEXT,
+    created_date DATE
 );
 CREATE TABLE IF NOT EXISTS oauth_codes (
     code TEXT PRIMARY KEY,
@@ -97,29 +101,17 @@ CREATE TABLE IF NOT EXISTS oauth_codes (
     expires_at TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS rate_limits (
-    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    last_request_epoch DOUBLE PRECISION NOT NULL
-);
-CREATE TABLE IF NOT EXISTS ip_rate_limits (
-    key TEXT PRIMARY KEY,
-    last_request_epoch DOUBLE PRECISION NOT NULL
-);
 CREATE TABLE IF NOT EXISTS usage_events (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
     amount INTEGER NOT NULL DEFAULT 1,
     tier TEXT,
-    created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS ai_cache (
-    key TEXT PRIMARY KEY,
-    payload JSONB NOT NULL,
     created_at TEXT NOT NULL,
-    hits INTEGER DEFAULT 0
+    created_date DATE
 );
 CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_attempts_date ON attempts(user_id, created_date);
 CREATE INDEX IF NOT EXISTS idx_topics_user ON topics(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id, created_at);
@@ -128,25 +120,6 @@ CREATE INDEX IF NOT EXISTS idx_usage_events_user ON usage_events(user_id, create
 """
 
 _pool = None
-
-# P1.1: In-process single-flight locks for AI caching.
-# These are per-worker (not shared across instances) — Redis migration is deferred to P2.
-AI_CACHE_LOCKS: dict[str, asyncio.Lock] = {}
-
-async def get_single_flight_lock(key: str) -> asyncio.Lock:
-    if key not in AI_CACHE_LOCKS:
-        AI_CACHE_LOCKS[key] = asyncio.Lock()
-    return AI_CACHE_LOCKS[key]
-
-def make_ai_quiz_cache_key(topic: str, grade: str, difficulty: str, n: int, lang: str) -> str:
-    normalized_topic = (topic or "").strip().lower()
-    raw = f"quiz|{normalized_topic}|{grade}|{difficulty}|{n}|{lang}"
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
-
-def make_coach_cache_key(user_id: int) -> str:
-    # Cache coach plans per-user, rolling every hour.
-    current_hour = int(time.time() // 3600)
-    return f"coach|{user_id}|{current_hour}"
 
 async def get_pool():
     global _pool
@@ -158,7 +131,7 @@ async def get_pool():
         raise RuntimeError("Missing DATABASE_URL")
     clean_url = db_url.split("?")[0]
     is_local = "localhost" in clean_url or "127.0.0.1" in clean_url
-    min_size = int(os.getenv("DB_POOL_MIN_SIZE", "1"))
+    min_size = int(os.getenv("DB_POOL_MIN_SIZE", "2"))
     max_size = int(os.getenv("DB_POOL_MAX_SIZE", "5"))
     ssl_mode = False if is_local else "require"
     host_part = clean_url.split("@")[1] if "@" in clean_url else clean_url
@@ -212,6 +185,7 @@ async def init_db():
             for stmt in statements:
                 if stmt.strip():
                     await conn.execute(stmt.strip())
+            
             # Compatibility upgrades for older databases
             await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free'")
             await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_questions_used INTEGER DEFAULT 0")
@@ -232,6 +206,19 @@ async def init_db():
             await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS updated_at TEXT")
             await conn.execute("ALTER TABLE attempts ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
             await conn.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
+            
+            # P2.4: DB Hygiene - Add created_date columns for index-friendly date math
+            await conn.execute("ALTER TABLE attempts ADD COLUMN IF NOT EXISTS created_date DATE")
+            await conn.execute("ALTER TABLE usage_events ADD COLUMN IF NOT EXISTS created_date DATE")
+            await conn.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS created_date DATE")
+            await conn.execute("ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS created_date DATE")
+            
+            # Backfill created_date for existing rows if null
+            await conn.execute("UPDATE attempts SET created_date = CAST(SUBSTR(created_at, 1, 10) AS DATE) WHERE created_date IS NULL")
+            await conn.execute("UPDATE usage_events SET created_date = CAST(SUBSTR(created_at, 1, 10) AS DATE) WHERE created_date IS NULL")
+            await conn.execute("UPDATE payments SET created_date = CAST(SUBSTR(created_at, 1, 10) AS DATE) WHERE created_date IS NULL")
+            await conn.execute("UPDATE quiz_sessions SET created_date = CAST(SUBSTR(created_at, 1, 10) AS DATE) WHERE created_date IS NULL")
+            
         finally:
             await conn.execute("SELECT pg_advisory_unlock(7331)")
 
@@ -466,8 +453,8 @@ async def record_attempt(
             )
             await conn.execute(
                 """
-                INSERT INTO attempts(user_id, topic_id, correct, total, pct, source, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO attempts(user_id, topic_id, correct, total, pct, source, created_at, created_date)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_DATE)
                 """,
                 user_id,
                 topic["id"],
@@ -507,18 +494,19 @@ async def heatmap(user_id: int, days: int = 84) -> list[dict]:
     counts = {start + dt.timedelta(days=i): 0 for i in range(days)}
     pool = await get_pool()
     async with pool.acquire() as conn:
+        # P2.4: Use created_date instead of SUBSTR for index efficiency
         rows = await conn.fetch(
             """
-            SELECT SUBSTR(created_at, 1, 10) AS d, COUNT(*) AS n
+            SELECT created_date AS d, COUNT(*) AS n
             FROM attempts
-            WHERE user_id=$1 AND created_at >= $2
+            WHERE user_id=$1 AND created_date >= $2
             GROUP BY d
             """,
             user_id,
-            start.isoformat()
+            start
         )
         for row in rows:
-            key = dt.date.fromisoformat(row["d"])
+            key = row["d"]
             if key in counts:
                 counts[key] = int(row["n"])
     return [
@@ -545,11 +533,11 @@ async def get_stats(user_id: int) -> dict:
             w_avg = sum(float(t["score"] or 0) * (1 + int(t["attempts"] or 0)) for t in topics) / w_sum
         else:
             w_avg = 0.0
-        week_ago = (now_utc() - dt.timedelta(days=7)).isoformat(timespec="seconds")
+            
+        # P2.4: Use created_date for 7-day window
         attempts_7d = await conn.fetchval(
-            "SELECT COUNT(*) FROM attempts WHERE user_id=$1 AND created_at >= $2",
-            user_id,
-            week_ago
+            "SELECT COUNT(*) FROM attempts WHERE user_id=$1 AND created_date >= CURRENT_DATE - INTERVAL '7 days'",
+            user_id
         )
         avg_pct_val = await conn.fetchval(
             "SELECT AVG(pct) FROM attempts WHERE user_id=$1",
@@ -559,18 +547,20 @@ async def get_stats(user_id: int) -> dict:
         peak = int(round(min(100, max(0, 0.75 * w_avg + 0.25 * min(1.0, attempts_7d / 8) * 100))))
         best = max(topics, key=lambda t: t["score"]) if topics else None
         weak = [t for t in topics if float(t["score"] or 0) < 60]
+        
+        # P2.4: Use created_date for streak calculation
         days_set = {
             r["d"]
             for r in await conn.fetch(
-                "SELECT DISTINCT SUBSTR(created_at, 1, 10) AS d FROM attempts WHERE user_id=$1",
+                "SELECT DISTINCT created_date AS d FROM attempts WHERE user_id=$1",
                 user_id
             )
         }
         streak = 0
         day = today_utc()
-        if day.isoformat() not in days_set:
+        if day not in days_set:
             day -= dt.timedelta(days=1)
-        while day.isoformat() in days_set:
+        while day in days_set:
             streak += 1
             day -= dt.timedelta(days=1)
         return {
@@ -798,9 +788,9 @@ async def create_payment(
         await conn.execute(
             """
             INSERT INTO payments(
-                user_id, tier, amount_cents, merchant_order_id, status, created_at
+                user_id, tier, amount_cents, merchant_order_id, status, created_at, created_date
             )
-            VALUES ($1, $2, $3, $4, $5, $6)
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)
             ON CONFLICT (merchant_order_id) DO NOTHING
             """,
             user_id,
@@ -876,9 +866,9 @@ async def finalize_payment(
                     """
                     INSERT INTO payments(
                         user_id, tier, amount_cents, merchant_order_id,
-                        status, raw_payload, created_at, updated_at
+                        status, raw_payload, created_at, updated_at, created_date
                     )
-                    VALUES ($1, $2, $3, $4, 'paid', $5, $6, $7)
+                    VALUES ($1, $2, $3, $4, 'paid', $5, $6, $7, CURRENT_DATE)
                     ON CONFLICT (merchant_order_id) DO NOTHING
                     """,
                     user_id,
@@ -909,59 +899,6 @@ async def get_payments(user_id: int, limit: int = 20) -> list[dict]:
         return [dict(r) for r in rows]
 
 # -----------------------------
-# RATE LIMITING
-# -----------------------------
-async def check_ai_rate_limit(user_id: int, seconds: int) -> tuple[bool, int]:
-    now = time.time()
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            row = await conn.fetchrow(
-                "SELECT last_request_epoch FROM rate_limits WHERE user_id=$1",
-                user_id
-            )
-            if row:
-                elapsed = now - float(row["last_request_epoch"])
-                if elapsed < seconds:
-                    return False, int(seconds - elapsed) + 1
-            await conn.execute(
-                """
-                INSERT INTO rate_limits(user_id, last_request_epoch)
-                VALUES ($1, $2)
-                ON CONFLICT (user_id)
-                DO UPDATE SET last_request_epoch=$2
-                """,
-                user_id,
-                now
-            )
-    return True, 0
-
-async def check_ip_rate_limit(key: str, seconds: int) -> tuple[bool, int]:
-    now = time.time()
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            row = await conn.fetchrow(
-                "SELECT last_request_epoch FROM ip_rate_limits WHERE key=$1",
-                key
-            )
-            if row:
-                elapsed = now - float(row["last_request_epoch"])
-                if elapsed < seconds:
-                    return False, int(seconds - elapsed) + 1
-            await conn.execute(
-                """
-                INSERT INTO ip_rate_limits(key, last_request_epoch)
-                VALUES ($1, $2)
-                ON CONFLICT (key)
-                DO UPDATE SET last_request_epoch=$2
-                """,
-                key,
-                now
-            )
-    return True, 0
-
-# -----------------------------
 # USAGE EVENTS
 # -----------------------------
 async def log_usage_event(user_id: int, kind: str, amount: int, tier: str):
@@ -969,8 +906,8 @@ async def log_usage_event(user_id: int, kind: str, amount: int, tier: str):
     async with pool.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO usage_events(user_id, kind, amount, tier, created_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO usage_events(user_id, kind, amount, tier, created_at, created_date)
+            VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)
             """,
             user_id,
             kind,
@@ -993,8 +930,8 @@ async def create_quiz_session(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO quiz_sessions(user_id, topic, source, difficulty, questions, status, created_at)
-            VALUES ($1, $2, $3, $4, $5, 'active', $6)
+            INSERT INTO quiz_sessions(user_id, topic, source, difficulty, questions, status, created_at, created_date)
+            VALUES ($1, $2, $3, $4, $5, 'active', $6, CURRENT_DATE)
             RETURNING id
             """,
             user_id,
@@ -1059,84 +996,32 @@ async def complete_quiz_session(user_id: int, session_id: int):
         )
 
 # -----------------------------
-# AI CACHE (P1.1)
-# -----------------------------
-async def get_ai_cache(key: str, ttl_seconds: int) -> dict | None:
-    pool = await get_pool()
-    cutoff = (now_utc() - dt.timedelta(seconds=ttl_seconds)).isoformat(timespec="seconds")
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            UPDATE ai_cache
-            SET hits = hits + 1
-            WHERE key = $1 AND created_at >= $2
-            RETURNING payload
-            """,
-            key, cutoff
-        )
-        if row:
-            return row["payload"]
-        return None
-
-async def set_ai_cache(key: str, payload: dict):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            """
-            INSERT INTO ai_cache (key, payload, created_at, hits)
-            VALUES ($1, $2, $3, 0)
-            ON CONFLICT (key) DO UPDATE 
-            SET payload = EXCLUDED.payload, created_at = EXCLUDED.created_at, hits = 0
-            """,
-            key, json.dumps(payload, ensure_ascii=False), now_str()
-        )
-
-# -----------------------------
 # CLEANUP (P1.3)
 # -----------------------------
 async def run_periodic_cleanup():
-    """
-    P1.3: Background task to periodically clean up old data.
-    Runs every 6 hours. Replaces the old startup-only cleanup.
-    """
     while True:
         try:
             await asyncio.sleep(3600 * 6)
             pool = await get_pool()
             async with pool.acquire() as conn:
                 async with conn.transaction():
-                    # 1. Old PDF attempts (14 days)
                     cutoff_14d = (now_utc() - dt.timedelta(days=14)).isoformat(timespec="seconds")
                     await conn.execute(
                         "DELETE FROM attempts WHERE source='pdf' AND created_at < $1",
                         cutoff_14d
                     )
-                    # 2. Expired OAuth codes
                     await conn.execute(
                         "DELETE FROM oauth_codes WHERE expires_at < $1",
                         now_str()
                     )
-                    # 3. Old non-PDF attempts (90 days)
                     cutoff_90d = (now_utc() - dt.timedelta(days=90)).isoformat(timespec="seconds")
                     await conn.execute(
                         "DELETE FROM attempts WHERE source <> 'pdf' AND created_at < $1",
                         cutoff_90d
                     )
-                    # 4. Old usage_events (90 days)
                     await conn.execute(
                         "DELETE FROM usage_events WHERE created_at < $1",
                         cutoff_90d
-                    )
-                    # 5. Stale IP rate limits (older than 1 day)
-                    cutoff_1d_epoch = time.time() - 86400
-                    await conn.execute(
-                        "DELETE FROM ip_rate_limits WHERE last_request_epoch < $1",
-                        cutoff_1d_epoch
-                    )
-                    # 6. Stale AI cache (older than 14 days, fallback safety net)
-                    await conn.execute(
-                        "DELETE FROM ai_cache WHERE created_at < $1",
-                        cutoff_14d
                     )
             logger.info("Periodic cleanup completed.")
         except asyncio.CancelledError:
@@ -1144,10 +1029,3 @@ async def run_periodic_cleanup():
             break
         except Exception as e:
             logger.error("Periodic cleanup failed: %s", str(e))
-            
-        # Prune single-flight locks to prevent unbounded memory growth
-        global AI_CACHE_LOCKS
-        if len(AI_CACHE_LOCKS) > 5000:
-            keys_to_delete = [k for k, v in AI_CACHE_LOCKS.items() if not v.locked()]
-            for k in keys_to_delete:
-                del AI_CACHE_LOCKS[k]
