@@ -4,6 +4,7 @@ PostgreSQL multi-user data layer.
 P2 changes:
 - Added `created_date DATE` columns to attempts, usage_events, payments, quiz_sessions.
 - Migrated all SUBSTR(created_at) date-math queries to use `created_date` for index efficiency.
+- Fixed schema migration ordering so index creation happens AFTER column addition.
 """
 import os
 import json
@@ -111,7 +112,6 @@ CREATE TABLE IF NOT EXISTS usage_events (
     created_date DATE
 );
 CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_attempts_date ON attempts(user_id, created_date);
 CREATE INDEX IF NOT EXISTS idx_topics_user ON topics(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id, created_at);
@@ -218,6 +218,9 @@ async def init_db():
             await conn.execute("UPDATE usage_events SET created_date = CAST(SUBSTR(created_at, 1, 10) AS DATE) WHERE created_date IS NULL")
             await conn.execute("UPDATE payments SET created_date = CAST(SUBSTR(created_at, 1, 10) AS DATE) WHERE created_date IS NULL")
             await conn.execute("UPDATE quiz_sessions SET created_date = CAST(SUBSTR(created_at, 1, 10) AS DATE) WHERE created_date IS NULL")
+            
+            # P2.4 Fix: Create the index AFTER the column is guaranteed to exist
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_attempts_date ON attempts(user_id, created_date)")
             
         finally:
             await conn.execute("SELECT pg_advisory_unlock(7331)")
