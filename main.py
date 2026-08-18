@@ -1,14 +1,17 @@
 """
-El-Peak — FastAPI backend v12.2 (P1 hardening)
+El-Peak — FastAPI backend v12.3 (P2 final)
 Production-oriented, safer, more reliable, improved quiz engine,
 better payments, better AI handling, better PDF pipeline.
 
-P1 changes:
-- AI response caching with single-flight protection for Quiz and Coach endpoints.
-- Scheduled background cleanup task replacing startup-only cleanup.
-- Observability wired up (Sentry + Prometheus metrics).
+P2 changes:
+- Rate limits, AI cache, and single-flight locks moved to Redis (cache.py)
+  so the app is fully stateless and safe across multiple instances.
+- PDF upload converted to an async ARQ background job: the endpoint
+  returns a job_id immediately; clients poll /api/quiz/pdf/status/{job_id}.
+- ARQ redis pool created/closed in lifespan.
+- Neon Postgres: no code changes needed; use Neon's pooled connection
+  string as DATABASE_URL (see P2.3 notes).
 """
-import io
 import os
 import re
 import json
@@ -43,18 +46,22 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 from prometheus_fastapi_instrumentator import Instrumentator
 
-import database as db
+# P2.5: background job queue
+from arq import create_pool
+from arq.connections import RedisSettings
+from arq.jobs import Job
 
-# Optional PDF dependencies
+import database as db
+import cache
+
+# Optional PDF dependencies (kept in web process only for /health reporting;
+# actual extraction runs in worker.py)
 try:
-    import pymupdf as fitz
-    import pytesseract
-    from PIL import Image
+    import pymupdf as fitz  # noqa: F401
+    import pytesseract  # noqa: F401
+    from PIL import Image  # noqa: F401
     PDF_IMPORT_OK = True
 except Exception:
-    fitz = None
-    pytesseract = None
-    Image = None
     PDF_IMPORT_OK = False
 
 PDF_TESSERACT_OK = shutil.which("tesseract") is not None
@@ -119,8 +126,7 @@ REDIRECT_URI = os.getenv(
 )
 RATE_LIMIT_SECONDS = int(os.getenv("RATE_LIMIT_SECONDS", "15"))
 
-# P0.5: simulated payments can never be enabled in production, even if the
-# env var is set. Outside production they default on (dev convenience).
+# P0.5: simulated payments can never be enabled in production.
 ALLOW_SIMULATED_PAYMENTS_RAW = os.getenv("ALLOW_SIMULATED_PAYMENTS")
 if ENVIRONMENT == "production":
     ALLOW_SIMULATED_PAYMENTS = False
@@ -132,12 +138,15 @@ else:
     else:
         ALLOW_SIMULATED_PAYMENTS = ALLOW_SIMULATED_PAYMENTS_RAW.strip().lower() in ("1", "true", "yes", "on")
 
-# P0.1: cap concurrent CPU-heavy PDF/OCR jobs per worker.
-PDF_CONCURRENCY = max(1, int(os.getenv("PDF_CONCURRENCY", "1")))
-PDF_SEMAPHORE = asyncio.Semaphore(PDF_CONCURRENCY)
-
 # P0.5: anonymous auth throttle. 12s minimum interval ~= 5 attempts/min per IP.
 AUTH_RATE_LIMIT_SECONDS = int(os.getenv("AUTH_RATE_LIMIT_SECONDS", "12"))
+
+# P2.2 / P2.5: Redis for cross-instance state and the ARQ job queue.
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
+# P1.1: cache TTLs
+AI_QUIZ_CACHE_TTL = 7 * 24 * 3600
+COACH_CACHE_TTL = 3600
 
 INDEX = BASE_DIR / "index.html"
 if not INDEX.exists():
@@ -180,7 +189,7 @@ TIER_MODELS = {
     "plus": "openai/gpt-oss-20b",
     "pro": "llama-3.3-70b-versatile"
 }
-# P1.2: Preserved fallback chain acts as our circuit breaker.
+# P1.2: preserved fallback chain acts as our circuit breaker.
 TIER_FALLBACK_MODELS = {
     "free": [
         "llama-3.1-8b-instant"
@@ -227,11 +236,30 @@ async def close_http_client():
         HTTP_CLIENT = None
 
 def get_http_client() -> httpx.AsyncClient:
-    # Fallback for contexts outside lifespan (dev scripts / tests).
     global HTTP_CLIENT
     if HTTP_CLIENT is None:
         HTTP_CLIENT = _build_http_client()
     return HTTP_CLIENT
+
+# -----------------------------
+# ARQ POOL (P2.5)
+# -----------------------------
+ARQ_POOL = None
+
+async def init_arq_pool():
+    global ARQ_POOL
+    try:
+        ARQ_POOL = await create_pool(RedisSettings.from_dsn(REDIS_URL))
+        logger.info("ARQ redis pool connected.")
+    except Exception as e:
+        logger.error("Could not connect ARQ pool to Redis (%s). PDF jobs will be rejected.", e)
+        ARQ_POOL = None
+
+async def close_arq_pool():
+    global ARQ_POOL
+    if ARQ_POOL is not None:
+        await ARQ_POOL.close()
+        ARQ_POOL = None
 
 # -----------------------------
 # HELPERS
@@ -367,6 +395,64 @@ def client_ip(request: Request) -> str:
             return first
     return request.client.host if request.client else "unknown"
 
+# P1.1 / P2.2: cache key builders (moved out of database.py so main.py is
+# self-contained; hashing is pure, no DB needed).
+def make_ai_quiz_cache_key(topic: str, grade: str, difficulty: str, n: int, lang: str) -> str:
+    normalized_topic = (topic or "").strip().lower()
+    raw = f"quiz|{normalized_topic}|{grade}|{(difficulty or '').strip().lower()}|{n}|{lang}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+def make_coach_cache_key(user_id: int) -> str:
+    current_hour = int(time.time() // 3600)
+    return f"coach|{user_id}|{current_hour}"
+
+async def single_flight_cached(cache_key: str, ttl: int, generate):
+    """
+    P1.1 + P2.2: Redis-backed cache with cross-instance single-flight.
+    Returns (payload, was_cached). `generate` is an async callable producing
+    the payload to cache on miss. Concurrent identical requests wait for the
+    first generator's result (up to ~10s) instead of firing duplicate Groq calls.
+    """
+    cached = await cache.get_ai_cache_redis(cache_key, ttl)
+    if cached is not None:
+        return cached, True
+
+    lock = cache.get_single_flight_lock_redis(cache_key)
+    acquired = False
+    try:
+        acquired = bool(await lock.acquire())
+    except Exception as e:
+        logger.warning("single-flight lock acquire failed for %s: %s", cache_key, e)
+
+    if acquired:
+        try:
+            # Double-check after acquiring: another instance may have finished.
+            cached = await cache.get_ai_cache_redis(cache_key, ttl)
+            if cached is not None:
+                return cached, True
+            payload = await generate()
+            try:
+                await cache.set_ai_cache_redis(cache_key, payload, ttl)
+            except Exception as e:
+                logger.warning("AI cache write failed: %s", e)
+            return payload, False
+        finally:
+            try:
+                await lock.release()
+            except Exception:
+                pass
+
+    # Did not acquire: another request is generating. Poll the cache briefly.
+    for _ in range(10):
+        await asyncio.sleep(1)
+        cached = await cache.get_ai_cache_redis(cache_key, ttl)
+        if cached is not None:
+            return cached, True
+
+    # Give up waiting; generate without coordination (rare).
+    payload = await generate()
+    return payload, False
+
 def _clean_questions(data: Any, limit: int) -> List[dict]:
     if isinstance(data, list):
         qs = data
@@ -491,10 +577,12 @@ class GoogleExchangeIn(BaseModel):
 async def lifespan(app: FastAPI):
     await init_http_client()
     await db.init_db()
-    
+    await cache.init_redis()
+    await init_arq_pool()
+
     # P1.3: Start background cleanup task
     cleanup_task = asyncio.create_task(db.run_periodic_cleanup())
-    
+
     # P1.4: Observability
     sentry_dsn = os.getenv("SENTRY_DSN")
     if sentry_dsn:
@@ -504,23 +592,25 @@ async def lifespan(app: FastAPI):
             integrations=[StarletteIntegration(), FastApiIntegration()],
         )
         logger.info("Sentry initialized.")
-        
+
     logger.info("El-Peak startup complete.")
     yield
-    
+
     cleanup_task.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
         pass
-        
+
+    await close_arq_pool()
+    await cache.close_redis()
     await close_http_client()
     await db.close_pool()
     logger.info("El-Peak shutdown complete.")
 
 app = FastAPI(
     title="El-Peak API",
-    version="12.2",
+    version="12.3",
     lifespan=lifespan
 )
 
@@ -574,7 +664,8 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> dic
     return user
 
 async def check_rate_limit(user_id: int):
-    allowed, wait_seconds = await db.check_ai_rate_limit(user_id, RATE_LIMIT_SECONDS)
+    # P2.2: Redis-backed, correct across instances.
+    allowed, wait_seconds = await cache.check_rate_limit_redis(f"ai:{user_id}", RATE_LIMIT_SECONDS)
     if not allowed:
         raise HTTPException(
             status_code=429,
@@ -582,10 +673,8 @@ async def check_rate_limit(user_id: int):
         )
 
 async def check_auth_ip_limit(request: Request):
-    """P0.5: throttle anonymous auth endpoints per IP (~5/min)."""
-    allowed, wait_seconds = await db.check_ip_rate_limit(
-        client_ip(request), AUTH_RATE_LIMIT_SECONDS
-    )
+    """P0.5 + P2.2: throttle anonymous auth endpoints per IP (~5/min), via Redis."""
+    allowed, wait_seconds = await cache.check_rate_limit_redis(f"ip:{client_ip(request)}", AUTH_RATE_LIMIT_SECONDS)
     if not allowed:
         raise HTTPException(
             status_code=429,
@@ -864,52 +953,6 @@ def _match_static(topic: str, n: int, grade: str = "general", difficulty: str = 
         "source": "static"
     }
 
-def _ocr_page(page, dpi: int = 130) -> str:
-    if not PDF_OCR_ENABLED:
-        return ""
-    pix = page.get_pixmap(dpi=dpi)
-    img = Image.open(io.BytesIO(pix.tobytes("png")))
-    try:
-        return pytesseract.image_to_string(img, lang="ara+eng")
-    except Exception:
-        try:
-            return pytesseract.image_to_string(img)
-        except Exception:
-            return ""
-
-def _extract_pdf_text_sync(data: bytes, max_pages: int, max_ocr_pages: int) -> str:
-    """
-    P0.1: all fitz/tesseract CPU work lives here and is invoked via
-    run_in_threadpool so the event loop never blocks on it.
-    Raises ValueError for unreadable files (mapped to 422 by the endpoint).
-    """
-    try:
-        doc = fitz.open(stream=data, filetype="pdf")
-    except Exception as e:
-        raise ValueError(f"Could not read that file. Is it a valid PDF? {e}")
-    try:
-        text = ""
-        for page in doc[:min(len(doc), max_pages)]:
-            try:
-                text += page.get_text()
-            except Exception:
-                continue
-        text = re.sub(r"\s+", " ", text).strip()
-        if len(text) < 200 and PDF_OCR_ENABLED:
-            ocr_text = ""
-            for page in doc[:min(len(doc), max_ocr_pages)]:
-                try:
-                    ocr_text += _ocr_page(page)
-                except Exception:
-                    continue
-            text = re.sub(r"\s+", " ", ocr_text).strip()
-        return text
-    finally:
-        try:
-            doc.close()
-        except Exception:
-            pass
-
 # -----------------------------
 # STATIC ROUTES
 # -----------------------------
@@ -968,7 +1011,7 @@ async def service_worker():
 async def health():
     try:
         await db.ping()
-        return {"status": "ok", "db": "ok", "pdf_ocr_enabled": PDF_OCR_ENABLED}
+        return {"status": "ok", "db": "ok", "pdf_ocr_enabled": PDF_OCR_ENABLED, "arq": ARQ_POOL is not None}
     except Exception as e:
         return JSONResponse(
             status_code=503,
@@ -1430,37 +1473,11 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
         )
     language = (user.get("language") or "en").strip().lower()
     grade = normalize_grade(user.get("grade"))
-    
-    # P1.1: AI Cache & Single-Flight
-    cache_key = db.make_ai_quiz_cache_key(payload.topic, grade, payload.difficulty, num_questions, language)
-    lock = await db.get_single_flight_lock(cache_key)
-    
-    async with lock:
-        cached = await db.get_ai_cache(cache_key, ttl_seconds=7 * 24 * 3600)
-        if cached:
-            clean = cached.get("questions", [])
-            session_id = await db.create_quiz_session(
-                user_id=user["id"],
-                topic=payload.topic,
-                source="ai",
-                difficulty=payload.difficulty,
-                questions=clean
-            )
-            # Still record usage/quota consumption on cache hit
-            await db.increment_usage(user["id"], ai_questions=num_questions)
-            await db.log_usage_event(user["id"], "ai_question", num_questions, tier)
-            return {
-                "topic": payload.topic,
-                "subject": "AI",
-                "grade": grade,
-                "difficulty": payload.difficulty,
-                "questions": clean,
-                "ai": True,
-                "source": "ai",
-                "session_id": session_id,
-                "cached": True
-            }
 
+    # P1.1 + P2.2: Redis cache with cross-instance single-flight
+    cache_key = make_ai_quiz_cache_key(payload.topic, grade, payload.difficulty, num_questions, language)
+
+    async def generate():
         if language == "ar":
             lang_instruction = (
                 "Please generate the questions, options, and explanations strictly in Arabic. "
@@ -1489,61 +1506,70 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
                 )
             }
         ]
-        try:
-            max_tokens = max(1200, num_questions * 250)
-            raw = await groq_chat_with_fallback(
-                messages=messages,
-                tier=tier,
-                temperature=0.7,
-                max_tokens=max_tokens
-            )
-            clean = _clean_questions(extract_json(raw), num_questions)
-            if not clean:
-                raise ValueError("Empty question set from AI.")
-                
-            # Cache the successful generation
-            await db.set_ai_cache(cache_key, {"questions": clean})
-            
-            session_id = await db.create_quiz_session(
-                user_id=user["id"],
-                topic=payload.topic,
-                source="ai",
-                difficulty=payload.difficulty,
-                questions=clean
-            )
-            await db.increment_usage(user["id"], ai_questions=num_questions)
-            await db.log_usage_event(user["id"], "ai_question", num_questions, tier)
-            return {
-                "topic": payload.topic,
-                "subject": "AI",
-                "grade": grade,
-                "difficulty": payload.difficulty,
-                "questions": clean,
-                "ai": True,
-                "source": "ai",
-                "session_id": session_id
-            }
-        except Exception as e:
-            logger.warning("AI Quiz Error: %s", str(e))
-            fallback = _match_static(
-                topic=payload.topic,
-                n=min(4, num_questions),
-                grade=grade,
-                difficulty=payload.difficulty
-            )
-            fallback["note"] = "AI unavailable — served from the static bank."
-            return fallback
+        max_tokens = max(1200, num_questions * 250)
+        raw = await groq_chat_with_fallback(
+            messages=messages,
+            tier=tier,
+            temperature=0.7,
+            max_tokens=max_tokens
+        )
+        clean = _clean_questions(extract_json(raw), num_questions)
+        if not clean:
+            raise ValueError("Empty question set from AI.")
+        return {"questions": clean}
+
+    try:
+        result, was_cached = await single_flight_cached(cache_key, AI_QUIZ_CACHE_TTL, generate)
+        clean = result.get("questions", [])
+    except Exception as e:
+        logger.warning("AI Quiz Error: %s", str(e))
+        fallback = _match_static(
+            topic=payload.topic,
+            n=min(4, num_questions),
+            grade=grade,
+            difficulty=payload.difficulty
+        )
+        fallback["note"] = "AI unavailable — served from the static bank."
+        return fallback
+
+    session_id = await db.create_quiz_session(
+        user_id=user["id"],
+        topic=payload.topic,
+        source="ai",
+        difficulty=payload.difficulty,
+        questions=clean
+    )
+    # Quota is recorded on cache hits AND misses (no paywall bypass).
+    await db.increment_usage(user["id"], ai_questions=num_questions)
+    await db.log_usage_event(user["id"], "ai_question", num_questions, tier)
+    return {
+        "topic": payload.topic,
+        "subject": "AI",
+        "grade": grade,
+        "difficulty": payload.difficulty,
+        "questions": clean,
+        "ai": True,
+        "source": "ai",
+        "session_id": session_id,
+        "cached": was_cached
+    }
 
 @app.post("/api/quiz/pdf")
-async def quiz_pdf(
+async def quiz_pdf_enqueue(
     file: UploadFile = File(...),
     difficulty: str = Form("mixed"),
     topic: str = Form(""),
     num_questions: int = Form(0),
     user: dict = Depends(get_current_user)
 ):
-    if not PDF_IMPORT_OK:
-        raise HTTPException(500, "PDF libraries are not installed on the server.")
+    """
+    P2.5: PDF processing is offloaded to the ARQ background worker.
+    Returns a job_id immediately; clients poll /api/quiz/pdf/status/{job_id}.
+    NOTE (frontend contract change): the old synchronous response shape is gone;
+    see the provided `uploadPdfAndPoll()` JS function for the new client flow.
+    """
+    if ARQ_POOL is None:
+        raise HTTPException(503, "Background worker is not configured. Set REDIS_URL and run the ARQ worker.")
     await check_rate_limit(user["id"])
     await db.reset_usage_if_needed(user["id"])
     usage = await db.get_user_usage(user["id"])
@@ -1569,86 +1595,51 @@ async def quiz_pdf(
             413,
             f"PDF too large. Your plan allows up to {limits['pdf_max_mb']}MB."
         )
-    # P0.1: semaphore gates concurrent CPU-heavy extraction/OCR per worker;
-    # acquire/release in try/finally so it is always released on exceptions.
-    await PDF_SEMAPHORE.acquire()
-    try:
-        text = await run_in_threadpool(
-            _extract_pdf_text_sync,
-            data,
-            limits["pdf_max_pages"],
-            limits["pdf_max_ocr_pages"]
-        )
-    except ValueError as e:
-        raise HTTPException(422, str(e))
-    finally:
-        PDF_SEMAPHORE.release()
-    if len(text) < 200:
-        raise HTTPException(
-            422,
-            "Not enough readable text in this PDF. If it is scanned, OCR may need better quality."
-        )
-    if not num_questions or num_questions <= 0:
-        if len(text) > 6000:
-            num_questions = 5
-        elif len(text) > 2500:
-            num_questions = 4
-        else:
-            num_questions = 3
-    num_questions = min(num_questions, limits["max_ai_questions_per_request"])
+
     label = topic.strip() or Path(file.filename or "upload.pdf").stem
-    excerpt = text[:12000]
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are El-Peak's quiz engine. Reply with STRICT JSON only — no prose, no markdown — "
-                f"matching exactly this schema: {QUIZ_SCHEMA}. "
-                "Vary the correct answer position."
-            )
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Using ONLY the excerpt below from the student's document '{label}', write exactly "
-                f"{num_questions} {difficulty} multiple-choice questions. "
-                "Make them smart: test conceptual understanding, application, or inference rather than just rote memorization. "
-                "Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote "
-                "(max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt
-            )
-        }
-    ]
-    try:
-        raw = await groq_chat_with_fallback(
-            messages=messages,
-            tier=tier,
-            temperature=0.6,
-            max_tokens=2000
-        )
-        clean = _clean_questions(extract_json(raw), num_questions)
-        if not clean:
-            raise ValueError("Empty question set from PDF AI.")
-        session_id = await db.create_quiz_session(
-            user_id=user["id"],
-            topic=label,
-            source="pdf",
-            difficulty=difficulty,
-            questions=clean
-        )
-        await db.increment_usage(user["id"], pdf_uploads=1)
-        await db.log_usage_event(user["id"], "pdf_upload", 1, tier)
-        return {
-            "topic": label,
-            "subject": "PDF",
-            "difficulty": difficulty,
-            "questions": clean,
-            "ai": True,
-            "source": "pdf",
-            "session_id": session_id
-        }
-    except Exception as e:
-        logger.error("AI PDF Quiz Error: %s", str(e))
-        raise HTTPException(503, "AI is unavailable right now. Please try again.")
+    language = (user.get("language") or "en").strip().lower()
+    grade = normalize_grade(user.get("grade"))
+
+    # Scaffold note: bytes are hex-encoded through Redis. For files > ~5MB in
+    # production, upload to S3/object storage first and pass the URL instead.
+    job = await ARQ_POOL.enqueue_job(
+        "process_pdf_quiz",
+        user["id"],
+        data.hex(),
+        difficulty,
+        label,
+        num_questions,
+        language,
+        grade,
+        tier,
+        limits["pdf_max_pages"],
+        limits["pdf_max_ocr_pages"]
+    )
+    if not job:
+        raise HTTPException(503, "Could not enqueue PDF job. Try again.")
+    return {
+        "job_id": job.job_id,
+        "status": "queued"
+    }
+
+@app.get("/api/quiz/pdf/status/{job_id}")
+async def quiz_pdf_status(job_id: str, user: dict = Depends(get_current_user)):
+    """P2.5: poll endpoint for the background PDF job."""
+    if ARQ_POOL is None:
+        raise HTTPException(503, "Background worker is not configured.")
+    job = Job(job_id, ARQ_POOL)
+    info = await job.info()
+    if not info:
+        raise HTTPException(404, "Job not found.")
+    if info.status == "complete":
+        result = info.result if isinstance(info.result, dict) else {}
+        if result.get("error"):
+            return {"status": "error", "detail": str(result["error"])}
+        return {"status": "complete", "result": result}
+    if info.status == "error":
+        return {"status": "error", "detail": "PDF processing failed. The file may be unreadable."}
+    # 'queued', 'in_progress', 'deferred', 'not_found' handled above
+    return {"status": info.status}
 
 @app.post("/api/quiz/submit")
 async def quiz_submit(payload: SubmitIn, user: Annotated[dict, Depends(get_current_user)]):
@@ -1706,18 +1697,11 @@ async def remove(task_id: int, user: Annotated[dict, Depends(get_current_user)])
 @app.get("/api/coach")
 async def coach(user: Annotated[dict, Depends(get_current_user)]):
     await check_rate_limit(user["id"])
-    
-    # P1.1 Coach cache (1 hour rolling)
-    cache_key = db.make_coach_cache_key(user["id"])
-    lock = await db.get_single_flight_lock(cache_key)
-    
-    async with lock:
-        cached = await db.get_ai_cache(cache_key, ttl_seconds=3600)
-        if cached:
-            cached["ai"] = True
-            cached["cached"] = True
-            return cached
 
+    # P1.1 + P2.2: per-user coach plan cached ~1 hour in Redis
+    cache_key = make_coach_cache_key(user["id"])
+
+    async def generate():
         topics = await db.get_topics(user["id"])
         sched = await db.get_schedule(user["id"])
         recent = await db.recent_attempts(user["id"], 6)
@@ -1741,44 +1725,50 @@ async def coach(user: Annotated[dict, Depends(get_current_user)]):
             *([f"- {t['title']} [{t.get('tier')}] due {t['deadline']}" for t in sched["queue"][:3]] or ["- none"]),
             f"Recent accuracy trend: {'rising' if trend > 0 else 'falling'} ({round(trend, 1)} pts)."
         ])
-        try:
-            raw = await groq_chat_with_fallback(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are El-Peak, a sharp, encouraging study coach. "
-                            "Reply with STRICT JSON only, no markdown: "
-                            '{"headline":str,"focus":[{"topic":str,"why":str,"drill":str}],'
-                            '"tips":[4 strings],"plan":[{"day":str,"task":str} with exactly 7 entries],'
-                            '"motivation":str}. '
-                            f"{language_instruction}"
-                        )
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Build a 7-day revision plan from this student data:\n{ctx}"
-                    }
-                ],
-                tier=effective_tier_from_user(user),
-                temperature=0.6,
-                max_tokens=1200
-            )
-            data = extract_json(raw)
-            if not isinstance(data, dict):
-                raise ValueError("Coach response was not a JSON object.")
-            data.setdefault("headline", "Your 7-day summit plan.")
-            data.setdefault("focus", [])
-            data.setdefault("tips", [])
-            data.setdefault("plan", [])
-            data.setdefault("motivation", "Small consistent reps beat rare heroic sessions.")
-            data["ai"] = True
-            
-            await db.set_ai_cache(cache_key, data)
-            return data
-        except Exception as e:
-            logger.warning("Coach fallback triggered: %s", str(e))
-            return heuristic_coach(weak, trend)
+        raw = await groq_chat_with_fallback(
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are El-Peak, a sharp, encouraging study coach. "
+                        "Reply with STRICT JSON only, no markdown: "
+                        '{"headline":str,"focus":[{"topic":str,"why":str,"drill":str}],'
+                        '"tips":[4 strings],"plan":[{"day":str,"task":str} with exactly 7 entries],'
+                        '"motivation":str}. '
+                        f"{language_instruction}"
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"Build a 7-day revision plan from this student data:\n{ctx}"
+                }
+            ],
+            tier=effective_tier_from_user(user),
+            temperature=0.6,
+            max_tokens=1200
+        )
+        data = extract_json(raw)
+        if not isinstance(data, dict):
+            raise ValueError("Coach response was not a JSON object.")
+        data.setdefault("headline", "Your 7-day summit plan.")
+        data.setdefault("focus", [])
+        data.setdefault("tips", [])
+        data.setdefault("plan", [])
+        data.setdefault("motivation", "Small consistent reps beat rare heroic sessions.")
+        return data
+
+    try:
+        data, was_cached = await single_flight_cached(cache_key, COACH_CACHE_TTL, generate)
+        data["ai"] = True
+        data["cached"] = was_cached
+        return data
+    except Exception as e:
+        logger.warning("Coach fallback triggered: %s", str(e))
+        topics = await db.get_topics(user["id"])
+        weak = sorted([t for t in topics if t["score"] < 65], key=lambda t: t["score"])[:4]
+        if not weak:
+            weak = sorted(topics, key=lambda t: t["score"])[:2]
+        return heuristic_coach(weak, 0)
 
 def heuristic_coach(weak: List[dict], trend: float) -> dict:
     focus = [
