@@ -37,7 +37,6 @@
   --shadow-hover:0 16px 40px rgba(79,70,229,0.1);
 }
 *{margin:0;padding:0;box-sizing:border-box}
-/* Official Lenis CSS to ensure proper smooth scroll behavior */
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
@@ -57,14 +56,6 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 .blob.b3{width:450px;height:450px;background:#a855f7;top:30%;right:20%;animation-delay:-16s}
 @keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.1)}}
 
-/* Disabled OS-level reduced motion overrides to guarantee animations work */
-/* @media (prefers-reduced-motion: reduce){
-  .blob{animation:none}
-  html{scroll-behavior:auto}
-  *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}
-} */
-
-/* Auth Screen */
 #authView{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:24px}
 .auth-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:32px;backdrop-filter:blur(60px);-webkit-backdrop-filter:blur(60px);box-shadow:var(--shadow-hover);padding:40px;width:100%;max-width:380px;animation:authIn .6s var(--spring);display:flex;flex-direction:column;align-items:center}
 @keyframes authIn{from{opacity:0;transform:scale(0.9) translateY(20px)}to{opacity:1;transform:none}}
@@ -87,7 +78,6 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 .auth-form .field input:focus,.auth-form .field select:focus{border-color:var(--accent)}
 .auth-btn{width:100%;margin-top:8px;justify-content:center}
 
-/* Nav */
 nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:blur(var(--blur));background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--shadow-sm);width:calc(100% - 48px);max-width:1100px;height:60px}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;padding-left:8px}
 .logo svg{width:20px;height:20px}
@@ -103,7 +93,6 @@ nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;displ
 .iconbtn:hover{color:var(--ink);transform:rotate(20deg) scale(1.1)}
 .iconbtn.logout:hover{color:var(--coral)}
 
-/* Settings Gear Active State */
 #navSettingsBtn.active {
   background: var(--accent);
   color: var(--accent-text);
@@ -111,7 +100,6 @@ nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;displ
   border-color: var(--accent);
 }
 
-/* Layout */
 main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24px 100px}
 .view{display:none}
 .view.active{display:block}
@@ -122,7 +110,6 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24
 .view.active > *:not([hidden]):nth-child(4){animation-delay:0.2s}
 @keyframes staggerIn{from{opacity:0;transform:translateY(15px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 
-/* Snappy and Fluid View Transitions */
 .view.is-leaving,
 .view.is-entering{will-change:opacity,transform}
 .view.is-leaving{display:block !important;pointer-events:none;animation:viewOut .2s var(--smooth) both}
@@ -132,7 +119,6 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24
 @keyframes viewInRight{from{opacity:0;transform:translate3d(20px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
 @keyframes viewInLeft{from{opacity:0;transform:translate3d(-20px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
 
-/* @media (prefers-reduced-motion: reduce){.view.is-leaving,.view.is-entering{animation:none}} */
 .view-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
 .view-header .text-block{flex:1;min-width:250px}
 .kicker{font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.15em}
@@ -162,7 +148,6 @@ h2.sec{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:20px
 .badge.static{color:var(--mint);border-color:rgba(52,211,153,0.3)}
 .badge.pdf{color:var(--coral);border-color:rgba(251,113,133,0.3)}
 .custom-select{position:relative;width:100%;z-index:10}
-/* Fix: raise z-index of open dropdown so its menu always appears above neighbouring dropdowns */
 .custom-select.open{z-index:30}
 .select-trigger{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px;font-weight:500;cursor:pointer}
 .select-trigger .arrow{width:16px;height:16px;transition:transform .3s var(--spring);opacity:0.7}
@@ -283,11 +268,9 @@ input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border
 .mobilenav a.active{background:var(--accent);color:#fff}
 footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
 
-/* Base styles for the new profile classes */
 .profile-grid { grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .profile-upgrade-boxes { display:flex; gap:12px; margin-bottom:20px; }
 
-/* Settings Form specific */
 .settings-grid { display:grid; gap: 24px; grid-template-columns: 1fr 1fr; align-items: start; }
 .settings-card .field { margin-bottom: 20px; }
 
@@ -296,9 +279,7 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
   .navlinks{display:none}
   .dash-grid,.sched,.src-seg,#panel-static,#panel-ai,#panel-pdf{grid-template-columns:1fr !important}
   
-  /* Stack the profile page vertically on mobile */
   .profile-grid { grid-template-columns: 1fr !important; }
-  /* Stack the upgrade boxes vertically on mobile */
   .profile-upgrade-boxes { flex-direction: column; }
   .settings-grid { grid-template-columns: 1fr !important; }
   
@@ -309,7 +290,6 @@ footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
   .chat-win{bottom:80px;right:12px;height:60vh}.chat-fab{bottom:80px;right:20px}
 }
 
-/* RTL Support for Arabic */
 html[dir="rtl"] body { font-family: 'Tajawal', 'Cairo', var(--body); }
 html[dir="rtl"] .auth-form .field input,
 html[dir="rtl"] .field input,
@@ -324,7 +304,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
   <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
 </div>
 
-<!-- AUTH SCREEN -->
 <div id="authView" style="display:none">
   <div class="auth-card">
     <div class="auth-logo">
@@ -387,7 +366,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
   </div>
 </div>
 
-<!-- MAIN APP -->
 <div id="appView" style="display:none">
   <nav>
     <div class="logo">
@@ -411,7 +389,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
   </nav>
 
   <main>
-    <!-- DASHBOARD -->
     <section class="view active" id="view-dashboard">
       <div class="view-header">
         <div class="text-block">
@@ -453,7 +430,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
       </div>
     </section>
 
-    <!-- QUIZ -->
     <section class="view" id="view-quiz">
       <div class="view-header">
         <div class="text-block"><div class="kicker" data-i18n="quiz_engine">Quiz Engine</div><h1 class="big" data-i18n="expedition">Expedition</h1></div>
@@ -510,7 +486,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
       </div>
     </section>
 
-    <!-- SCHEDULER -->
     <section class="view" id="view-scheduler">
       <div class="view-header">
         <div class="text-block"><div class="kicker" data-i18n="scheduler">Scheduler</div><h1 class="big" data-i18n="priority_queue">Priority Queue</h1><p class="sub" data-i18n="sched_sub">Tasks are ranked automatically based on deadline urgency and your current topic weakness.</p></div>
@@ -534,7 +509,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
       </div>
     </section>
 
-    <!-- COACH -->
     <section class="view" id="view-coach">
       <div class="view-header" style="justify-content:center;text-align:center">
         <div class="text-block">
@@ -548,7 +522,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
       <div id="coachOut"></div>
     </section>
 
-    <!-- PROFILE & BILLING -->
     <section class="view" id="view-profile">
       <div class="view-header">
         <div class="text-block">
@@ -608,7 +581,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
       </div>
     </section>
 
-    <!-- SETTINGS -->
     <section class="view" id="view-settings">
       <div class="view-header">
         <div class="text-block">
@@ -620,7 +592,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
       
       <div class="settings-grid">
         <div class="grid" style="gap:20px">
-          <!-- Account Settings -->
           <div class="card settings-card">
             <h2 class="sec" data-i18n="account_info">Account Information</h2>
             <div class="field">
@@ -679,7 +650,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
         </div>
 
         <div class="grid" style="gap:20px">
-          <!-- Security Settings -->
           <div class="card settings-card">
             <h2 class="sec" data-i18n="security">Security</h2>
             <div class="field">
@@ -718,7 +688,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
   <footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
 </div>
 
-<!-- Upgrade Limit Modal -->
 <div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px">
   <div class="auth-card" style="max-width:450px">
     <div class="auth-logo" data-i18n="limit_reached">Limit Reached</div>
@@ -747,7 +716,6 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
 <script>
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 
-// --- i18n Dictionary ---
 const translations = {
   en: {
     auth_sub: "Sign in to sync your ascent", google_btn: "Continue with Google", or: "OR", login: "Log In", signup: "Sign Up", password: "Password",
@@ -772,7 +740,6 @@ const translations = {
     update_password: "Update Password", tutor: "El-Peak Tutor", powered_groq: "Powered by Groq · Online", tutor_welcome: "Hey! I'm your AI tutor. Ask me anything about your studies.",
     ask_q: "Ask a question...", home: "Home", plan: "Plan", limit_reached: "Limit Reached", limit_sub: "You've used all your free credits for this month. Upgrade to keep your ascent going!",
     maybe_later: "Maybe Later", days: "days",
-    // Edu-specific
     user_type: "User Type", general: "General", school: "School Student", grade_level: "Grade Level",
     g1_6: "Primary (1-6)", g7_9: "Preparatory (7-9)", g10_12: "Secondary (10-12)"
   },
@@ -799,7 +766,6 @@ const translations = {
     update_password: "تحديث كلمة المرور", tutor: "مدرس El-Peak", powered_groq: "مدعوم من Groq · متصل", tutor_welcome: "مرحباً! أنا مدرسك الذكي. اسألني أي شيء عن دراستك.",
     ask_q: "اطرح سؤالاً...", home: "الرئيسية", plan: "الخطة", limit_reached: "تم الوصول للحد", limit_sub: "لقد استخدمت كل أرصتك المجانية لهذا الشهر. قم بالترقية لمواصلة صعودك!",
     maybe_later: "ربما لاحقاً", days: "أيام",
-    // Edu-specific
     user_type: "نوع المستخدم", general: "عام", school: "طالب مدرسة", grade_level: "المرحلة الدراسية",
     g1_6: "ابتدائية (1-6)", g7_9: "إعدادية (7-9)", g10_12: "ثانوية (10-12)"
   }
@@ -809,7 +775,6 @@ function applyLanguage(lang) {
   const dict = translations[lang] || translations.en;
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    // Skip select-text spans inside custom dropdowns to prevent overwriting user's selection
     if (el.classList.contains('select-text') && (el.closest('#settingsGradeSelect') || el.closest('#settingsTypeSelect') || el.closest('#authGradeSelect') || el.closest('#authTypeSelect'))) return;
     if (dict[key]) el.textContent = dict[key];
   });
@@ -831,18 +796,15 @@ function applyLanguage(lang) {
     opt.classList.toggle('selected', opt.dataset.val === lang);
   });
   
-  // After applying language, re-sync the settings dropdowns to show the translated version of the selected value
   syncSettingsDropdowns();
 }
 
 function syncSettingsDropdowns() {
-    // Sync Type
     const typeOpt = $("#settingsTypeMenu .select-option.selected");
     if (typeOpt) $("#settingsTypeSelect .select-text").textContent = typeOpt.textContent;
     const authTypeOpt = $("#authTypeMenu .select-option.selected");
     if (authTypeOpt) $("#authTypeSelect .select-text").textContent = authTypeOpt.textContent;
 
-    // Sync Grade
     const gradeOpt = $("#settingsGradeMenu .select-option.selected");
     if (gradeOpt) $("#settingsGradeSelect .select-text").textContent = gradeOpt.textContent;
     const authGradeOpt = $("#authGradeMenu .select-option.selected");
@@ -853,18 +815,7 @@ function toast(m){const t=document.createElement("div");t.className="toast";t.te
 function ago(s){const d=(Date.now()-new Date(s))/1e3;if(d<60)return"just now";if(d<3600)return Math.floor(d/60)+"m ago";if(d<86400)return Math.floor(d/3600)+"h ago";return Math.floor(d/86400)+"d ago"}
 function count(el,to,suf=""){const t0=performance.now(),dur=800;function f(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e)+suf;if(p<1)requestAnimationFrame(f)}requestAnimationFrame(f)}
 
-// =====================================================================
-// LENIS SMOOTH SCROLLING — manual RAF loop
-// -----------------------------------------------------------------------
-// Using a manual requestAnimationFrame loop (instead of autoRaf:true) gives
-// us a single cancellable handle, which we need to cleanly stop/restart
-// Lenis around auth transitions and page-view changes without leaking
-// frames. TUNING: `lerp` is the main "smoothness" knob — lower (e.g. 0.07)
-// = smoother/slower catch-up to the target scroll position, higher
-// (e.g. 0.15-0.2) = snappier/more responsive. `duration` affects only
-// programmatic scrollTo() calls, not wheel input.
-// =====================================================================
-const reducedMotion = false; // Forced to false to guarantee animations run
+const reducedMotion = false;
 let lenis = null;
 let lenisRafId = null;
 
@@ -872,7 +823,7 @@ function initLenis() {
   if (reducedMotion || !window.Lenis) return null;
 
   const instance = new Lenis({
-    lerp: 0.07, // Lower value for smoother wheel scrolling
+    lerp: 0.07,
     smoothWheel: true,
     wheelMultiplier: 1,
   });
@@ -893,10 +844,6 @@ lenis = initLenis();
 let currentView = $(".view.active")?.id.replace("view-", "") || "dashboard";
 let transitionTimer = null;
 
-// Smooth scroll — used for same-view "scroll to top" clicks only (nav link
-// re-clicked while already on that view). NOT used for view-change resets,
-// see resetScrollForTransition() below — running two scroll animations at
-// once (transition + smooth scroll) competes for the same frame budget.
 const scrollToTop = () => {
   if (lenis) {
     lenis.scrollTo(0, { duration: 0.7, force: true });
@@ -905,8 +852,6 @@ const scrollToTop = () => {
   }
 };
 
-// Instant reset — used right before a view transition starts, so scroll
-// position doesn't fight the transition's own transform animation.
 const resetScrollForTransition = () => {
   if (lenis) {
     lenis.scrollTo(0, { immediate: true });
@@ -926,7 +871,7 @@ document.documentElement.dataset.theme = savedTheme;
 
 let token = localStorage.getItem("ep-token");
 let currentLang = localStorage.getItem("ep-lang") || "en";
-let currentGrade = "general"; // Will be fetched from settings
+let currentGrade = "general";
 
 async function api(p, o={}) {
   let r;
@@ -962,7 +907,6 @@ function showApp() {
     loadDashboard();
     loadProfile();
     applyLanguage(currentLang);
-    // Fetch user settings to update difficulty buttons
     api("/api/user/settings").then(settings => {
         currentGrade = settings.grade || "general";
         updateDifficultyButtons(currentGrade);
@@ -1011,23 +955,15 @@ if (token) {
     btn.classList.remove("loading"); btn.disabled = false;
 };
 
-// === Dropdown Manager =============================================
-// Ensures only one custom-select dropdown can be open at any time.
-// Previously each dropdown registered its own document click handler
-// with stopPropagation on the trigger, which meant opening dropdown B
-// never closed dropdown A. This centralised manager fixes that.
 function closeAllDropdowns(except) {
   $$(".custom-select.open").forEach(sel => {
     if (sel !== except) sel.classList.remove("open");
   });
 }
-// Single document-level handler — closes all dropdowns when clicking outside any .custom-select.
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".custom-select")) closeAllDropdowns();
 });
-// =================================================================
 
-// --- Auth Type & Grade Logic ---
 function wireSelect(selectId, menuId, onChange) {
     const sel = $(`#${selectId}`);
     if (!sel) return;
@@ -1035,8 +971,8 @@ function wireSelect(selectId, menuId, onChange) {
     sel.querySelector(".select-trigger").onclick = (e) => {
         e.stopPropagation();
         const wasOpen = sel.classList.contains("open");
-        closeAllDropdowns(); // Close all dropdowns first
-        if (!wasOpen) sel.classList.add("open"); // If this one was closed, open it. If it was open, it stays closed.
+        closeAllDropdowns();
+        if (!wasOpen) sel.classList.add("open");
     };
     $$(`#${menuId} .select-option`).forEach(opt => {
         opt.onclick = () => {
@@ -1100,10 +1036,6 @@ wireSelect("authGradeSelect", "authGradeMenu", (val) => {
     }
 };
 
-// Google OAuth redirect handler.
-// The backend never puts the raw JWT in the URL (that would leak via logs/history/referrers).
-// Instead /api/auth/google/callback redirects here with a short-lived one-time "oauth_code",
-// which must be exchanged for a real token via POST /api/auth/google/exchange.
 const urlParams = new URLSearchParams(window.location.search);
 const oauthCode = urlParams.get('oauth_code');
 if (oauthCode) {
@@ -1139,15 +1071,10 @@ function moveSlider(activeLink) {
   slider.style.width = activeLink.offsetWidth + "px";
 }
 
-// Strip will-change once a view's enter/exit animation is done. Leaving it
-// on indefinitely (e.g. as a static class on .view) forces the browser to
-// keep every view's compositor layer resident at all times — with six
-// views in the DOM that's real, avoidable GPU memory pressure.
 function stripWillChangeOnEnd(el) {
   const clear = () => { el.style.willChange = "auto"; };
   el.addEventListener("animationend", clear, { once: true });
-  // Safety net in case animationend doesn't fire (e.g. display:none mid-flight)
-  setTimeout(clear, 500); // Lowered to match faster animation
+  setTimeout(clear, 500);
 }
 
 function go(v){
@@ -1169,13 +1096,10 @@ function go(v){
 
     if (transitionTimer) clearTimeout(transitionTimer);
 
-    // Reset scroll instantly BEFORE the transition starts — running a smooth
-    // scroll and the view transition at once competes for the same frame
-    // budget and reads as janky. See resetScrollForTransition() above.
     resetScrollForTransition();
 
     $$(".view").forEach(x => {
-      x.classList.remove("is-leaving", "is-entering", "from-left", "wobble"); // Ensure wobble is cleaned up
+      x.classList.remove("is-leaving", "is-entering", "from-left", "wobble");
       if (x !== currentViewEl && x !== nextView) x.classList.remove("active");
     });
 
@@ -1185,7 +1109,7 @@ function go(v){
     const reveal = () => {
       if (currentViewEl) currentViewEl.classList.remove("active", "is-leaving");
       nextView.classList.remove("is-leaving", "is-entering", "from-left", "wobble"); 
-      nextView.classList.add("active", "is-entering"); // Removed "wobble"
+      nextView.classList.add("active", "is-entering");
       if (direction === "left") nextView.classList.add("from-left");
       void nextView.offsetWidth;
       stripWillChangeOnEnd(nextView);
@@ -1210,12 +1134,12 @@ function go(v){
       applyLanguage(currentLang);
 
       setTimeout(() => {
-        nextView.classList.remove("is-entering", "from-left", "wobble"); // Clean up wobble class
+        nextView.classList.remove("is-entering", "from-left", "wobble");
         if (lenis) lenis.resize();
-      }, reducedMotion ? 0 : 400); // Lowered to match 0.4s entry animation
+      }, reducedMotion ? 0 : 400);
     };
 
-    transitionTimer = setTimeout(reveal, reducedMotion ? 0 : 200); // Matches 0.2s exit
+    transitionTimer = setTimeout(reveal, reducedMotion ? 0 : 200);
 }
 
  $$("[data-view]").forEach(a => {
@@ -1230,13 +1154,11 @@ window.addEventListener('resize', () => {
   if(lenis) lenis.resize();
 });
 
-// --- Dynamic Difficulty Buttons ---
 function updateDifficultyButtons(grade) {
     const labels = grade === "g1-6" ? ["1-2", "3-4", "5-6"] :
                    grade === "g7-9" ? ["7", "8", "9"] :
                    grade === "g10-12" ? ["10", "11", "12"] : ["Easy", "Mixed", "Hard"];
     
-    // Update AI/PDF difficulty segment
     const diffSeg = $("#diffSeg");
     if (diffSeg) {
         diffSeg.querySelectorAll("button").forEach((btn, i) => {
@@ -1245,7 +1167,6 @@ function updateDifficultyButtons(grade) {
         });
     }
     
-    // Update Static difficulty segment
     const diffStaticSeg = $("#diffStaticSeg");
     if (diffStaticSeg) {
         diffStaticSeg.querySelectorAll("button").forEach((btn, i) => {
@@ -1315,15 +1236,14 @@ async function loadSettings() {
         
         settingsUserType = settings.user_type || "general";
         settingsUserGrade = settings.grade || "g1-6";
-        currentGrade = settingsUserGrade; // Update global grade
-        updateDifficultyButtons(currentGrade); // Update quiz buttons based on settings
+        currentGrade = settingsUserGrade;
+        updateDifficultyButtons(currentGrade);
         
         $$("#settingsTypeMenu .select-option").forEach(o => o.classList.toggle("selected", o.dataset.val === settingsUserType));
         $("#settingsGradeField").style.display = settingsUserType === "school" ? "block" : "none";
         
         $$("#settingsGradeMenu .select-option").forEach(o => o.classList.toggle("selected", o.dataset.val === settingsUserGrade));
         
-        // Sync the text inside the trigger boxes
         syncSettingsDropdowns();
         
     } catch (e) {
@@ -1382,8 +1302,8 @@ const langMenu = $("#langMenu");
 langSelect.querySelector(".select-trigger").onclick = (e) => {
     e.stopPropagation();
     const wasOpen = langSelect.classList.contains("open");
-    closeAllDropdowns(); // Close all dropdowns first
-    if (!wasOpen) langSelect.classList.add("open"); // Toggle this one
+    closeAllDropdowns();
+    if (!wasOpen) langSelect.classList.add("open");
 };
  $$("#langMenu .select-option").forEach(opt => {
     opt.onclick = () => {
@@ -1428,8 +1348,8 @@ let staticTopicValue = "";
 staticSelect.querySelector(".select-trigger").onclick = (e) => {
     e.stopPropagation();
     const wasOpen = staticSelect.classList.contains("open");
-    closeAllDropdowns(); // Close all dropdowns first
-    if (!wasOpen) staticSelect.classList.add("open"); // Toggle this one
+    closeAllDropdowns();
+    if (!wasOpen) staticSelect.classList.add("open");
 };
 api("/api/quiz/subjects").then(d => {
   staticMenu.innerHTML = d.subjects.map(s => `<div class="select-option" data-val="${s}">${s}</div>`).join("");
@@ -1465,6 +1385,14 @@ const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
 ["dragleave","drop"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.remove("over")}));
  $("#drop").addEventListener("drop",e=>{pdfFile=e.dataTransfer.files[0]||null;$("#fileName").textContent=pdfFile?`✔ ${pdfFile.name}`:""});
 
+function resetBeginBtn() {
+    const btn = $("#beginBtn");
+    btn.innerHTML = `<span class="spin"></span><span data-i18n="begin_ascent">Begin Ascent</span> →`;
+    applyLanguage(currentLang);
+    btn.classList.remove("loading");
+    btn.disabled = false;
+}
+
  $("#beginBtn").onclick=async()=>{
   const btn=$("#beginBtn");btn.classList.add("loading");btn.disabled=true;
   try{
@@ -1477,15 +1405,49 @@ const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
     }else{
       if(!pdfFile)throw new Error("Choose a PDF first");
       const fd=new FormData();fd.append("file",pdfFile);
-      fd.append("topic",$("#pdfTopic").value.trim());fd.append("difficulty",segVal("diffSeg","d"));
-      quiz=await api("/api/quiz/pdf",{method:"POST",body:fd});
+      fd.append("topic",$("#pdfTopic").value.trim());
+      fd.append("difficulty",segVal("diffSeg","d"));
+      fd.append("num_questions", "0");
+      
+      const enq = await api("/api/quiz/pdf", {method:"POST", body:fd});
+      const jobId = enq.job_id;
+      if (!jobId) throw new Error("Upload failed: no job id returned.");
+      
+      const startedAt = Date.now();
+      const timeoutMs = 330000;
+      const intervalMs = 2000;
+      
+      btn.innerHTML = `<span class="spin"></span> Uploading...`;
+      
+      while (true) {
+          if (Date.now() - startedAt > timeoutMs) {
+              throw new Error("This is taking longer than usual. Please try again later.");
+          }
+          await new Promise(r => setTimeout(r, intervalMs));
+          
+          const data = await api(`/api/quiz/pdf/status/${jobId}`);
+          const status = data.status;
+          
+          if (status === "complete") {
+              if (!data.result || !Array.isArray(data.result.questions) || data.result.questions.length === 0) {
+                  throw new Error("No questions could be generated from that PDF.");
+              }
+              quiz = data.result;
+              break;
+          }
+          if (status === "error") {
+              throw new Error(data.detail || "PDF processing failed. The file may be unreadable.");
+          }
+          
+          const elapsed = Math.round((Date.now() - startedAt) / 1000);
+          btn.innerHTML = `<span class="spin"></span> Processing PDF... ${elapsed}s`;
+      }
     }
     qi=0;correct=0;$("#setupCard").hidden=true;$("#resultCard").hidden=true;$("#playCard").hidden=false;renderQ();
     if(quiz.note)toast(quiz.note);
   } catch(e) {
       const msg = e.message.toLowerCase();
       if (msg.includes("rate limit") || msg.includes("wait")) {
-          // Handle Rate Limiting UI (Countdown)
           const waitMatch = e.message.match(/\d+/);
           const waitTime = waitMatch ? parseInt(waitMatch[0]) : 15;
           toast(`⏳ Rate limit: Please wait ${waitTime}s before generating more AI content.`);
@@ -1496,26 +1458,20 @@ const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
               timeLeft--;
               if (timeLeft < 0) {
                   clearInterval(interval);
-                  btn.innerHTML = `<span class="spin"></span><span data-i18n="begin_ascent">Begin Ascent</span> →`;
-                  applyLanguage(currentLang);
-                  btn.disabled = false;
-                  btn.classList.remove("loading");
+                  resetBeginBtn();
               }
           }, 1000);
       } else if (msg.includes("limit")) {
           showUpgradeModal();
-          btn.classList.remove("loading");
-          btn.disabled = false;
+          resetBeginBtn();
       } else {
           toast("⚠ " + e.message);
-          btn.classList.remove("loading");
-          btn.disabled = false;
+          resetBeginBtn();
       }
+      return;
   }
-  if(!btn.textContent.includes("s...")) {
-      btn.classList.remove("loading");
-      btn.disabled = false;
-  }
+  btn.classList.remove("loading");
+  btn.disabled = false;
 };
 function renderQ(){
   const q=quiz.questions[qi];
@@ -1536,7 +1492,7 @@ function renderQ(){
   });
 }
  $("#qNext").onclick=()=>{qi++;qi<quiz.questions.length?renderQ():finish()};
- $("#exitBtn").onclick=()=>{$("#playCard").hidden=true;$("#setupCard").hidden=false};
+ $("#exitBtn").onclick=()=>{$("#playCard").hidden=true;$("#setupCard").hidden=false; resetBeginBtn();};
 async function finish(){
   $("#playCard").hidden=true;
   try{
@@ -1549,7 +1505,7 @@ async function finish(){
   }catch(e){$("#resPct").textContent=Math.round(correct/quiz.questions.length*100)+"%";$("#resDelta").textContent="";$("#resTopic").textContent="⚠ "+e.message}
   $("#resultCard").hidden=false;
 }
- $("#againBtn").onclick=()=>{$("#resultCard").hidden=true;$("#setupCard").hidden=false};
+ $("#againBtn").onclick=()=>{$("#resultCard").hidden=true;$("#setupCard").hidden=false; resetBeginBtn();};
  $("#homeBtn").onclick=()=>go("dashboard");
 
 async function loadSchedule(){
