@@ -1,136 +1,76 @@
 """
-El-Peak — cache.py (P2 Redis layer)
-Implements Redis-backed rate limiting, AI response caching, and
-cross-instance single-flight locking used by main.py.
+El-Peak — Redis Cache & Rate Limiting Layer (P2.2)
+Replaces in-process single-flight locks and DB-backed rate limits
+to ensure correct behavior across multiple Railway instances.
 """
 import os
 import json
 import time
 import logging
-from typing import Optional, Any
-
 import redis.asyncio as redis
+from redis.asyncio.lock import Lock
 
 logger = logging.getLogger("el-peak.cache")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-
-REDIS_CLIENT: Optional["redis.Redis"] = None
-
+_redis_pool: redis.Redis | None = None
 
 async def init_redis():
-    global REDIS_CLIENT
-    if REDIS_CLIENT is None:
-        REDIS_CLIENT = redis.from_url(
-            REDIS_URL,
-            encoding="utf-8",
-            decode_responses=True,
-            socket_connect_timeout=5,
-            socket_timeout=5,
-        )
-        try:
-            await REDIS_CLIENT.ping()
-            logger.info("Redis connected.")
-        except Exception as e:
-            logger.error("Redis connection failed: %s", e)
-            # Keep REDIS_CLIENT set; individual calls will fail gracefully below.
-
+    global _redis_pool
+    if _redis_pool is None:
+        _redis_pool = redis.from_url(REDIS_URL, decode_responses=True)
+        logger.info("Redis connected.")
 
 async def close_redis():
-    global REDIS_CLIENT
-    if REDIS_CLIENT is not None:
-        try:
-            await REDIS_CLIENT.close()
-        except Exception:
-            pass
-        REDIS_CLIENT = None
+    global _redis_pool
+    if _redis_pool is not None:
+        await _redis_pool.close()
+        _redis_pool = None
 
+def get_redis() -> redis.Redis:
+    if _redis_pool is None:
+        raise RuntimeError("Redis not initialized. Call init_redis() in lifespan.")
+    return _redis_pool
 
-def _client() -> "redis.Redis":
-    if REDIS_CLIENT is None:
-        raise RuntimeError("Redis client not initialized. Call init_redis() in lifespan.")
-    return REDIS_CLIENT
-
-
-# -----------------------------
-# Rate limiting (P0.5 / P2.2)
-# -----------------------------
 async def check_rate_limit_redis(key: str, seconds: int) -> tuple[bool, int]:
     """
-    Returns (allowed, wait_seconds). Uses SET NX with expiry as an atomic
-    per-key cooldown — first call in the window sets the key and succeeds;
-    subsequent calls within `seconds` fail until it expires.
-    Fails OPEN (allowed=True) if Redis is unreachable, so a Redis outage
-    does not take down auth/AI endpoints entirely.
+    Cross-instance interval rate limit.
+    Uses a simple SET with TTL. If the key exists, the interval hasn't elapsed.
     """
-    try:
-        client = _client()
-        rl_key = f"ratelimit:{key}"
-        was_set = await client.set(rl_key, "1", nx=True, ex=seconds)
-        if was_set:
-            return True, 0
-        ttl = await client.ttl(rl_key)
-        return False, max(1, ttl if ttl and ttl > 0 else seconds)
-    except Exception as e:
-        logger.warning("Rate limit check failed (failing open): %s", e)
-        return True, 0
+    r = get_redis()
+    current = time.time()
+    redis_key = f"ratelimit:{key}"
+    
+    last_req = await r.get(redis_key)
+    if last_req:
+        elapsed = current - float(last_req)
+        if elapsed < seconds:
+            return False, int(seconds - elapsed) + 1
+            
+    await r.set(redis_key, str(current), ex=seconds)
+    return True, 0
 
-
-# -----------------------------
-# AI response cache (P1.1 / P2.2)
-# -----------------------------
-async def get_ai_cache_redis(cache_key: str, ttl: int) -> Optional[dict]:
-    try:
-        client = _client()
-        raw = await client.get(f"aicache:{cache_key}")
-        if raw is None:
+async def get_ai_cache_redis(key: str, ttl_seconds: int) -> dict | None:
+    r = get_redis()
+    redis_key = f"aicache:{key}"
+    raw = await r.get(redis_key)
+    if raw:
+        try:
+            return json.loads(raw)
+        except Exception:
             return None
-        return json.loads(raw)
-    except Exception as e:
-        logger.warning("AI cache read failed: %s", e)
-        return None
+    return None
 
+async def set_ai_cache_redis(key: str, payload: dict, ttl_seconds: int):
+    r = get_redis()
+    redis_key = f"aicache:{key}"
+    await r.set(redis_key, json.dumps(payload, ensure_ascii=False), ex=ttl_seconds)
 
-async def set_ai_cache_redis(cache_key: str, payload: Any, ttl: int) -> None:
-    try:
-        client = _client()
-        await client.set(f"aicache:{cache_key}", json.dumps(payload, ensure_ascii=False), ex=ttl)
-    except Exception as e:
-        logger.warning("AI cache write failed: %s", e)
-
-
-# -----------------------------
-# Single-flight lock (P1.1 / P2.2)
-# -----------------------------
-class RedisSingleFlightLock:
+def get_single_flight_lock_redis(key: str) -> Lock:
     """
-    Minimal distributed lock: SET NX with a short TTL as a safety net so a
-    crashed holder can't wedge the key forever. Not a full Redlock — fine
-    for "avoid duplicate Groq calls," not for correctness-critical locking.
+    Cross-instance single-flight lock.
+    timeout=60s prevents deadlocks if a worker crashes mid-Groq-call.
+    blocking_timeout=5s makes concurrent requests wait briefly for the first one to finish and cache.
     """
-    def __init__(self, key: str, ttl: int = 15):
-        self._key = f"lock:{key}"
-        self._ttl = ttl
-        self._token = str(time.time())
-
-    async def acquire(self) -> bool:
-        try:
-            client = _client()
-            return bool(await client.set(self._key, self._token, nx=True, ex=self._ttl))
-        except Exception as e:
-            logger.warning("Lock acquire failed: %s", e)
-            return False
-
-    async def release(self) -> None:
-        try:
-            client = _client()
-            # Only delete if we still hold it (best-effort, not atomic CAS).
-            current = await client.get(self._key)
-            if current == self._token:
-                await client.delete(self._key)
-        except Exception as e:
-            logger.warning("Lock release failed: %s", e)
-
-
-def get_single_flight_lock_redis(cache_key: str) -> RedisSingleFlightLock:
-    return RedisSingleFlightLock(cache_key)
+    r = get_redis()
+    return Lock(r, f"lock:{key}", timeout=60.0, blocking_timeout=5.0)
