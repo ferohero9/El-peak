@@ -1393,85 +1393,64 @@ function resetBeginBtn() {
     btn.disabled = false;
 }
 
- $("#beginBtn").onclick=async()=>{
-  const btn=$("#beginBtn");btn.classList.add("loading");btn.disabled=true;
-  try{
-    if(src==="static")quiz=await api(`/api/quiz/static?topic=${encodeURIComponent(staticTopicValue)}&n=${segVal("lenStatic","n")}&difficulty=${segVal("diffStaticSeg","d")}`);
-    else if(src==="ai"){
-      const t=$("#aiTopic").value.trim();if(!t)throw new Error("Type a topic first");
-      let n=parseInt(lenAiSlider.value)||4;
-      n=Math.max(1,Math.min(30,n));
-      quiz=await api("/api/quiz/ai",{method:"POST",body:{topic:t,num_questions:n,difficulty:segVal("diffSeg","d")}});
-    }else{
-      if(!pdfFile)throw new Error("Choose a PDF first");
-      const fd=new FormData();fd.append("file",pdfFile);
-      fd.append("topic",$("#pdfTopic").value.trim());
-      fd.append("difficulty",segVal("diffSeg","d"));
-      fd.append("num_questions", "0");
-      
-      const enq = await api("/api/quiz/pdf", {method:"POST", body:fd});
-      const jobId = enq.job_id;
-      if (!jobId) throw new Error("Upload failed: no job id returned.");
-      
-      const startedAt = Date.now();
-      const timeoutMs = 330000;
-      const intervalMs = 2000;
-      
-      btn.innerHTML = `<span class="spin"></span> Uploading...`;
-      
-      while (true) {
-          if (Date.now() - startedAt > timeoutMs) {
-              throw new Error("This is taking longer than usual. Please try again later.");
-          }
-          await new Promise(r => setTimeout(r, intervalMs));
-          
-          const data = await api(`/api/quiz/pdf/status/${jobId}`);
-          const status = data.status;
-          
-          if (status === "complete") {
-              if (!data.result || !Array.isArray(data.result.questions) || data.result.questions.length === 0) {
-                  throw new Error("No questions could be generated from that PDF.");
-              }
-              quiz = data.result;
-              break;
-          }
-          if (status === "error") {
-              throw new Error(data.detail || "PDF processing failed. The file may be unreadable.");
-          }
-          
-          const elapsed = Math.round((Date.now() - startedAt) / 1000);
-          btn.innerHTML = `<span class="spin"></span> Processing PDF... ${elapsed}s`;
-      }
+$("#beginBtn").onclick = async () => {
+    const btn = $("#beginBtn");
+    btn.classList.add("loading");
+    btn.disabled = true;
+    
+    try {
+        if (src === "static") {
+            quiz = await api(`/api/quiz/static?topic=${encodeURIComponent(staticTopicValue)}&n=${segVal("lenStatic","n")}&difficulty=${segVal("diffStaticSeg","d")}`);
+        } else if (src === "ai") {
+            const t = $("#aiTopic").value.trim();
+            if (!t) throw new Error("Type a topic first");
+            let n = parseInt(lenAiSlider.value) || 4;
+            n = Math.max(1, Math.min(30, n));
+            quiz = await api("/api/quiz/ai", {method: "POST", body: {topic: t, num_questions: n, difficulty: segVal("diffSeg","d")}});
+        } else {
+            if (!pdfFile) throw new Error("Choose a PDF first");
+            const fd = new FormData();
+            fd.append("file", pdfFile);
+            fd.append("topic", $("#pdfTopic").value.trim());
+            fd.append("difficulty", segVal("diffSeg","d"));
+            fd.append("num_questions", "0");
+            
+            // P1 Synchronous Flow (Matches your current backend)
+            btn.innerHTML = `<span class="spin"></span> Reading PDF & Generating...`;
+            quiz = await api("/api/quiz/pdf", {method: "POST", body: fd});
+        }
+        
+        qi = 0; correct = 0;
+        $("#setupCard").hidden = true;
+        $("#resultCard").hidden = true;
+        $("#playCard").hidden = false;
+        renderQ();
+        if (quiz.note) toast(quiz.note);
+        
+    } catch (e) {
+        const msg = e.message.toLowerCase();
+        if (msg.includes("rate limit") || msg.includes("wait")) {
+            const waitMatch = e.message.match(/\d+/);
+            const waitTime = waitMatch ? parseInt(waitMatch[0]) : 15;
+            toast(`⏳ Rate limit: Please wait ${waitTime}s.`);
+            let timeLeft = waitTime;
+            btn.disabled = true;
+            const interval = setInterval(() => {
+                btn.innerHTML = `⏳ ${timeLeft}s...`;
+                timeLeft--;
+                if (timeLeft < 0) {
+                    clearInterval(interval);
+                    resetBeginBtn();
+                }
+            }, 1000);
+            return;
+        } else if (msg.includes("limit")) {
+            showUpgradeModal();
+        } else {
+            toast("⚠ " + e.message);
+        }
     }
-    qi=0;correct=0;$("#setupCard").hidden=true;$("#resultCard").hidden=true;$("#playCard").hidden=false;renderQ();
-    if(quiz.note)toast(quiz.note);
-  } catch(e) {
-      const msg = e.message.toLowerCase();
-      if (msg.includes("rate limit") || msg.includes("wait")) {
-          const waitMatch = e.message.match(/\d+/);
-          const waitTime = waitMatch ? parseInt(waitMatch[0]) : 15;
-          toast(`⏳ Rate limit: Please wait ${waitTime}s before generating more AI content.`);
-          let timeLeft = waitTime;
-          btn.disabled = true;
-          const interval = setInterval(() => {
-              btn.innerHTML = `⏳ ${timeLeft}s...`;
-              timeLeft--;
-              if (timeLeft < 0) {
-                  clearInterval(interval);
-                  resetBeginBtn();
-              }
-          }, 1000);
-      } else if (msg.includes("limit")) {
-          showUpgradeModal();
-          resetBeginBtn();
-      } else {
-          toast("⚠ " + e.message);
-          resetBeginBtn();
-      }
-      return;
-  }
-  btn.classList.remove("loading");
-  btn.disabled = false;
+    resetBeginBtn();
 };
 function renderQ(){
   const q=quiz.questions[qi];
