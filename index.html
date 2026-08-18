@@ -1408,17 +1408,16 @@ $("#beginBtn").onclick = async () => {
             n = Math.max(1, Math.min(30, n));
             quiz = await api("/api/quiz/ai", {method: "POST", body: {topic: t, num_questions: n, difficulty: segVal("diffSeg","d")}});
         } else {
-            if (!pdfFile) throw new Error("Choose a PDF first");
-            const fd = new FormData();
-            fd.append("file", pdfFile);
-            fd.append("topic", $("#pdfTopic").value.trim());
-            fd.append("difficulty", segVal("diffSeg","d"));
-            fd.append("num_questions", "0");
-            
-            // P1 Synchronous Flow (Matches your current backend)
-            btn.innerHTML = `<span class="spin"></span> Reading PDF & Generating...`;
-            quiz = await api("/api/quiz/pdf", {method: "POST", body: fd});
-        }
+      if (!pdfFile) throw new Error("Choose a PDF first");
+      const fd = new FormData();
+      fd.append("file", pdfFile);
+      fd.append("topic", $("#pdfTopic").value.trim());
+      fd.append("difficulty", segVal("diffSeg", "d"));
+      fd.append("num_questions", "0"); // <--- ADD THIS LINE
+      
+      btn.innerHTML = `<span class="spin"></span> Reading PDF & Generating...`;
+      quiz = await api("/api/quiz/pdf", {method: "POST", body: fd});
+    }
         
         qi = 0; correct = 0;
         $("#setupCard").hidden = true;
