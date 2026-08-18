@@ -1,14 +1,15 @@
 """
-El-Peak — Data Layer v12.1 (P0 hardening)
+El-Peak — Data Layer v12.2 (P1 hardening)
 PostgreSQL multi-user data layer with improved safety,
-payments, quiz sessions, OAuth codes, and rate limiting.
-P0 changes: IP-based auth rate limiting table, safer pool default,
-advisory-locked schema init (multi-worker safe).
+payments, quiz sessions, OAuth codes, rate limiting,
+AI caching, and scheduled background cleanup.
 """
 import os
 import json
 import time
 import secrets
+import hashlib
+import asyncio
 import datetime as dt
 import logging
 from typing import Any
@@ -112,6 +113,12 @@ CREATE TABLE IF NOT EXISTS usage_events (
     tier TEXT,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ai_cache (
+    key TEXT PRIMARY KEY,
+    payload JSONB NOT NULL,
+    created_at TEXT NOT NULL,
+    hits INTEGER DEFAULT 0
+);
 CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_topics_user ON topics(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);
@@ -121,6 +128,25 @@ CREATE INDEX IF NOT EXISTS idx_usage_events_user ON usage_events(user_id, create
 """
 
 _pool = None
+
+# P1.1: In-process single-flight locks for AI caching.
+# These are per-worker (not shared across instances) — Redis migration is deferred to P2.
+AI_CACHE_LOCKS: dict[str, asyncio.Lock] = {}
+
+async def get_single_flight_lock(key: str) -> asyncio.Lock:
+    if key not in AI_CACHE_LOCKS:
+        AI_CACHE_LOCKS[key] = asyncio.Lock()
+    return AI_CACHE_LOCKS[key]
+
+def make_ai_quiz_cache_key(topic: str, grade: str, difficulty: str, n: int, lang: str) -> str:
+    normalized_topic = (topic or "").strip().lower()
+    raw = f"quiz|{normalized_topic}|{grade}|{difficulty}|{n}|{lang}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+def make_coach_cache_key(user_id: int) -> str:
+    # Cache coach plans per-user, rolling every hour.
+    current_hour = int(time.time() // 3600)
+    return f"coach|{user_id}|{current_hour}"
 
 async def get_pool():
     global _pool
@@ -133,8 +159,6 @@ async def get_pool():
     clean_url = db_url.split("?")[0]
     is_local = "localhost" in clean_url or "127.0.0.1" in clean_url
     min_size = int(os.getenv("DB_POOL_MIN_SIZE", "1"))
-    # P0: default lowered from 10 to 5. With UVICORN_WORKERS=2 that is
-    # 2 x 5 = 10 connections max, safe on small Railway Postgres plans.
     max_size = int(os.getenv("DB_POOL_MAX_SIZE", "5"))
     ssl_mode = False if is_local else "require"
     host_part = clean_url.split("@")[1] if "@" in clean_url else clean_url
@@ -182,9 +206,6 @@ def parse_dt(s: str) -> dt.datetime:
 async def init_db():
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # P0: with multiple workers booting simultaneously, concurrent
-        # CREATE TABLE IF NOT EXISTS can race. Serialize schema init with
-        # a session-level advisory lock.
         await conn.execute("SELECT pg_advisory_lock(7331)")
         try:
             statements = SCHEMA.strip().split(";")
@@ -214,9 +235,9 @@ async def init_db():
         finally:
             await conn.execute("SELECT pg_advisory_unlock(7331)")
 
------------------------------
-AUTH / USERS
------------------------------
+# -----------------------------
+# AUTH / USERS
+# -----------------------------
 async def create_user(
     email: str,
     hashed_pw: str,
@@ -335,9 +356,9 @@ async def update_user_password(user_id: int, hashed_pw: str):
                 user_id
             )
 
------------------------------
-OAUTH CODES
------------------------------
+# -----------------------------
+# OAUTH CODES
+# -----------------------------
 async def create_oauth_code(user_id: int) -> str:
     code = secrets.token_urlsafe(32)
     expires = now_utc() + dt.timedelta(minutes=5)
@@ -369,9 +390,9 @@ async def consume_oauth_code(code: str) -> int | None:
         )
         return row["user_id"] if row else None
 
------------------------------
-TOPICS
------------------------------
+# -----------------------------
+# TOPICS
+# -----------------------------
 async def ensure_topic(user_id: int, name: str, subject: str = "General") -> dict:
     name = name.strip()
     pool = await get_pool()
@@ -414,9 +435,9 @@ async def get_topics(user_id: int) -> list[dict]:
         )
         return [dict(r) for r in rows]
 
------------------------------
-ATTEMPTS
------------------------------
+# -----------------------------
+# ATTEMPTS
+# -----------------------------
 async def record_attempt(
     user_id: int,
     topic_name: str,
@@ -508,9 +529,9 @@ async def heatmap(user_id: int, days: int = 84) -> list[dict]:
         for k, v in counts.items()
     ]
 
------------------------------
-STATS
------------------------------
+# -----------------------------
+# STATS
+# -----------------------------
 async def get_stats(user_id: int) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -564,9 +585,9 @@ async def get_stats(user_id: int) -> dict:
             "best_topic": best["name"] if best else None
         }
 
------------------------------
-TASKS / SCHEDULER
------------------------------
+# -----------------------------
+# TASKS / SCHEDULER
+# -----------------------------
 async def add_task(user_id: int, title: str, topic: str | None, deadline: str) -> dict:
     if topic:
         await ensure_topic(user_id, topic)
@@ -672,9 +693,9 @@ async def get_schedule(user_id: int) -> dict:
         "suggestions": suggestions
     }
 
------------------------------
-USAGE / PAYWALL
------------------------------
+# -----------------------------
+# USAGE / PAYWALL
+# -----------------------------
 async def get_user_usage(user_id: int) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -762,9 +783,9 @@ async def upgrade_user_tier(user_id: int, tier: str):
                 user_id
             )
 
------------------------------
-PAYMENTS
------------------------------
+# -----------------------------
+# PAYMENTS
+# -----------------------------
 async def create_payment(
     user_id: int,
     tier: str,
@@ -887,9 +908,9 @@ async def get_payments(user_id: int, limit: int = 20) -> list[dict]:
         )
         return [dict(r) for r in rows]
 
------------------------------
-RATE LIMITING
------------------------------
+# -----------------------------
+# RATE LIMITING
+# -----------------------------
 async def check_ai_rate_limit(user_id: int, seconds: int) -> tuple[bool, int]:
     now = time.time()
     pool = await get_pool()
@@ -916,11 +937,6 @@ async def check_ai_rate_limit(user_id: int, seconds: int) -> tuple[bool, int]:
     return True, 0
 
 async def check_ip_rate_limit(key: str, seconds: int) -> tuple[bool, int]:
-    """
-    P0: same epoch-interval mechanism as check_ai_rate_limit, but keyed by
-    an arbitrary string (client IP) for anonymous endpoints (login/signup).
-    DB-backed, so it is correct across workers and (later) instances.
-    """
     now = time.time()
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -945,9 +961,9 @@ async def check_ip_rate_limit(key: str, seconds: int) -> tuple[bool, int]:
             )
     return True, 0
 
------------------------------
-USAGE EVENTS
------------------------------
+# -----------------------------
+# USAGE EVENTS
+# -----------------------------
 async def log_usage_event(user_id: int, kind: str, amount: int, tier: str):
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -963,9 +979,9 @@ async def log_usage_event(user_id: int, kind: str, amount: int, tier: str):
             now_str()
         )
 
------------------------------
-QUIZ SESSIONS
------------------------------
+# -----------------------------
+# QUIZ SESSIONS
+# -----------------------------
 async def create_quiz_session(
     user_id: int,
     topic: str,
@@ -1042,23 +1058,96 @@ async def complete_quiz_session(user_id: int, session_id: int):
             now_str()
         )
 
------------------------------
-CLEANUP
------------------------------
-async def cleanup_old_pdf_attempts():
-    """
-    Deletes PDF quiz attempts older than 14 days to save database space.
-    Also removes expired OAuth codes.
-    """
+# -----------------------------
+# AI CACHE (P1.1)
+# -----------------------------
+async def get_ai_cache(key: str, ttl_seconds: int) -> dict | None:
+    pool = await get_pool()
+    cutoff = (now_utc() - dt.timedelta(seconds=ttl_seconds)).isoformat(timespec="seconds")
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            UPDATE ai_cache
+            SET hits = hits + 1
+            WHERE key = $1 AND created_at >= $2
+            RETURNING payload
+            """,
+            key, cutoff
+        )
+        if row:
+            return row["payload"]
+        return None
+
+async def set_ai_cache(key: str, payload: dict):
     pool = await get_pool()
     async with pool.acquire() as conn:
-        async with conn.transaction():
-            cutoff = (now_utc() - dt.timedelta(days=14)).isoformat(timespec="seconds")
-            await conn.execute(
-                "DELETE FROM attempts WHERE source='pdf' AND created_at < $1",
-                cutoff
-            )
-            await conn.execute(
-                "DELETE FROM oauth_codes WHERE expires_at < $1",
-                now_str()
-            )
+        await conn.execute(
+            """
+            INSERT INTO ai_cache (key, payload, created_at, hits)
+            VALUES ($1, $2, $3, 0)
+            ON CONFLICT (key) DO UPDATE 
+            SET payload = EXCLUDED.payload, created_at = EXCLUDED.created_at, hits = 0
+            """,
+            key, json.dumps(payload, ensure_ascii=False), now_str()
+        )
+
+# -----------------------------
+# CLEANUP (P1.3)
+# -----------------------------
+async def run_periodic_cleanup():
+    """
+    P1.3: Background task to periodically clean up old data.
+    Runs every 6 hours. Replaces the old startup-only cleanup.
+    """
+    while True:
+        try:
+            await asyncio.sleep(3600 * 6)
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                async with conn.transaction():
+                    # 1. Old PDF attempts (14 days)
+                    cutoff_14d = (now_utc() - dt.timedelta(days=14)).isoformat(timespec="seconds")
+                    await conn.execute(
+                        "DELETE FROM attempts WHERE source='pdf' AND created_at < $1",
+                        cutoff_14d
+                    )
+                    # 2. Expired OAuth codes
+                    await conn.execute(
+                        "DELETE FROM oauth_codes WHERE expires_at < $1",
+                        now_str()
+                    )
+                    # 3. Old non-PDF attempts (90 days)
+                    cutoff_90d = (now_utc() - dt.timedelta(days=90)).isoformat(timespec="seconds")
+                    await conn.execute(
+                        "DELETE FROM attempts WHERE source <> 'pdf' AND created_at < $1",
+                        cutoff_90d
+                    )
+                    # 4. Old usage_events (90 days)
+                    await conn.execute(
+                        "DELETE FROM usage_events WHERE created_at < $1",
+                        cutoff_90d
+                    )
+                    # 5. Stale IP rate limits (older than 1 day)
+                    cutoff_1d_epoch = time.time() - 86400
+                    await conn.execute(
+                        "DELETE FROM ip_rate_limits WHERE last_request_epoch < $1",
+                        cutoff_1d_epoch
+                    )
+                    # 6. Stale AI cache (older than 14 days, fallback safety net)
+                    await conn.execute(
+                        "DELETE FROM ai_cache WHERE created_at < $1",
+                        cutoff_14d
+                    )
+            logger.info("Periodic cleanup completed.")
+        except asyncio.CancelledError:
+            logger.info("Periodic cleanup task cancelled.")
+            break
+        except Exception as e:
+            logger.error("Periodic cleanup failed: %s", str(e))
+            
+        # Prune single-flight locks to prevent unbounded memory growth
+        global AI_CACHE_LOCKS
+        if len(AI_CACHE_LOCKS) > 5000:
+            keys_to_delete = [k for k, v in AI_CACHE_LOCKS.items() if not v.locked()]
+            for k in keys_to_delete:
+                del AI_CACHE_LOCKS[k]
