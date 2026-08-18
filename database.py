@@ -1,16 +1,17 @@
 """
-El-Peak — Data Layer v12
+El-Peak — Data Layer v12.1 (P0 hardening)
 PostgreSQL multi-user data layer with improved safety,
 payments, quiz sessions, OAuth codes, and rate limiting.
+P0 changes: IP-based auth rate limiting table, safer pool default,
+advisory-locked schema init (multi-worker safe).
 """
-
 import os
 import json
 import time
 import secrets
 import datetime as dt
 import logging
-from typing import Any 
+from typing import Any
 import asyncpg
 
 logger = logging.getLogger("el-peak.database")
@@ -36,7 +37,6 @@ CREATE TABLE IF NOT EXISTS users (
     subscription_expires_at TEXT,
     last_login_at TEXT
 );
-
 CREATE TABLE IF NOT EXISTS topics (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -47,7 +47,6 @@ CREATE TABLE IF NOT EXISTS topics (
     updated_at TEXT,
     UNIQUE(user_id, name)
 );
-
 CREATE TABLE IF NOT EXISTS attempts (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -58,7 +57,6 @@ CREATE TABLE IF NOT EXISTS attempts (
     source TEXT DEFAULT 'static',
     created_at TEXT NOT NULL
 );
-
 CREATE TABLE IF NOT EXISTS tasks (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -68,7 +66,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     done INTEGER DEFAULT 0,
     created_at TEXT
 );
-
 CREATE TABLE IF NOT EXISTS payments (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -82,7 +79,6 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at TEXT NOT NULL,
     updated_at TEXT
 );
-
 CREATE TABLE IF NOT EXISTS quiz_sessions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -94,19 +90,20 @@ CREATE TABLE IF NOT EXISTS quiz_sessions (
     created_at TEXT NOT NULL,
     completed_at TEXT
 );
-
 CREATE TABLE IF NOT EXISTS oauth_codes (
     code TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
-
 CREATE TABLE IF NOT EXISTS rate_limits (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     last_request_epoch DOUBLE PRECISION NOT NULL
 );
-
+CREATE TABLE IF NOT EXISTS ip_rate_limits (
+    key TEXT PRIMARY KEY,
+    last_request_epoch DOUBLE PRECISION NOT NULL
+);
 CREATE TABLE IF NOT EXISTS usage_events (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -115,7 +112,6 @@ CREATE TABLE IF NOT EXISTS usage_events (
     tier TEXT,
     created_at TEXT NOT NULL
 );
-
 CREATE INDEX IF NOT EXISTS idx_attempts_created ON attempts(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_topics_user ON topics(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);
@@ -128,27 +124,21 @@ _pool = None
 
 async def get_pool():
     global _pool
-
     if _pool is not None:
         return _pool
-
     db_url = os.getenv("DATABASE_URL")
-
     if not db_url:
         logger.error("DATABASE_URL is missing. Set it in Railway or .env.")
         raise RuntimeError("Missing DATABASE_URL")
-
     clean_url = db_url.split("?")[0]
     is_local = "localhost" in clean_url or "127.0.0.1" in clean_url
-
     min_size = int(os.getenv("DB_POOL_MIN_SIZE", "1"))
-    max_size = int(os.getenv("DB_POOL_MAX_SIZE", "10"))
-
+    # P0: default lowered from 10 to 5. With UVICORN_WORKERS=2 that is
+    # 2 x 5 = 10 connections max, safe on small Railway Postgres plans.
+    max_size = int(os.getenv("DB_POOL_MAX_SIZE", "5"))
     ssl_mode = False if is_local else "require"
-
     host_part = clean_url.split("@")[1] if "@" in clean_url else clean_url
     logger.info("Connecting to PostgreSQL at: %s", host_part)
-
     _pool = await asyncpg.create_pool(
         dsn=clean_url,
         min_size=min_size,
@@ -157,7 +147,6 @@ async def get_pool():
         command_timeout=60,
         statement_cache_size=0
     )
-
     return _pool
 
 async def close_pool():
@@ -192,40 +181,42 @@ def parse_dt(s: str) -> dt.datetime:
 
 async def init_db():
     pool = await get_pool()
-
     async with pool.acquire() as conn:
-        statements = SCHEMA.strip().split(";")
-        for stmt in statements:
-            if stmt.strip():
-                await conn.execute(stmt.strip())
+        # P0: with multiple workers booting simultaneously, concurrent
+        # CREATE TABLE IF NOT EXISTS can race. Serialize schema init with
+        # a session-level advisory lock.
+        await conn.execute("SELECT pg_advisory_lock(7331)")
+        try:
+            statements = SCHEMA.strip().split(";")
+            for stmt in statements:
+                if stmt.strip():
+                    await conn.execute(stmt.strip())
+            # Compatibility upgrades for older databases
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free'")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_questions_used INTEGER DEFAULT 0")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS pdf_uploads_used INTEGER DEFAULT 0")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS usage_reset_date TEXT")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type TEXT DEFAULT 'general'")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS grade TEXT")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'local'")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'inactive'")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TEXT")
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TEXT")
+            await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
+            await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS subject TEXT DEFAULT 'General'")
+            await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS score REAL DEFAULT 50.0")
+            await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0")
+            await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS updated_at TEXT")
+            await conn.execute("ALTER TABLE attempts ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
+            await conn.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
+        finally:
+            await conn.execute("SELECT pg_advisory_unlock(7331)")
 
-        # Compatibility upgrades for older databases
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free'")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_questions_used INTEGER DEFAULT 0")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS pdf_uploads_used INTEGER DEFAULT 0")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS usage_reset_date TEXT")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type TEXT DEFAULT 'general'")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS grade TEXT")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'local'")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'inactive'")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TEXT")
-        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TEXT")
-
-        await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
-        await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS subject TEXT DEFAULT 'General'")
-        await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS score REAL DEFAULT 50.0")
-        await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0")
-        await conn.execute("ALTER TABLE topics ADD COLUMN IF NOT EXISTS updated_at TEXT")
-
-        await conn.execute("ALTER TABLE attempts ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
-        await conn.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER DEFAULT 1")
-
-# -----------------------------
-# AUTH / USERS
-# -----------------------------
-
+-----------------------------
+AUTH / USERS
+-----------------------------
 async def create_user(
     email: str,
     hashed_pw: str,
@@ -237,7 +228,6 @@ async def create_user(
 ) -> dict:
     pool = await get_pool()
     username = username or email.split("@")[0]
-
     async with pool.acquire() as conn:
         try:
             async with conn.transaction():
@@ -345,14 +335,12 @@ async def update_user_password(user_id: int, hashed_pw: str):
                 user_id
             )
 
-# -----------------------------
-# OAUTH CODES
-# -----------------------------
-
+-----------------------------
+OAUTH CODES
+-----------------------------
 async def create_oauth_code(user_id: int) -> str:
     code = secrets.token_urlsafe(32)
     expires = now_utc() + dt.timedelta(minutes=5)
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute(
@@ -365,7 +353,6 @@ async def create_oauth_code(user_id: int) -> str:
             expires.isoformat(timespec="seconds"),
             now_str()
         )
-
     return code
 
 async def consume_oauth_code(code: str) -> int | None:
@@ -382,13 +369,11 @@ async def consume_oauth_code(code: str) -> int | None:
         )
         return row["user_id"] if row else None
 
-# -----------------------------
-# TOPICS
-# -----------------------------
-
+-----------------------------
+TOPICS
+-----------------------------
 async def ensure_topic(user_id: int, name: str, subject: str = "General") -> dict:
     name = name.strip()
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -397,10 +382,8 @@ async def ensure_topic(user_id: int, name: str, subject: str = "General") -> dic
                 user_id,
                 name
             )
-
             if row:
                 return dict(row)
-
             try:
                 row = await conn.fetchrow(
                     """
@@ -414,7 +397,6 @@ async def ensure_topic(user_id: int, name: str, subject: str = "General") -> dic
                     now_str()
                 )
                 return dict(row) if row else None
-
             except asyncpg.UniqueViolationError:
                 row = await conn.fetchrow(
                     "SELECT * FROM topics WHERE user_id=$1 AND lower(name)=lower($2)",
@@ -432,10 +414,9 @@ async def get_topics(user_id: int) -> list[dict]:
         )
         return [dict(r) for r in rows]
 
-# -----------------------------
-# ATTEMPTS
-# -----------------------------
-
+-----------------------------
+ATTEMPTS
+-----------------------------
 async def record_attempt(
     user_id: int,
     topic_name: str,
@@ -444,20 +425,15 @@ async def record_attempt(
     source: str
 ) -> dict:
     topic = await ensure_topic(user_id, topic_name)
-
     if not topic:
         raise RuntimeError("Could not create or find topic.")
-
     pct = round(correct / total * 100, 1) if total else 0.0
     old = float(topic["score"] or 50.0)
-
     if int(topic["attempts"] or 0) == 0:
         new = pct
     else:
         new = round(0.55 * old + 0.45 * pct, 1)
-
     new = max(0.0, min(100.0, new))
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -467,7 +443,6 @@ async def record_attempt(
                 now_str(),
                 topic["id"]
             )
-
             await conn.execute(
                 """
                 INSERT INTO attempts(user_id, topic_id, correct, total, pct, source, created_at)
@@ -481,7 +456,6 @@ async def record_attempt(
                 source,
                 now_str()
             )
-
     return {
         "name": topic["name"],
         "old": old,
@@ -510,7 +484,6 @@ async def recent_attempts(user_id: int, limit: int = 20) -> list[dict]:
 async def heatmap(user_id: int, days: int = 84) -> list[dict]:
     start = today_utc() - dt.timedelta(days=days - 1)
     counts = {start + dt.timedelta(days=i): 0 for i in range(days)}
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
@@ -523,12 +496,10 @@ async def heatmap(user_id: int, days: int = 84) -> list[dict]:
             user_id,
             start.isoformat()
         )
-
         for row in rows:
             key = dt.date.fromisoformat(row["d"])
             if key in counts:
                 counts[key] = int(row["n"])
-
     return [
         {
             "date": k.isoformat(),
@@ -537,47 +508,36 @@ async def heatmap(user_id: int, days: int = 84) -> list[dict]:
         for k, v in counts.items()
     ]
 
-# -----------------------------
-# STATS
-# -----------------------------
-
+-----------------------------
+STATS
+-----------------------------
 async def get_stats(user_id: int) -> dict:
     pool = await get_pool()
-
     async with pool.acquire() as conn:
         topics = [dict(r) for r in await conn.fetch(
             "SELECT * FROM topics WHERE user_id=$1",
             user_id
         )]
-
         total_attempts = sum(int(t["attempts"] or 0) for t in topics)
-
         if topics:
             w_sum = sum((1 + int(t["attempts"] or 0)) for t in topics)
             w_avg = sum(float(t["score"] or 0) * (1 + int(t["attempts"] or 0)) for t in topics) / w_sum
         else:
             w_avg = 0.0
-
         week_ago = (now_utc() - dt.timedelta(days=7)).isoformat(timespec="seconds")
-
         attempts_7d = await conn.fetchval(
             "SELECT COUNT(*) FROM attempts WHERE user_id=$1 AND created_at >= $2",
             user_id,
             week_ago
         )
-
         avg_pct_val = await conn.fetchval(
             "SELECT AVG(pct) FROM attempts WHERE user_id=$1",
             user_id
         )
-
         avg_pct = float(avg_pct_val) if avg_pct_val is not None else 0.0
-
         peak = int(round(min(100, max(0, 0.75 * w_avg + 0.25 * min(1.0, attempts_7d / 8) * 100))))
-
         best = max(topics, key=lambda t: t["score"]) if topics else None
         weak = [t for t in topics if float(t["score"] or 0) < 60]
-
         days_set = {
             r["d"]
             for r in await conn.fetch(
@@ -585,17 +545,13 @@ async def get_stats(user_id: int) -> dict:
                 user_id
             )
         }
-
         streak = 0
         day = today_utc()
-
         if day.isoformat() not in days_set:
             day -= dt.timedelta(days=1)
-
         while day.isoformat() in days_set:
             streak += 1
             day -= dt.timedelta(days=1)
-
         return {
             "peak": peak,
             "weighted_mastery": round(w_avg, 1),
@@ -608,14 +564,12 @@ async def get_stats(user_id: int) -> dict:
             "best_topic": best["name"] if best else None
         }
 
-# -----------------------------
-# TASKS / SCHEDULER
-# -----------------------------
-
+-----------------------------
+TASKS / SCHEDULER
+-----------------------------
 async def add_task(user_id: int, title: str, topic: str | None, deadline: str) -> dict:
     if topic:
         await ensure_topic(user_id, topic)
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -642,7 +596,6 @@ async def toggle_task(user_id: int, task_id: int) -> dict:
                 task_id,
                 user_id
             )
-
             row = await conn.fetchrow(
                 "SELECT * FROM tasks WHERE id=$1 AND user_id=$2",
                 task_id,
@@ -662,46 +615,35 @@ async def delete_task(user_id: int, task_id: int):
 
 async def get_schedule(user_id: int) -> dict:
     now = now_utc()
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         tasks = [dict(r) for r in await conn.fetch(
             "SELECT * FROM tasks WHERE user_id=$1",
             user_id
         )]
-
         topic_rows = [dict(r) for r in await conn.fetch(
             "SELECT * FROM topics WHERE user_id=$1",
             user_id
         )]
-
     topics = {t["name"].lower(): t for t in topic_rows}
-
     queue = []
     cleared = []
-
     for t in tasks:
         dl = parse_dt(t["deadline"])
         hours = (dl - now).total_seconds() / 3600
-
         topic = topics.get((t.get("topic") or "").lower())
         t["topic_score"] = topic["score"] if topic else None
-
         if t["done"]:
             t["tier"] = "DONE"
             t["priority"] = 0
             cleared.append(t)
             continue
-
         if hours <= 0:
             deadline_score = 100.0
         else:
             deadline_score = max(0.0, 100 - hours * (100 / 168))
-
         weakness = 100 - float(topic["score"] if topic else 55)
-
         t["priority"] = int(round(0.62 * deadline_score + 0.38 * weakness))
-
         if hours < 0:
             t["tier"] = "OVERDUE"
         elif hours < 24:
@@ -712,14 +654,10 @@ async def get_schedule(user_id: int) -> dict:
             t["tier"] = "THIS WEEK"
         else:
             t["tier"] = "PLANNED"
-
         queue.append(t)
-
     queue.sort(key=lambda t: t["priority"], reverse=True)
     cleared.sort(key=lambda t: t["deadline"], reverse=True)
-
     busy = {(t.get("topic") or "").lower() for t in tasks if not t["done"]}
-
     suggestions = [
         {
             "topic": tp["name"],
@@ -728,17 +666,15 @@ async def get_schedule(user_id: int) -> dict:
         for tp in sorted(topic_rows, key=lambda x: float(x["score"] or 0))
         if float(tp["score"] or 0) < 60 and tp["name"].lower() not in busy
     ][:4]
-
     return {
         "queue": queue,
         "cleared": cleared,
         "suggestions": suggestions
     }
 
-# -----------------------------
-# USAGE / PAYWALL
-# -----------------------------
-
+-----------------------------
+USAGE / PAYWALL
+-----------------------------
 async def get_user_usage(user_id: int) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -762,7 +698,6 @@ async def get_user_usage(user_id: int) -> dict:
 async def reset_usage_if_needed(user_id: int):
     current_month = now_utc().strftime("%Y-%m")
     reset_date = today_utc().isoformat()
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -786,18 +721,15 @@ async def reset_usage_if_needed(user_id: int):
 
 async def increment_usage(user_id: int, ai_questions: int = 0, pdf_uploads: int = 0):
     pool = await get_pool()
-
     async with pool.acquire() as conn:
         async with conn.transaction():
             await reset_usage_if_needed(user_id)
-
             if ai_questions > 0:
                 await conn.execute(
                     "UPDATE users SET ai_questions_used = ai_questions_used + $1 WHERE id=$2",
                     ai_questions,
                     user_id
                 )
-
             if pdf_uploads > 0:
                 await conn.execute(
                     "UPDATE users SET pdf_uploads_used = pdf_uploads_used + $1 WHERE id=$2",
@@ -807,14 +739,12 @@ async def increment_usage(user_id: int, ai_questions: int = 0, pdf_uploads: int 
 
 async def upgrade_user_tier(user_id: int, tier: str):
     tier = tier.strip().lower()
-
     if tier == "free":
         subscription_status = "inactive"
         expires = None
     else:
         subscription_status = "active"
         expires = (now_utc() + dt.timedelta(days=30)).isoformat(timespec="seconds")
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -832,10 +762,9 @@ async def upgrade_user_tier(user_id: int, tier: str):
                 user_id
             )
 
-# -----------------------------
-# PAYMENTS
-# -----------------------------
-
+-----------------------------
+PAYMENTS
+-----------------------------
 async def create_payment(
     user_id: int,
     tier: str,
@@ -898,17 +827,14 @@ async def finalize_payment(
     raw_payload: str | None = None
 ) -> bool:
     pool = await get_pool()
-
     async with pool.acquire() as conn:
         async with conn.transaction():
             existing = await conn.fetchrow(
                 "SELECT * FROM payments WHERE merchant_order_id=$1",
                 merchant_order_id
             )
-
             if existing and existing["status"] == "paid":
                 return False
-
             if existing:
                 await conn.execute(
                     """
@@ -942,7 +868,6 @@ async def finalize_payment(
                     now_str(),
                     now_str()
                 )
-
     await upgrade_user_tier(user_id, tier)
     return True
 
@@ -962,13 +887,11 @@ async def get_payments(user_id: int, limit: int = 20) -> list[dict]:
         )
         return [dict(r) for r in rows]
 
-# -----------------------------
-# RATE LIMITING
-# -----------------------------
-
+-----------------------------
+RATE LIMITING
+-----------------------------
 async def check_ai_rate_limit(user_id: int, seconds: int) -> tuple[bool, int]:
     now = time.time()
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -976,12 +899,10 @@ async def check_ai_rate_limit(user_id: int, seconds: int) -> tuple[bool, int]:
                 "SELECT last_request_epoch FROM rate_limits WHERE user_id=$1",
                 user_id
             )
-
             if row:
                 elapsed = now - float(row["last_request_epoch"])
                 if elapsed < seconds:
                     return False, int(seconds - elapsed) + 1
-
             await conn.execute(
                 """
                 INSERT INTO rate_limits(user_id, last_request_epoch)
@@ -992,13 +913,41 @@ async def check_ai_rate_limit(user_id: int, seconds: int) -> tuple[bool, int]:
                 user_id,
                 now
             )
-
     return True, 0
 
-# -----------------------------
-# USAGE EVENTS
-# -----------------------------
+async def check_ip_rate_limit(key: str, seconds: int) -> tuple[bool, int]:
+    """
+    P0: same epoch-interval mechanism as check_ai_rate_limit, but keyed by
+    an arbitrary string (client IP) for anonymous endpoints (login/signup).
+    DB-backed, so it is correct across workers and (later) instances.
+    """
+    now = time.time()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT last_request_epoch FROM ip_rate_limits WHERE key=$1",
+                key
+            )
+            if row:
+                elapsed = now - float(row["last_request_epoch"])
+                if elapsed < seconds:
+                    return False, int(seconds - elapsed) + 1
+            await conn.execute(
+                """
+                INSERT INTO ip_rate_limits(key, last_request_epoch)
+                VALUES ($1, $2)
+                ON CONFLICT (key)
+                DO UPDATE SET last_request_epoch=$2
+                """,
+                key,
+                now
+            )
+    return True, 0
 
+-----------------------------
+USAGE EVENTS
+-----------------------------
 async def log_usage_event(user_id: int, kind: str, amount: int, tier: str):
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -1014,10 +963,9 @@ async def log_usage_event(user_id: int, kind: str, amount: int, tier: str):
             now_str()
         )
 
-# -----------------------------
-# QUIZ SESSIONS
-# -----------------------------
-
+-----------------------------
+QUIZ SESSIONS
+-----------------------------
 async def create_quiz_session(
     user_id: int,
     topic: str,
@@ -1026,7 +974,6 @@ async def create_quiz_session(
     questions: list
 ) -> int:
     pool = await get_pool()
-
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
@@ -1041,7 +988,6 @@ async def create_quiz_session(
             json.dumps(questions, ensure_ascii=False),
             now_str()
         )
-
         return row["id"] if row else None
 
 async def get_quiz_sessions(user_id: int, limit: int = 20) -> list[dict]:
@@ -1072,18 +1018,14 @@ async def get_quiz_session(user_id: int, session_id: int) -> dict | None:
             user_id,
             session_id
         )
-
         if not row:
             return None
-
         item = dict(row)
-
         if isinstance(item.get("questions"), str):
             try:
                 item["questions"] = json.loads(item["questions"])
             except Exception:
                 item["questions"] = []
-
         return item
 
 async def complete_quiz_session(user_id: int, session_id: int):
@@ -1100,26 +1042,22 @@ async def complete_quiz_session(user_id: int, session_id: int):
             now_str()
         )
 
-# -----------------------------
-# CLEANUP
-# -----------------------------
-
+-----------------------------
+CLEANUP
+-----------------------------
 async def cleanup_old_pdf_attempts():
     """
     Deletes PDF quiz attempts older than 14 days to save database space.
     Also removes expired OAuth codes.
     """
     pool = await get_pool()
-
     async with pool.acquire() as conn:
         async with conn.transaction():
             cutoff = (now_utc() - dt.timedelta(days=14)).isoformat(timespec="seconds")
-
             await conn.execute(
                 "DELETE FROM attempts WHERE source='pdf' AND created_at < $1",
                 cutoff
             )
-
             await conn.execute(
                 "DELETE FROM oauth_codes WHERE expires_at < $1",
                 now_str()
