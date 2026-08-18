@@ -689,7 +689,7 @@ async def groq_chat(
     temperature: float = 0.6,
     max_tokens: int = 1200,
     model_override: Optional[str] = None,
-    timeout: int = 60
+    timeout: int = 120
 ) -> str:
     key = os.getenv("GROQ_API_KEY")
     if not key:
@@ -907,6 +907,7 @@ STATIC_QUIZZES = {
     }
 }
 
+# Replace the broken QUIZ_SCHEMA with this:
 QUIZ_SCHEMA = (
     '{"questions":[{"question": "...", "options":["A","B","C","D"],'
     '"answer_index":0, "explanation": "...", "context": "exact quote from text if pdf"}]}'
