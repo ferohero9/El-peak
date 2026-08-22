@@ -28,6 +28,8 @@
   --t-fast: .18s; --t-med: .32s; --t-slow: .5s;
   --wobble-duration: 0.62s;
   --wobble-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-wobble: cubic-bezier(0.22, 1.35, 0.36, 1);
+  --t-tap: .12s;
 }
 [data-theme="light"] {
   --bg:#eef2f7; --ink:#0f172a; --muted:#64748b;
@@ -100,7 +102,7 @@ nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;displ
 .navlinks a{padding:8px 14px;border-radius:100px;color:var(--muted);text-decoration:none;font-weight:500;font-size:12.5px;transition:color .3s;position:relative;z-index:2;white-space:nowrap}
 .navlinks a:hover{color:var(--ink)}
 .navlinks a.active{color:var(--accent-text)}
-.nav-slider{position:absolute;top:4px;height:calc(100% - 8px);background:var(--accent);border-radius:100px;z-index:1;transition:all .45s var(--spring);box-shadow:0 4px 15px var(--accent-glow)}
+.nav-slider{position:absolute;top:4px;height:calc(100% - 8px);background:var(--accent);border-radius:100px;z-index:1;transition:left .38s var(--ease-wobble),width .38s var(--ease-wobble);box-shadow:0 4px 15px var(--accent-glow)}
 .navright{display:flex;align-items:center;gap:12px;padding-right:8px}
 .chip{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--glass-strong);padding:6px 12px;border-radius:100px;border:1px solid var(--glass-border)}
 .chip .flame{color:var(--amber)}
@@ -128,12 +130,12 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:120px 24
 
 .view.is-leaving,
 .view.is-entering{will-change:opacity,transform}
-.view.is-leaving{display:block !important;pointer-events:none;animation:viewOut .2s var(--smooth) both}
-.view.is-entering{animation:viewInRight .4s var(--smooth) both}
+.view.is-leaving{display:block !important;pointer-events:none;animation:viewOut .18s var(--smooth) both}
+.view.is-entering{animation:viewInRight .36s var(--smooth) both}
 .view.is-entering.from-left{animation-name:viewInLeft}
 @keyframes viewOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(8px) scale(.985)}}
-@keyframes viewInRight{from{opacity:0;transform:translate3d(20px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
-@keyframes viewInLeft{from{opacity:0;transform:translate3d(-20px,8px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+@keyframes viewInRight{from{opacity:0;transform:translate3d(26px,10px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+@keyframes viewInLeft{from{opacity:0;transform:translate3d(-26px,10px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
 
 .view-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:40px}
 .view-header .text-block{flex:1;min-width:250px}
@@ -142,11 +144,11 @@ h1.big{font-family:var(--disp);font-weight:700;font-size:clamp(36px,5vw,56px);le
 h2.sec{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:20px;letter-spacing:-0.02em}
 .sub{color:var(--muted);font-size:14px;max-width:560px;line-height:1.6;margin-top:14px}
 .grid{display:grid;gap:20px}
-.card{background:var(--glass);border:1px solid var(--glass-border);border-radius:24px;backdrop-filter:blur(var(--blur));padding:28px;box-shadow:var(--shadow-sm);transition:transform .4s var(--spring), box-shadow .4s var(--smooth)}
+.card{background:var(--glass);border:1px solid var(--glass-border);border-radius:24px;backdrop-filter:blur(var(--blur));padding:28px;box-shadow:var(--shadow-sm);transition:transform .3s var(--ease-wobble), box-shadow .35s var(--smooth)}
 .card:hover{transform:translateY(-4px) scale(1.005);box-shadow:var(--shadow-hover)}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;background:var(--accent);color:var(--accent-text);font-weight:600;font-size:13px;box-shadow:0 8px 20px var(--accent-glow);transition:transform .3s var(--spring);position:relative;overflow:hidden}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;background:var(--accent);color:var(--accent-text);font-weight:600;font-size:13px;box-shadow:0 8px 20px var(--accent-glow);transition:transform .22s var(--ease-wobble);position:relative;overflow:hidden}
 .btn:hover{transform:translateY(-2px) scale(1.02)}
-.btn:active{transform:scale(0.97)}
+.btn:active{transform:scale(0.96)}
 .btn.outline{background:var(--glass-strong);color:var(--ink);border:1px solid var(--glass-border);box-shadow:none}
 .btn.outline:hover{background:var(--glass)}
 .btn:disabled{opacity:.5;pointer-events:none}
@@ -356,15 +358,16 @@ input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border
 .chat-input button:active{transform:scale(.92)}
 .chat-input button:disabled{opacity:.6}
 #toasts{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center}
-.toast{background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));color:var(--ink);padding:12px 24px;border-radius:100px;font-weight:500;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,0.2);animation:toastIn .4s var(--spring),toastOut .35s var(--smooth) 2.8s forwards}
+.toast{background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));color:var(--ink);padding:12px 24px;border-radius:100px;font-weight:500;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,0.2);animation:toastIn .32s var(--ease-wobble),toastOut .3s var(--smooth) 2.8s forwards}
 @keyframes toastOut{to{opacity:0;transform:translateY(10px) scale(.94)}}
 @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
 #tip{position:fixed;z-index:98;background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s}
 .mobilenav{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;background:var(--glass);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid var(--glass-border);border-radius:100px;padding:6px;gap:4px;box-shadow:var(--shadow-sm)}
-.mobilenav a{padding:8px 12px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase;transition:transform var(--t-fast) var(--spring),background .3s,color .3s;white-space:nowrap}
+.mobilenav a{padding:8px 12px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase;transition:transform var(--t-tap) var(--smooth),background .3s,color .3s;white-space:nowrap;position:relative;z-index:1}
 @media(max-width:400px){.mobilenav{gap:2px}.mobilenav a{font-size:9.5px;padding:8px 8px}}
 .mobilenav a:active{transform:scale(.92)}
-.mobilenav a.active{background:var(--accent);color:#fff}
+.mobilenav a.active{color:var(--accent-text)}
+.mobile-slider{position:absolute;top:6px;left:6px;width:56px;height:calc(100% - 12px);background:var(--accent);border-radius:100px;z-index:0;box-shadow:0 4px 15px var(--accent-glow);transition:left .38s var(--ease-wobble),width .38s var(--ease-wobble)}
 footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
 
 .profile-grid { grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
@@ -398,6 +401,25 @@ html[dir="rtl"] .field input,
 html[dir="rtl"] .field select { text-align: right; }
 html[dir="rtl"] .opt:hover:not(:disabled) { transform: translateX(-6px); }
 html[dir="rtl"] .task:hover { transform: translateX(-4px); }
+
+/* Motion system v2 — shared micro-interactions (transform/opacity only) */
+.custom-select.open .select-option{animation:optIn .28s var(--smooth) backwards}
+.custom-select.open .select-option:nth-child(2){animation-delay:.03s}
+.custom-select.open .select-option:nth-child(3){animation-delay:.06s}
+.custom-select.open .select-option:nth-child(4){animation-delay:.09s}
+.custom-select.open .select-option:nth-child(5){animation-delay:.12s}
+.custom-select.open .select-option:nth-child(6){animation-delay:.15s}
+@keyframes optIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+#upgradeModal[style*="flex"]{animation:fadeIn .22s var(--smooth)}
+#upgradeModal[style*="flex"] .auth-card{animation:modalIn .38s var(--ease-wobble)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{opacity:0;transform:scale(.92) translateY(14px)}to{opacity:1;transform:none}}
+.field input:focus,.field select:focus{transform:translateY(-1px)}
+.auth-form .field input:focus,.auth-form .field select:focus{transform:translateY(-1px)}
+.iconbtn:active{transform:rotate(0deg) scale(.88);transition-duration:var(--t-tap)}
+.seg button.on{transition:transform var(--t-tap) var(--smooth),color var(--t-med) var(--smooth),background var(--t-med) var(--smooth),box-shadow var(--t-med) var(--smooth)}
+.seg button:active{transform:scale(.92);transition-duration:var(--t-tap)}
+.google-btn:active{transform:translateY(0) scale(.96);transition-duration:var(--t-tap)}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -809,6 +831,7 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
   </div>
 
   <div class="mobilenav">
+    <div class="mobile-slider" id="mobileSlider"></div>
     <a href="#" data-view="dashboard" class="active" data-i18n="home">Home</a>
     <a href="#" data-view="quiz" data-i18n="quiz">Quiz</a>
     <a href="#" data-view="scheduler" data-i18n="scheduler">Scheduler</a>
@@ -1038,6 +1061,7 @@ function showApp() {
     if (lenis) lenis.start();
     const activeLink = $(".navlinks a.active");
     if (activeLink) moveSlider(activeLink);
+    moveMobileSlider($(".mobilenav a.active"));
     loadDashboard();
     loadProfile();
     applyLanguage(currentLang);
@@ -1255,6 +1279,14 @@ function moveSlider(activeLink) {
   slider.style.width = activeLink.offsetWidth + "px";
 }
 
+function moveMobileSlider(activeLink) {
+  const slider = $("#mobileSlider");
+  if (!slider || !activeLink) return;
+  if (!activeLink.offsetParent) return; // dock hidden on desktop widths
+  slider.style.left = activeLink.offsetLeft + "px";
+  slider.style.width = activeLink.offsetWidth + "px";
+}
+
 function stripWillChangeOnEnd(el) {
   const clear = () => { el.style.willChange = "auto"; };
   el.addEventListener("animationend", clear, { once: true });
@@ -1300,12 +1332,11 @@ function go(v){
 
       currentView = v;
 
-      const activeLink = $(`.navlinks a[data-view="${v}"]`) || $(`.mobilenav a[data-view="${v}"]`);
       $$(".navlinks a, .mobilenav a").forEach(a=>a.classList.remove("active"));
-      if(activeLink) {
-        activeLink.classList.add("active");
-        if(activeLink.parentElement.id === "navlinks") moveSlider(activeLink);
-      }
+      const activeLinks = $$(`.navlinks a[data-view="${v}"], .mobilenav a[data-view="${v}"]`);
+      activeLinks.forEach(a=>a.classList.add("active"));
+      if (activeLinks[0]) moveSlider(activeLinks[0]);
+      moveMobileSlider(activeLinks.find(a => a.closest(".mobilenav")));
 
       const settingsBtn = $("#navSettingsBtn");
       if (v === "settings") settingsBtn.classList.add("active");
@@ -1332,10 +1363,15 @@ function go(v){
 });
  $("#navSettingsBtn").onclick = () => go("settings");
 
-window.addEventListener('load', () => { const activeLink = $(".navlinks a.active"); if(activeLink) moveSlider(activeLink); });
+window.addEventListener('load', () => {
+  const activeLink = $(".navlinks a.active");
+  if(activeLink) moveSlider(activeLink);
+  moveMobileSlider($(".mobilenav a.active"));
+});
 window.addEventListener('resize', () => {
   const activeLink = $(".navlinks a.active");
   if(activeLink) moveSlider(activeLink);
+  moveMobileSlider($(".mobilenav a.active"));
   if(lenis) lenis.resize();
 });
 
