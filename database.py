@@ -475,12 +475,28 @@ async def record_attempt(
         "pct": pct
     }
 
+async def delete_attempt(user_id: int, attempt_id: int) -> bool:
+    """
+    Stage 1: remove a single quiz record. Ownership is enforced in the WHERE
+    clause, so a row is only ever deleted for its owner. Topic mastery scores
+    are denormalized (EWMA in topics.score) and intentionally left untouched;
+    lists/heatmap/averages recompute naturally because they read this table.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        status = await conn.execute(
+            "DELETE FROM attempts WHERE id=$1 AND user_id=$2",
+            attempt_id,
+            user_id
+        )
+        return status.endswith(" 1")
+
 async def recent_attempts(user_id: int, limit: int = 20) -> list[dict]:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT a.pct, a.source, a.created_at, t.name AS topic
+            SELECT a.id, a.pct, a.source, a.created_at, t.name AS topic
             FROM attempts a
             JOIN topics t ON t.id=a.topic_id
             WHERE a.user_id=$1
