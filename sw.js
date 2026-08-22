@@ -1,71 +1,32 @@
-const CACHE_NAME = "el-peak-v1";
-const STATIC_ASSETS = [
-  "/",
-  "/manifest.json"
-];
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+/*
+ * El-Peak service worker - retirement / cleanup version.
+ *
+ * The frontend no longer registers a service worker. Older deployments
+ * registered a cache-first worker that kept serving stale or corrupted
+ * cached copies of the app shell (symptom: page shows only the aurora
+ * background). Browsers re-fetch this file for every registered worker,
+ * so this version exists solely to tear that state down: delete every
+ * cache, unregister this worker, and pass requests straight to the
+ * network while it is still controlling a page.
+ */
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+      await self.registration.unregister();
+      await self.clients.claim();
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // Never cache API calls.
-  if (url.pathname.startsWith("/api/")) {
-    return;
-  }
-
-  // Never cache non-GET requests.
-  if (event.request.method !== "GET") {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-
-      return fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-
-          if (response.ok && response.type === "basic") {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, copy);
-            });
-          }
-
-          return response;
-        })
-        .catch(async () => {
-          if (event.request.mode === "navigate") {
-            const fallback = await caches.match("/");
-            if (fallback) return fallback;
-          }
-
-          return new Response("Offline", {
-            status: 503,
-            headers: { "Content-Type": "text/plain" }
-          });
-        });
-    })
-  );
+  if (event.request.method !== "GET") return;
+  const path = new URL(event.request.url).pathname;
+  if (path.startsWith("/api/")) return;
+  event.respondWith(fetch(event.request));
 });
