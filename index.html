@@ -206,11 +206,18 @@ input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border
 .heat i.l1{background:color-mix(in srgb,var(--accent) 30%, transparent)}
 .heat i.l2{background:color-mix(in srgb,var(--accent) 60%, transparent)}
 .heat i.l3{background:var(--accent)}
-.rowline{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--glass-border);font-size:13px}
+.rowline{display:grid;grid-template-columns:1fr auto auto auto auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--glass-border);font-size:13px;overflow:hidden;transition:height .28s var(--smooth),padding .28s var(--smooth),opacity .2s var(--smooth),transform .2s var(--smooth)}
 .rowline:last-child{border:none}
 .rowline .r-topic{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rowline .r-time{color:var(--muted);font-size:12px}
 .pctpill{padding:2px 8px;border-radius:6px;font-weight:700;font-size:11px;border:1px solid currentColor}
+.rowdel{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;color:var(--muted);font-size:12px;line-height:1;opacity:0;flex:none;transition:opacity var(--t-med) var(--smooth),transform var(--t-tap) var(--smooth),background .2s,color .2s}
+.rowline:hover .rowdel,.rowdel.confirm{opacity:1}
+.rowdel:hover{color:var(--coral);background:rgba(251,113,133,0.12)}
+.rowdel:active{transform:scale(.85)}
+.rowdel.confirm{color:#fff;background:var(--coral)}
+@media(hover:none){.rowdel{opacity:.55}}
+.rowline.removing{opacity:0;transform:translateX(14px) scale(.98);padding-top:0;padding-bottom:0;border-bottom-color:transparent}
 .src-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
 .src-card{border:1px solid var(--glass-border);border-radius:20px;padding:22px;background:var(--glass);text-align:left;cursor:pointer;transition:background .3s var(--smooth),border-color .3s var(--smooth),box-shadow .3s var(--smooth),transform .25s var(--smooth);position:relative;overflow:hidden}
 @media(hover:hover){
@@ -1430,13 +1437,15 @@ async function loadProfile() {
         
         $("#profileRecentList").innerHTML = recent.length ? recent.map(a => {
             const col = a.pct >= 70 ? "var(--mint)" : a.pct >= 50 ? "var(--amber)" : "var(--coral)";
-            return `<div class="rowline">
+            return `<div class="rowline" data-id="${a.id}">
                 <span class="r-topic">${a.topic}</span>
                 <span class="r-time">${ago(a.created_at)}</span>
                 <span class="badge ${a.source === "static" ? "static" : "ai"}">${a.source === "static" ? "BANK" : a.source.toUpperCase()}</span>
                 <span class="pctpill" style="color:${col}">${a.pct}%</span>
+                <button class="rowdel" data-id="${a.id}" title="Delete record">✕</button>
             </div>`;
         }).join("") : '<p class="sub">No recent activity.</p>';
+        wireRowDeletes($("#profileRecentList"), "No recent activity.", null);
         
     } catch (e) {
         toast("Failed to load profile data.");
@@ -1559,8 +1568,50 @@ function renderHeat(heat){
   heat.forEach((h,hi)=>{total+=h.count;const c=document.createElement("i");c.className=h.count===0?"":h.count===1?"l1":h.count===2?"l2":"l3";c.style.animationDelay=(hi*6)+"ms";c.dataset.tip=`${h.date} · ${h.count} session${h.count===1?"":"s"}`;c.onmousemove=e=>{const t=$("#tip");t.textContent=c.dataset.tip;t.style.opacity=1;t.style.left=e.clientX+12+"px";t.style.top=e.clientY-30+"px"};c.onmouseleave=()=>$("#tip").style.opacity=0;grid.appendChild(c)});
   $("#heatSessions").textContent=total;
 }
+function wireRowDeletes(scope, emptyText, onGone){
+  $$(".rowdel", scope).forEach(btn=>{
+    let armed=false,t=null;
+    btn.onclick=async e=>{
+      e.stopPropagation();
+      if(!armed){
+        armed=true;btn.classList.add("confirm");btn.textContent="✓";
+        t=setTimeout(()=>{armed=false;btn.classList.remove("confirm");btn.textContent="✕"},2600);
+        return;
+      }
+      clearTimeout(t);
+      const row=btn.closest(".rowline"), id=btn.dataset.id;
+      try{
+        await api("/api/quiz/attempts/"+id,{method:"DELETE"});
+        collapseRow(row);
+        setTimeout(()=>{ if(!$$(".rowline",scope).length) scope.innerHTML=`<p class="sub">${emptyText}</p>`; },320);
+        if(onGone) onGone();
+      }catch(err){
+        toast("⚠ "+err.message);
+        armed=false;btn.classList.remove("confirm");btn.textContent="✕";
+      }
+    };
+  });
+}
+function collapseRow(row){
+  if(!row) return;
+  if(reducedMotion){ row.remove(); return; }
+  row.style.height=row.offsetHeight+"px";
+  void row.offsetWidth;
+  row.classList.add("removing");
+  requestAnimationFrame(()=>{row.style.height="0px"});
+  setTimeout(()=>row.remove(),320);
+}
+function quietlyRefreshStats(){
+  api("/api/heatmap").then(renderHeat).catch(()=>{});
+  api("/api/stats").then(s=>{
+    count($("#reps7"),s.attempts_7d);count($("#avgAcc"),Math.round(s.avg_pct),"%");
+    count($("#weakN"),s.weak_count);$("#bestRidge").textContent=s.best_topic||"—";
+    count($("#peakVal"),s.peak);$("#peakArc").style.strokeDashoffset=213.6*(1-s.peak/100);
+  }).catch(()=>{});
+}
 function renderRecent(recent){
-  $("#recentList").innerHTML=recent.length?recent.slice(0,6).map(a=>{const col=a.pct>=70?"var(--mint)":a.pct>=50?"var(--amber)":"var(--coral)";return `<div class="rowline"><span class="r-topic">${a.topic}</span><span class="r-time">${ago(a.created_at)}</span><span class="badge ${a.source==="static"?"static":"ai"}">${a.source==="static"?"BANK":a.source.toUpperCase()}</span><span class="pctpill" style="color:${col}">${a.pct}%</span></div>`}).join(""):'<p class="sub">No attempts logged yet.</p>';
+  $("#recentList").innerHTML=recent.length?recent.slice(0,6).map(a=>{const col=a.pct>=70?"var(--mint)":a.pct>=50?"var(--amber)":"var(--coral)";return `<div class="rowline" data-id="${a.id}"><span class="r-topic">${a.topic}</span><span class="r-time">${ago(a.created_at)}</span><span class="badge ${a.source==="static"?"static":"ai"}">${a.source==="static"?"BANK":a.source.toUpperCase()}</span><span class="pctpill" style="color:${col}">${a.pct}%</span><button class="rowdel" data-id="${a.id}" title="Delete record">✕</button></div>`}).join(""):'<p class="sub">No attempts logged yet.</p>';
+  wireRowDeletes($("#recentList"),"No attempts logged yet.",quietlyRefreshStats);
 }
 
 const staticSelect = $("#staticTopicSelect");
