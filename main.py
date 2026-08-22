@@ -249,14 +249,23 @@ ARQ_POOL = None
 
 async def init_arq_pool():
     global ARQ_POOL
-    # Fail fast when Redis is absent (e.g. local dev without Redis): default
-    # arq settings retry ~5 times with long timeouts and stall app startup.
+    dsn = (REDIS_URL or "").strip()
+    if not dsn:
+        logger.warning("REDIS_URL is empty. ARQ pool disabled; PDF jobs will be rejected until Redis is configured.")
+        ARQ_POOL = None
+        return
+    # Fail fast when Redis is unreachable (e.g. local dev): default arq
+    # settings retry ~5 times with long timeouts and stall app startup.
     # With ARQ_POOL None the PDF endpoint still answers with its explicit 503.
-    settings = RedisSettings.from_dsn(REDIS_URL)
-    settings = dataclasses.replace(settings, conn_timeout=3, conn_retries=1, conn_retry_delay=1)
     try:
+        settings = dataclasses.replace(
+            RedisSettings.from_dsn(dsn),
+            conn_timeout=3,
+            conn_retries=1,
+            conn_retry_delay=1,
+        )
         ARQ_POOL = await create_pool(settings)
-        logger.info("ARQ redis pool connected (%s).", REDIS_URL)
+        logger.info("ARQ redis pool connected (%s).", dsn)
     except Exception as e:
         logger.error("Could not connect ARQ pool to Redis (%s). PDF jobs will be rejected.", e)
         ARQ_POOL = None
