@@ -361,7 +361,8 @@ input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border
 @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
 #tip{position:fixed;z-index:98;background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s}
 .mobilenav{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:100px;padding:6px;gap:4px;backdrop-filter:blur(var(--blur))}
-.mobilenav a{padding:8px 12px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase;transition:transform var(--t-fast) var(--spring),background .3s,color .3s}
+.mobilenav a{padding:8px 12px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase;transition:transform var(--t-fast) var(--spring),background .3s,color .3s;flex:1 1 0;min-width:0;text-align:center}
+@media(max-width:400px){.mobilenav{gap:2px}.mobilenav a{font-size:9px;padding:8px 6px}}
 .mobilenav a:active{transform:scale(.92)}
 .mobilenav a.active{background:var(--accent);color:#fff}
 footer{text-align:center;padding:40px;color:var(--muted);font-size:12px}
@@ -810,6 +811,7 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
   <div class="mobilenav">
     <a href="#" data-view="dashboard" class="active" data-i18n="home">Home</a>
     <a href="#" data-view="quiz" data-i18n="quiz">Quiz</a>
+    <a href="#" data-view="scheduler" data-i18n="scheduler">Scheduler</a>
     <a href="#" data-view="coach" data-i18n="coach">Coach</a>
     <a href="#" data-view="profile" data-i18n="profile">Profile</a>
   </div>
