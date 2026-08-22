@@ -1731,6 +1731,22 @@ async def quiz_session_detail(session_id: int, user: Annotated[dict, Depends(get
         raise HTTPException(404, "Quiz session not found.")
     return session
 
+@app.delete("/api/quiz/attempts/{attempt_id}")
+async def delete_quiz_attempt(attempt_id: int, user: dict = Depends(get_current_user)):
+    """
+    Stage 1: delete one quiz record for the authenticated user.
+    Ownership-checked in the DELETE's WHERE clause (404 if not found/not
+    theirs). Throttled with the existing Redis-backed limiter under a
+    distinct 1s key so rapid UI deletes aren't blocked by the 15s AI limiter.
+    """
+    allowed, wait_seconds = await cache.check_rate_limit_redis(f"del:{user['id']}", 1)
+    if not allowed:
+        raise HTTPException(429, f"Slow down — try again in {wait_seconds} seconds.")
+    deleted = await db.delete_attempt(user["id"], attempt_id)
+    if not deleted:
+        raise HTTPException(404, "Record not found.")
+    return {"deleted": attempt_id}
+
 # -----------------------------
 # SCHEDULER
 # -----------------------------
