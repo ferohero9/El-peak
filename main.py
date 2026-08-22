@@ -49,7 +49,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 # P2.5: background job queue
 from arq import create_pool
 from arq.connections import RedisSettings
-from arq.jobs import Job
+from arq.jobs import Job, JobStatus
 
 import database as db
 import cache
@@ -165,23 +165,23 @@ TIER_LIMITS = {
         "pdf_max_mb": 1,
         "pdf_max_pages": 20,
         "pdf_max_ocr_pages": 5,
-        "max_ai_questions_per_request": 8
+        "max_ai_questions_per_request": 5
     },
     "plus": {
-        "ai_questions": 500,
-        "pdf_uploads": 50,
+        "ai_questions": 120,
+        "pdf_uploads": 15,
         "pdf_max_mb": 15,
         "pdf_max_pages": 40,
         "pdf_max_ocr_pages": 10,
-        "max_ai_questions_per_request": 15
+        "max_ai_questions_per_request": 5
     },
     "pro": {
-        "ai_questions": 2000,
-        "pdf_uploads": 200,
+        "ai_questions": 350,
+        "pdf_uploads": 45,
         "pdf_max_mb": 15,
         "pdf_max_pages": 60,
         "pdf_max_ocr_pages": 15,
-        "max_ai_questions_per_request": 30
+        "max_ai_questions_per_request": 5
     }
 }
 TIER_MODELS = {
@@ -746,6 +746,41 @@ async def groq_chat_with_fallback(
             logger.warning("Groq model %s failed: %s", model, str(e))
             continue
     raise last_error or RuntimeError("Groq unavailable.")
+
+async def validate_quiz_topic(topic: str) -> None:
+    """
+    P1.3: cheap pre-check on the smallest model — reject gibberish,
+    commands/injections, or topics with no factual content BEFORE paying
+    for a full generation call. Not counted against the monthly AI-question
+    quota (only successful generations are); still sits inside the
+    request's rate limit. Fails OPEN: if the gate itself errors, the real
+    generation call proceeds.
+    """
+    system = (
+        "You are a quiz-topic validator. Reply with exactly one word and nothing else: "
+        "VALID if the text names a real subject a factual multiple-choice quiz could be "
+        "written about; INVALID if it is gibberish, a request or command, or has no "
+        "factual content to quiz on."
+    )
+    user = f"Topic to validate: {topic[:200]}"
+    try:
+        raw = await groq_chat(
+            messages=[{"role": "system", "content": system},
+                      {"role": "user", "content": user}],
+            temperature=0.0,
+            max_tokens=4,
+            model_override="llama-3.1-8b-instant",
+            timeout=15
+        )
+    except Exception as e:
+        logger.info("Topic gate unavailable (fail-open): %s", str(e))
+        return
+    verdict = (raw or "").strip().upper()
+    if not verdict.startswith("VALID"):
+        raise HTTPException(
+            400,
+            "That topic doesn't look quizzable. Try a real subject like 'Photosynthesis' or 'Cold War'."
+        )
 
 # -----------------------------
 # STATIC QUIZ BANK
@@ -1478,6 +1513,10 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
     # P1.1 + P2.2: Redis cache with cross-instance single-flight
     cache_key = make_ai_quiz_cache_key(payload.topic, grade, payload.difficulty, num_questions, language)
 
+    # P1.3: topic gate — only when we'd actually pay for a generation (cache miss).
+    if not await cache.get_ai_cache_redis(cache_key, AI_QUIZ_CACHE_TTL):
+        await validate_quiz_topic(payload.topic)
+
     async def generate():
         if language == "ar":
             lang_instruction = (
@@ -1507,7 +1546,7 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
                 )
             }
         ]
-        max_tokens = max(1200, num_questions * 250)
+        max_tokens = max(400, num_questions * 250)
         raw = await groq_chat_with_fallback(
             messages=messages,
             tier=tier,
@@ -1632,15 +1671,20 @@ async def quiz_pdf_status(job_id: str, user: dict = Depends(get_current_user)):
     info = await job.info()
     if not info:
         raise HTTPException(404, "Job not found.")
-    if info.status == "complete":
-        result = info.result if isinstance(info.result, dict) else {}
-        if result.get("error"):
-            return {"status": "error", "detail": str(result["error"])}
-        return {"status": "complete", "result": result}
-    if info.status == "error":
-        return {"status": "error", "detail": "PDF processing failed. The file may be unreadable."}
-    # 'queued', 'in_progress', 'deferred', 'not_found' handled above
-    return {"status": info.status}
+    # NOTE: job.info() returns a JobDef (queue metadata, no status/result).
+    # In arq 0.28 those live on job.status() and job.result_info().
+    status = await job.status()
+    if status == JobStatus.complete:
+        result_info = await job.result_info()
+        raw = result_info.result if result_info else None
+        if not isinstance(raw, dict):
+            # Crashed job: arq stores the exception string as the result.
+            return {"status": "error", "detail": "PDF processing failed. The file may be unreadable."}
+        if raw.get("error"):
+            return {"status": "error", "detail": str(raw["error"])}
+        return {"status": "complete", "result": raw}
+    # 'queued', 'in_progress', 'deferred' — client keeps polling.
+    return {"status": status.value}
 
 @app.post("/api/quiz/submit")
 async def quiz_submit(payload: SubmitIn, user: Annotated[dict, Depends(get_current_user)]):
@@ -1696,7 +1740,10 @@ async def remove(task_id: int, user: Annotated[dict, Depends(get_current_user)])
 # AI COACH
 # -----------------------------
 @app.get("/api/coach")
-async def coach(user: Annotated[dict, Depends(get_current_user)]):
+async def coach(
+    user: Annotated[dict, Depends(get_current_user)],
+    subjects: Optional[List[str]] = Query(None)
+):
     await check_rate_limit(user["id"])
     topics = await db.get_topics(user["id"])
     sched = await db.get_schedule(user["id"])
@@ -1711,6 +1758,15 @@ async def coach(user: Annotated[dict, Depends(get_current_user)]):
             "score": float(t.get("score") if t.get("score") is not None else 50.0)
         })
         
+    # P1.4: optional subject focus — when given, the weak-topic analysis and
+    # fallback selection are restricted to those topics; default is unchanged.
+    if subjects:
+        wanted = {s.strip().lower() for s in subjects if s and s.strip()}
+        safe_topics = [
+            t for t in safe_topics
+            if t["name"].strip().lower() in wanted or t["subject"].strip().lower() in wanted
+        ]
+
     weak = sorted([t for t in safe_topics if t["score"] < 65], key=lambda t: t["score"])[:4]
     if not weak:
         weak = sorted(safe_topics, key=lambda t: t["score"])[:2]
