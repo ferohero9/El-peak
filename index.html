@@ -1181,7 +1181,7 @@ function showApp() {
     moveMobileSlider($(".mobilenav a.active"));
     loadDashboard();
     loadProfile();
-    loadSubjects();
+    setTimeout(loadSubjects, 0); // defer: the subjects consts aren't initialized yet when showApp() runs at script eval
     applyLanguage(currentLang);
     api("/api/user/settings").then(settings => {
         currentGrade = settings.grade || "general";
