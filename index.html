@@ -293,7 +293,7 @@ input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border
 .plan .day:nth-child(7){animation-delay:.3s}
 .gen-loader{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:18px;color:var(--muted);font-size:12.5px;font-weight:500;animation:riseIn .4s var(--smooth)}
 .gen-loader[hidden]{display:none}
-.gen-loader svg{width:56px;height:26px;overflow:visible;flex:none}
+.gen-loader svg{width:36px;height:36px;overflow:visible;flex:none}
 .gen-loader .ridge{stroke:var(--glass-border);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;fill:none}
 .gen-loader .climber{fill:var(--accent);filter:drop-shadow(0 0 5px var(--accent-glow))}
 .gen-loader .gen-text{animation:genPulse 1.6s ease-in-out infinite}
@@ -584,10 +584,10 @@ html[dir="rtl"] .task:hover { transform: translateX(-4px); }
         </div>
         <div style="margin-top:24px;text-align:center"><button class="btn" id="beginBtn"><span class="spin"></span><span data-i18n="begin_ascent">Begin Ascent</span> →</button></div>
         <div class="gen-loader" id="genLoader" hidden aria-live="polite">
-          <svg viewBox="0 0 56 26" aria-hidden="true">
-            <polyline class="ridge" points="3,22 15,7 22,14 33,4 45,15 53,9"/>
-            <circle class="climber" r="2.6" cx="3" cy="22">
-              <animateMotion dur="2.4s" repeatCount="indefinite" path="M3,22 L15,7 L22,14 L33,4 L45,15 L53,9"/>
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path class="ridge" d="M2,18 L7,4 L10,12 L13,6 L18,18"/>
+            <circle class="climber" r="1.7">
+              <animateMotion dur="2.4s" repeatCount="indefinite" calcMode="paced" path="M2,18 L7,4 L10,12 L13,6 L18,18"/>
             </circle>
           </svg>
           <span class="gen-text" data-i18n="gen_ai">The AI is charting fresh questions…</span>
