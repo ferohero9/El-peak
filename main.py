@@ -23,6 +23,7 @@ import secrets
 import shutil
 import random
 import asyncio
+import dataclasses
 import datetime as dt
 from pathlib import Path
 from typing import Annotated, Optional, List, Any
@@ -248,9 +249,14 @@ ARQ_POOL = None
 
 async def init_arq_pool():
     global ARQ_POOL
+    # Fail fast when Redis is absent (e.g. local dev without Redis): default
+    # arq settings retry ~5 times with long timeouts and stall app startup.
+    # With ARQ_POOL None the PDF endpoint still answers with its explicit 503.
+    settings = RedisSettings.from_dsn(REDIS_URL)
+    settings = dataclasses.replace(settings, conn_timeout=3, conn_retries=1, conn_retry_delay=1)
     try:
-        ARQ_POOL = await create_pool(RedisSettings.from_dsn(REDIS_URL))
-        logger.info("ARQ redis pool connected.")
+        ARQ_POOL = await create_pool(settings)
+        logger.info("ARQ redis pool connected (%s).", REDIS_URL)
     except Exception as e:
         logger.error("Could not connect ARQ pool to Redis (%s). PDF jobs will be rejected.", e)
         ARQ_POOL = None
