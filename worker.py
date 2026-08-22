@@ -331,7 +331,7 @@ async def process_pdf_quiz(
             num_questions = 4
         else:
             num_questions = 3
-    num_questions = min(num_questions, 30)
+    num_questions = min(num_questions, 5)
 
     excerpt = text[:12000]
     if (language or "en").strip().lower() == "ar":
@@ -371,7 +371,7 @@ async def process_pdf_quiz(
             messages=messages,
             tier=tier,
             temperature=0.6,
-            max_tokens=2000
+            max_tokens=1600
         )
         clean = _clean_questions(extract_json(raw), num_questions)
     except Exception as e:
