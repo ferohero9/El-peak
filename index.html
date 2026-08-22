@@ -57,7 +57,7 @@ button{font-family:inherit;cursor:pointer;outline:none;border:none;background:no
 input,select{font-family:inherit;outline:none;background:none;color:inherit}
 ::selection{background:var(--accent);color:#fff}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--glass-strong);border-radius:10px}
-.aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;will-change:transform}
+.aurora{position:fixed;inset:-120px 0;z-index:0;overflow:hidden;pointer-events:none;will-change:transform}
 .blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.4;animation:float 25s var(--smooth) infinite}
 [data-theme="light"] .blob{opacity:0.15}
 .blob.b1{width:600px;height:600px;background:#6366f1;top:-200px;left:-100px}
@@ -360,7 +360,7 @@ input[type="range"].custom-range:active::-moz-range-thumb{transform:scale(1.3)}
 .sug.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
 #coachSubjectsWrap{animation:riseIn .35s var(--smooth)}
 #taskDue{cursor:pointer}
-.dp-pop{position:fixed;z-index:320;width:304px;max-height:calc(100vh - 24px);overflow-y:auto;background:var(--glass-popover);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid var(--glass-border);border-radius:20px;box-shadow:var(--glass-rim),var(--shadow-hover);padding:16px;animation:modalIn .32s var(--ease-wobble)}
+.dp-pop{position:fixed;z-index:320;width:304px;max-height:min(calc(100vh - 160px), 480px);overflow-y:auto;background:var(--glass-popover);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid var(--glass-border);border-radius:20px;box-shadow:var(--glass-rim),var(--shadow-hover);padding:16px;animation:modalIn .32s var(--ease-wobble)}
 .dp-pop[hidden]{display:none}
 .dp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .dp-title{font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:-0.01em}
@@ -937,7 +937,7 @@ html[data-theme="light"] body::after{opacity:.02}
 
 <div id="toasts"></div><div id="tip"></div>
 
-<div class="dp-pop" id="datePick" hidden role="dialog" aria-label="Pick deadline">
+<div class="dp-pop" id="datePick" hidden data-lenis-prevent role="dialog" aria-label="Pick deadline">
   <div class="dp-head">
     <button class="dp-nav" id="dpPrev" type="button" aria-label="Previous month">‹</button>
     <div class="dp-title" id="dpTitle"></div>
@@ -1091,7 +1091,11 @@ lenis = initLenis();
   if (reducedMotion) return;
   const aurora = document.querySelector(".aurora");
   if (!aurora) return;
-  const apply = (y) => { aurora.style.transform = "translateY(" + (y * -0.12).toFixed(1) + "px)"; };
+  const apply = (y) => {
+    // Clamp the drift: an unbounded shift would slide the blob layer up
+    // off-screen and expose the plain background at the bottom of the page.
+    aurora.style.transform = "translateY(" + Math.max(-110, y * -0.12).toFixed(1) + "px)";
+  };
   if (lenis) {
     lenis.on("scroll", (e) => apply(e.scroll));
   } else {
@@ -1972,19 +1976,32 @@ async function loadSchedule(){
       apply();
     });
   }
+  function place(){
+    if(innerWidth<=520) return; // mobile renders as a fixed bottom sheet
+    const r=input.getBoundingClientRect(), h=pop.offsetHeight;
+    let top=r.bottom+8;
+    if(top+h>innerHeight-12){
+      const above=r.top-h-8;
+      if(above>=12){
+        top=above; // fits above the input
+      } else {
+        // Too tight for either side: pick the viewport-clamped position
+        // closest to the input (may overlap it, like standard popovers).
+        const belowClamped=Math.min(top, Math.max(12, innerHeight-h-12));
+        const aboveClamped=Math.max(12, above);
+        top = (r.bottom-belowClamped <= aboveClamped+h-r.top) ? belowClamped : aboveClamped;
+      }
+    }
+    pop.style.top=Math.max(12,Math.min(top,Math.max(12,innerHeight-h-12)))+"px";
+    pop.style.left=Math.max(12,Math.min(r.left,innerWidth-316))+"px";
+  }
   function open(){
     if(input.value){const d=new Date(input.value);if(!isNaN(d)){selDate=new Date(d.getFullYear(),d.getMonth(),d.getDate());view=new Date(d.getFullYear(),d.getMonth(),1);time=pad(d.getHours())+":"+pad(d.getMinutes());}}
     else if(!selDate){view=new Date();}
     render();syncChips();
     pop.hidden=false;
     openedAt=performance.now();
-    if(innerWidth>520){
-      const r=input.getBoundingClientRect(), h=pop.offsetHeight;
-      let top=r.bottom+8;
-      if(top+h>innerHeight-12) top=r.top-h-8; // not enough room below: flip above
-      pop.style.top=Math.max(12,Math.min(top,Math.max(12,innerHeight-h-12)))+"px";
-      pop.style.left=Math.max(12,Math.min(r.left,innerWidth-316))+"px";
-    }
+    place();
   }
   function close(){pop.hidden=true;}
   input.addEventListener("focus",open);
@@ -2001,7 +2018,11 @@ async function loadSchedule(){
     if(!pop.hidden && !e.target.closest("#datePick") && e.target!==input) close();
   });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!pop.hidden) close(); });
-  window.addEventListener("resize",()=>{ if(!pop.hidden) close(); });
+  // Stay glued to the input while the page scrolls (desktop popover only).
+  const onScroll=()=>{ if(!pop.hidden) place(); };
+  if(lenis) lenis.on("scroll", onScroll);
+  else window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", () => { if(!pop.hidden) place(); });
 })();
 
 async function loadCoachSubjects(){
