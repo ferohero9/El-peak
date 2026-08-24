@@ -767,14 +767,20 @@ async def increment_usage(user_id: int, ai_questions: int = 0, pdf_uploads: int 
                     user_id
                 )
 
-async def upgrade_user_tier(user_id: int, tier: str):
+async def upgrade_user_tier(user_id: int, tier: str, billing_period: str = "month"):
+    """Apply a paid tier to a user. P0.2: the subscription length now follows
+    the billing period — 7 days for a weekly purchase, 30 for monthly (when
+    monthly is re-enabled). Defaults to 30 days so legacy callers and any
+    older code path keep the historical behavior."""
     tier = tier.strip().lower()
+    period = (billing_period or "month").strip().lower()
     if tier == "free":
         subscription_status = "inactive"
         expires = None
     else:
         subscription_status = "active"
-        expires = (now_utc() + dt.timedelta(days=30)).isoformat(timespec="seconds")
+        days = 7 if period == "week" else 30
+        expires = (now_utc() + dt.timedelta(days=days)).isoformat(timespec="seconds")
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -854,8 +860,13 @@ async def finalize_payment(
     tier: str,
     merchant_order_id: str,
     amount_cents: Any = None,
-    raw_payload: str | None = None
+    raw_payload: str | None = None,
+    billing_period: str = "month"
 ) -> bool:
+    """P0.2: billing_period flows through to upgrade_user_tier so a weekly
+    purchase sets a 7-day expiry and a monthly purchase sets 30 days. Defaults
+    to month so legacy callers / webhook payloads using the old merchant_order
+    id format (no period encoded) keep the historical 30-day behavior."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -898,7 +909,7 @@ async def finalize_payment(
                     now_str(),
                     now_str()
                 )
-    await upgrade_user_tier(user_id, tier)
+    await upgrade_user_tier(user_id, tier, billing_period=billing_period)
     return True
 
 async def get_payments(user_id: int, limit: int = 20) -> list[dict]:
