@@ -76,7 +76,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
    (features + conn-status + how-works) is in .auth-extras below the card,
    scrollable but no longer competing for attention with the form. */
 #authView{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 24px 32px;gap:14px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;touch-action:pan-y}
-.auth-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:32px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--glass-rim),var(--shadow-hover);padding:40px;width:100%;max-width:380px;animation:authIn .6s var(--spring);display:flex;flex-direction:column;align-items:center;position:relative;flex-shrink:0}
+.auth-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:32px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--glass-rim),var(--shadow-hover);padding:56px 40px 44px;width:100%;max-width:380px;animation:authIn .6s var(--spring);display:flex;flex-direction:column;align-items:center;position:relative;flex-shrink:0}
 /* Round-11 — secondary panel below the card for marketing/explainer content.
    Visually distinct from the card (no glass blur, lighter background) so the
    card remains the primary focus. Constrained to the same max-width so the
@@ -97,20 +97,24 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
    2. max-width:380px  — small phones (further compress)
    3. max-height:760px  — short desktop / landscape phone windows
                           (trim vertical margins without shrinking width) */
+/* Round 14: spacing pass — bumped margin-bottoms + form gap + auth-card
+   padding-top so the card breathes (was reading as cramped per user report).
+   Login form may now slightly overflow viewport on phones but #authView's
+   overflow-y:auto + Lenis-instance (added this round) makes scrolling smooth. */
 @media (max-width:480px){
-  #authView{padding:14px 14px 24px;gap:10px}
-  .auth-card{padding:28px 22px;border-radius:24px}
-  .auth-logo{font-size:22px;gap:8px}
+  #authView{padding:16px 14px 24px;gap:12px}
+  .auth-card{padding:38px 22px 30px;border-radius:24px}
+  .auth-logo{font-size:22px;gap:8px;margin-bottom:16px}
   .auth-logo svg{width:24px;height:24px}
-  .auth-sub{font-size:13px;margin-bottom:18px}
-  .google-btn{margin-bottom:16px;padding:11px 18px;font-size:12.5px}
-  .auth-divider{margin-bottom:16px;font-size:10px}
-  .auth-tabs{margin-bottom:18px;padding:3px}
+  .auth-sub{font-size:13px;margin-bottom:24px}
+  .google-btn{margin-bottom:22px;padding:11px 18px;font-size:12.5px}
+  .auth-divider{margin-bottom:22px;font-size:10px}
+  .auth-tabs{margin-bottom:24px;padding:3px}
   .auth-tab{padding:9px;font-size:12.5px}
-  .auth-form{gap:12px}
+  .auth-form{gap:18px}
   .auth-form .field input,.auth-form .field select{padding:12px 14px;font-size:13.5px;border-radius:13px}
   .auth-form .field label{font-size:11.5px;margin-bottom:5px;display:block}
-  .auth-btn{margin-top:6px;padding:12px 16px;font-size:13.5px}
+  .auth-btn{margin-top:16px;padding:12px 16px;font-size:13.5px}
   .auth-extras{gap:10px}
   .auth-features{gap:6px}
   .auth-feature{padding:10px 4px;gap:5px}
@@ -127,18 +131,18 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   .how-step-body{font-size:10.5px;padding:0 10px 9px 38px;line-height:1.45}
 }
 @media (max-width:380px){
-  #authView{padding:12px 12px 20px;gap:8px}
-  .auth-card{padding:22px 18px;border-radius:20px}
-  .auth-logo{font-size:20px;gap:7px}
+  #authView{padding:14px 12px 22px;gap:10px}
+  .auth-card{padding:30px 18px 24px;border-radius:20px}
+  .auth-logo{font-size:20px;gap:7px;margin-bottom:12px}
   .auth-logo svg{width:22px;height:22px}
-  .auth-sub{font-size:12px;margin-bottom:14px}
-  .google-btn{margin-bottom:12px;padding:10px 14px;font-size:12px}
-  .auth-divider{margin-bottom:12px;letter-spacing:0.07em}
-  .auth-tabs{margin-bottom:14px}
+  .auth-sub{font-size:12px;margin-bottom:20px}
+  .google-btn{margin-bottom:18px;padding:10px 14px;font-size:12px}
+  .auth-divider{margin-bottom:18px;letter-spacing:0.07em}
+  .auth-tabs{margin-bottom:20px}
   .auth-tab{padding:8px;font-size:12px}
-  .auth-form{gap:10px}
+  .auth-form{gap:16px}
   .auth-form .field input,.auth-form .field select{padding:11px 12px;font-size:13px;border-radius:12px}
-  .auth-btn{padding:11px 14px;font-size:13px}
+  .auth-btn{padding:11px 14px;font-size:13px;margin-top:14px}
   .auth-extras{gap:8px}
   .auth-feature{padding:8px 3px;gap:4px}
   .auth-feature-title{font-size:10.5px}
@@ -147,16 +151,27 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   .how-step{margin-bottom:4px}
   .how-step-head{padding:7px 9px}
   .how-step-body{padding:0 9px 8px 36px}
+  /* Round-13 (Item 2): compress the toggle cluster on tiny phones so it
+     doesn't crowd the logo. Offset 20→16px, gap 16→12px, lang-btn padding
+     7×14 → 6×12, min-width 42→38px, theme-btn 38→34px. Still touch-friendly
+     (34px ≥ the 32px minimum for secondary controls on mobile). */
+  .auth-quick-settings{top:16px;right:16px;gap:12px}
+  html[dir="rtl"] .auth-quick-settings{left:16px}
+  .auth-lang-toggle{padding:4px;gap:3px}
+  .auth-lang-btn{padding:6px 12px;min-width:38px}
+  .auth-theme-btn{width:34px;height:34px}
 }
 @media (max-height:760px) and (min-width:481px){
   /* Short windows (laptop browser in half-screen, landscape phone, kiosk) —
-     the card is narrow enough but too tall. Trim only vertical metrics. */
-  .auth-card{padding:30px 36px}
-  .auth-sub{margin-bottom:16px}
-  .google-btn{margin-bottom:14px;padding:11px 20px}
-  .auth-divider{margin-bottom:14px}
-  .auth-tabs{margin-bottom:16px}
-  .auth-form{gap:12px}
+     the card is narrow enough but too tall. Trim only vertical metrics.
+     Round 15: bumped trim values slightly to give even short viewports more
+     breathing room (the cramped complaint was universal). */
+  .auth-card{padding:36px 36px 32px}
+  .auth-sub{margin-bottom:20px}
+  .google-btn{margin-bottom:18px;padding:11px 20px}
+  .auth-divider{margin-bottom:18px}
+  .auth-tabs{margin-bottom:20px}
+  .auth-form{gap:16px}
   .auth-extras{gap:10px}
   .auth-features{gap:6px}
   .auth-feature{padding:10px 4px}
@@ -168,23 +183,33 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
    button (and a conditional 4th grade field), login has 2 + button. Without
    this min-height, switching to login would shrink the form below the fold. */
 .auth-forms{min-height:200px}
-.auth-logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:24px;margin-bottom:4px;justify-content:center}
+.auth-logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:24px;margin-bottom:22px;justify-content:center}
 .auth-logo svg{width:28px;height:28px}
-.auth-sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:24px}
-/* Round-11 — auth-quick-settings (lang + theme) were cramped at top:16px /
-   gap:8px. User feedback: "the Arabic toggle and light mode toggle are all
-   cramped in; they don't look good." Bumped gap to 12px, raised top to 14px,
-   gave the lang-toggle more padding (4px), bumped lang-btn padding to 6px×13px
-   + min-width 38px so the EN/ع pills have breathing room. Theme button kept at
-   30px (matches lang-btn height of ~24px+6×2=36px after padding+border) so the
-   two read as a single row of equal-height chips rather than mismatched dots. */
-.auth-quick-settings{position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:12px;z-index:3}
-html[dir="rtl"] .auth-quick-settings{right:auto;left:14px}
-.auth-lang-toggle{display:flex;gap:3px;padding:4px;background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
-.auth-lang-btn{padding:6px 13px;border-radius:100px;font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--muted);transition:color .25s var(--smooth),background .25s var(--smooth),box-shadow .25s var(--smooth);min-width:38px;line-height:1}
+.auth-sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:32px}
+/* Round-13 (Item 2): toggle spacing layout pass. Round 11 bumped gap 8→12px
+   and offset 16→14px but the cluster still reads as pinned to the corner,
+   detached from the card's padding rhythm (card padding is 40px; a 14px
+   corner offset makes the toggles feel like an afterthought). This round:
+   - Offset 14→20px so the cluster sits clearly inside the card's glass
+     frame, not flush against the edge.
+   - Gap 12→16px so the two chips read as distinct controls, not a smudge.
+   - lang-btn padding 6×13 → 7×14, min-width 38→42px: the EN/ع pills get
+     real horizontal breathing room.
+   - theme-btn 34→38px to MATCH the lang-toggle's outer height
+     (5px padding + 28px btn + 5px padding + 2px border = 40px ≈ 38px) so
+     the two read as a single row of equal-height chips. The 2px delta is
+     imperceptible and 38px is a standard icon-button size.
+   - Mobile (max-width:380px) compresses back toward Round-11 values so
+     the cluster doesn't eat the logo's space on a 320px viewport. */
+/* Round-15 (Item 2 aggressive): toggle cluster inset bumped more (top/right
+   20→24, gap 16→20) so the toggles don't crowd the card edge or each other. */
+.auth-quick-settings{position:absolute;top:24px;right:24px;display:flex;align-items:center;gap:20px;z-index:3}
+html[dir="rtl"] .auth-quick-settings{right:auto;left:24px}
+.auth-lang-toggle{display:flex;gap:4px;padding:5px;background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
+.auth-lang-btn{padding:7px 14px;border-radius:100px;font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--muted);transition:color .25s var(--smooth),background .25s var(--smooth),box-shadow .25s var(--smooth);min-width:42px;line-height:1}
 .auth-lang-btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-text);box-shadow:0 2px 10px var(--accent-glow)}
 .auth-lang-btn:not([aria-pressed="true"]):hover{color:var(--ink);background:color-mix(in srgb,var(--accent) 12%,transparent)}
-.auth-theme-btn{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));color:var(--muted);transition:color .25s var(--smooth),background .25s var(--smooth),transform .25s var(--smooth)}
+.auth-theme-btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));color:var(--muted);transition:color .25s var(--smooth),background .25s var(--smooth),transform .25s var(--smooth)}
 .auth-theme-btn:hover{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);transform:rotate(15deg) scale(1.08)}
 .auth-theme-btn:active{transform:rotate(0) scale(.94)}
 .auth-theme-btn svg{width:15px;height:15px}
@@ -265,20 +290,20 @@ html[data-lowend="true"] .conn-dot::after{display:none}
 .how-step-body{font-size:11px;color:var(--muted);line-height:1.5;padding:0 12px 11px 44px;will-change:max-height,opacity}
 @media (prefers-reduced-motion: reduce){.how-works,.how-step,.how-step:nth-of-type(n),.how-step-body{animation:none}.how-step-chev{transition:none}}
 html[data-lowend="true"] .how-works,html[data-lowend="true"] .how-step,html[data-lowend="true"] .how-step:nth-of-type(n),html[data-lowend="true"] .how-step-body{animation:none}
-.google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,0.1);border:none;margin-bottom:20px;padding:12px 24px;border-radius:100px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .2s var(--spring)}
+.google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,0.1);border:none;margin-bottom:28px;padding:12px 24px;border-radius:100px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .2s var(--spring)}
 .google-btn:hover{transform:translateY(-2px)}
 .google-btn:disabled{opacity:.6;pointer-events:none}
 .google-btn:active{transform:translateY(0) scale(.97)}
 .google-btn svg{width:18px;height:18px}
-.auth-divider{width:100%;display:flex;align-items:center;gap:12px;margin-bottom:20px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em}
+.auth-divider{width:100%;display:flex;align-items:center;gap:12px;margin-bottom:28px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em}
 .auth-divider::before, .auth-divider::after{content:"";flex:1;height:1px;background:var(--glass-border)}
-.auth-tabs{display:flex;width:100%;background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:100px;padding:4px;margin-bottom:24px}
+.auth-tabs{display:flex;width:100%;background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:100px;padding:4px;margin-bottom:32px}
 .auth-tab{flex:1;padding:10px;border-radius:100px;font-weight:600;font-size:13px;color:var(--muted);transition:all .3s var(--smooth);text-align:center;cursor:pointer}
 .auth-tab.active{background:var(--accent);color:var(--accent-text);box-shadow:0 4px 15px var(--accent-glow)}
 .auth-tab:active{transform:scale(.96)}
 .auth-forms{position:relative;width:100%;transition:height var(--t-slow) var(--spring)}
 .auth-forms.morphing{overflow:hidden}
-.auth-form{display:none;flex-direction:column;gap:16px;width:100%}
+.auth-form{display:none;flex-direction:column;gap:24px;width:100%}
 .auth-form.active{display:flex}
 .auth-form.active>*{animation:fieldIn .45s var(--smooth) backwards}
 .auth-form.active>*:nth-child(2){animation-delay:.04s}
@@ -288,12 +313,12 @@ html[data-lowend="true"] .how-works,html[data-lowend="true"] .how-step,html[data
 #authGradeField,#settingsGradeField{animation:fieldIn .45s var(--smooth)}
 @keyframes fieldIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
 .auth-form.active{position:relative}
-.auth-forms.morphing .auth-form.leaving{display:flex;position:absolute;top:0;left:0;width:100%;flex-direction:column;gap:16px;pointer-events:none;animation:fieldOut .22s var(--smooth) both}
+.auth-forms.morphing .auth-form.leaving{display:flex;position:absolute;top:0;left:0;width:100%;flex-direction:column;gap:24px;pointer-events:none;animation:fieldOut .22s var(--smooth) both}
 @keyframes fieldOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-10px) scale(.98)}}
 .auth-form .field{width:100%}
 .auth-form .field input,.auth-form .field select{width:100%;padding:14px 18px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px}
 .auth-form .field input:focus,.auth-form .field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
-.auth-btn{width:100%;margin-top:8px;justify-content:center}
+.auth-btn{width:100%;margin-top:20px;justify-content:center}
 
 nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:blur(var(--blur));background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--glass-rim),var(--shadow-sm);width:calc(100% - 48px);max-width:1100px;height:60px}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;padding-left:8px}
@@ -622,20 +647,13 @@ input[type="range"].custom-range:active::-moz-range-thumb{transform:scale(1.3)}
 @keyframes toastOut{to{opacity:0;transform:translateY(10px) scale(.94)}}
 @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
 
-/* === Round 11: brand hero (auth card) — STATIC. User feedback: "I hate that
-   glowing effect on the logo; remove it." So we removed the drop-shadow glow
-   on .brand-peak AND the brandPulse/brandFloat animations on .peak-sun /
-   .peak-particle. The SVG paths themselves stay (sun circle, mountain, three
-   particle dots) but are now just static geometry — no animation, no glow.
-   Keeping the shape preserves the brand silhouette; removing the motion +
-   glow makes the logo feel calmer and more professional. */
-.auth-logo .brand-peak{overflow:visible}
-.auth-logo .peak-sun{transform-origin:14.5px 5px}
-.auth-logo .peak-particle{transform-origin:center}
-.auth-logo .peak-particle.p2{}
-.auth-logo .peak-particle.p3{}
-@media(prefers-reduced-motion:reduce){.auth-logo .peak-sun,.auth-logo .peak-particle{animation:none}}
-html[data-lowend="true"] .auth-logo .peak-sun,html[data-lowend="true"] .auth-logo .peak-particle{animation:none}
+/* === Round 15: logo stripped to JUST the mountain stroke (one path).
+   Round 14 removed the drop-shadow glow + the peak-sun circle, but user
+   reported still perceiving a "weird effect". To eliminate ANY possible
+   visual artifact (low-opacity peak-bg fill, tiny peak-star/peak-particle
+   dots that could read as noise), this round removes ALL of them too.
+   Logo is now one clean indigo mountain stroke — nothing else. */
+.auth-logo .brand-peak{overflow:visible;filter:none}
 
 /* === Round 5: demo try button (auth card) — dashed-border invitation CTA === */
 .demo-try-btn{width:100%;margin-top:14px;padding:13px;border-radius:14px;border:1px dashed var(--glass-border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;cursor:pointer;transition:color var(--t-tap) var(--smooth),border-color var(--t-tap) var(--smooth),background var(--t-tap) var(--smooth),transform var(--t-tap) var(--smooth);display:flex;align-items:center;justify-content:center;gap:8px;animation:featIn .5s var(--spring) both;animation-delay:.24s;font-family:var(--body)}
@@ -701,20 +719,9 @@ html[data-lowend="true"] .demo-opt.wrong{animation:none}
 .demo-weak .dsc{font-size:12.5px;color:var(--ink);line-height:1.5}
 .demo-cta{margin-top:6px}
 
-/* === Round 11: theme-aware brand colors — STATIC (glow removed per user
-   request). Dark theme: stars are subtle white dots. Light theme: sun is
-   warm amber, particles are amber-tinted. No twinkle, no pulse, no drop-shadow
-   glow — just the silhouette + the theme's accent color fill. */
-[data-theme="dark"] .auth-logo .peak-star{fill:#fff;opacity:.35}
-[data-theme="dark"] .auth-logo .peak-star.s2{opacity:.28}
-[data-theme="dark"] .auth-logo .peak-star.s3{opacity:.22}
-[data-theme="light"] .auth-logo .peak-star{display:none}
-[data-theme="light"] .auth-logo .peak-sun{fill:#f59e0b;opacity:1}
-[data-theme="light"] .auth-logo .peak-particle{fill:#f59e0b;opacity:.5}
-[data-theme="light"] .auth-logo .peak-bg{fill:#f59e0b;opacity:.22}
-@media(prefers-reduced-motion:reduce){[data-theme="dark"] .auth-logo .peak-star,[data-theme="light"] .auth-logo .peak-sun{animation:none}}
-html[data-lowend="true"] .auth-logo .peak-star{display:none}
-html[data-lowend="true"][data-theme="light"] .auth-logo .peak-sun{animation:none}
+/* (Round 15: logo stripped to JUST the mountain stroke path — peak-stars,
+   peak-particles, peak-bg fill all removed from SVG markup. Their orphaned
+   theme-color rules below were also removed. Logo is now one indigo stroke.) */
 
 /* === Round 6: demo topic picker === */
 .demo-picker-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:18px;line-height:1.5}
@@ -1027,7 +1034,7 @@ html[data-lowend="true"] #tip {
   <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
 </div>
 
-<div id="authView" style="display:none">
+<div id="authView" style="display:none" data-lenis-prevent>
   <div class="auth-card">
     <div class="auth-quick-settings" role="group" aria-label="Quick settings">
       <div class="auth-lang-toggle" role="group" aria-label="Language">
@@ -1041,15 +1048,7 @@ html[data-lowend="true"] #tip {
     </div>
     <div class="auth-logo">
       <svg viewBox="0 0 20 20" fill="none" class="brand-peak" aria-hidden="true">
-        <circle class="peak-star s1" cx="3" cy="3" r=".4"/>
-        <circle class="peak-star s2" cx="17" cy="2" r=".35"/>
-        <circle class="peak-star s3" cx="9" cy="2.5" r=".3"/>
-        <circle class="peak-sun" cx="14.5" cy="5" r="2.1" fill="var(--accent)"/>
-        <path class="peak-bg" d="M2 18 L7 4 L10 12 L13 6 L18 18 Z" fill="var(--accent)" opacity=".18"/>
         <path d="M2 18 L7 4 L10 12 L13 6 L18 18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle class="peak-particle p1" cx="5" cy="15" r=".55" fill="var(--accent)"/>
-        <circle class="peak-particle p2" cx="11" cy="14" r=".45" fill="var(--accent)"/>
-        <circle class="peak-particle p3" cx="15.5" cy="12" r=".5" fill="var(--accent)"/>
       </svg>
       El-Peak
     </div>
@@ -1270,7 +1269,7 @@ html[data-lowend="true"] #tip {
     <section class="view" id="view-quiz">
       <div class="view-header">
         <div class="text-block"><div class="kicker" data-i18n="quiz_engine">Quiz Engine</div><h1 class="big" data-i18n="expedition">Expedition</h1></div>
-        <span class="badge ai" id="quizModelBadge">⚡ GROQ</span>
+        <span class="badge ai" id="quizModelBadge">⚡ Groq AI</span>
       </div>
       <div class="card" id="setupCard">
         <div class="src-seg">
@@ -1417,14 +1416,14 @@ html[data-lowend="true"] #tip {
               <div style="font-family:var(--disp);font-weight:700;font-size:18px">Plus</div>
               <div style="font-size:24px;font-weight:800;margin:8px 0">39 EGP</div>
               <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="week">week</span></div>
-              <div style="margin-top:12px;font-size:12px;color:var(--muted)">120 AI Questions<br>15 PDF Uploads<br><b>GPT-OSS-20B Model</b></div>
+              <div style="margin-top:12px;font-size:12px;color:var(--muted)">120 AI Questions<br>15 PDF Uploads<br><b>Upgraded AI Model</b></div>
               <div class="monthly-disabled"><s>99 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
             </div>
             <div class="upgrade-box" id="proBox" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
               <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
               <div style="font-size:24px;font-weight:800;margin:8px 0">59 EGP</div>
               <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="week">week</span></div>
-              <div style="margin-top:12px;font-size:12px;color:var(--muted)">350 AI Questions<br>45 PDF Uploads<br><b>GPT-OSS-120B Model</b></div>
+              <div style="margin-top:12px;font-size:12px;color:var(--muted)">350 AI Questions<br>45 PDF Uploads<br><b>Premium AI Model</b></div>
               <div class="monthly-disabled"><s>199 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
             </div>
           </div>
@@ -1558,7 +1557,7 @@ html[data-lowend="true"] #tip {
         <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
         <div style="font-size:24px;font-weight:800;margin:8px 0">59 EGP</div>
         <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="week">week</span></div>
-        <div style="margin-top:12px;font-size:12px;color:var(--muted)">350 AI Questions<br>45 PDF Uploads<br><b>GPT-OSS-120B Model</b></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted)">350 AI Questions<br>45 PDF Uploads<br><b>Premium AI Model</b></div>
         <div class="monthly-disabled"><s>199 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
       </div>
     </div>
@@ -1915,12 +1914,74 @@ function initLenis() {
   }
   lenisRafId = requestAnimationFrame(raf);
 
-  $$(".chat-body, .select-menu, .heat").forEach(el => el.setAttribute("data-lenis-prevent", ""));
+  // Round-13 (Item 3): add #authView to the data-lenis-prevent list. Lenis is
+  // stopped when the auth view shows (lines 2055/2064) so it won't smooth-scroll
+  // the body behind the overlay — but its wheel listener stays attached and, on
+  // non-low-end devices, intercepts wheel events over #authView, blocking the
+  // fixed container's native overflow-y:auto. data-lenis-prevent tells Lenis to
+  // skip events whose target lives inside this element, so native scroll works.
+  // (The HTML also carries the attribute directly; this JS line is belt+suspenders
+  // for the case where Lenis re-inits or the attribute gets dropped by a future
+  // edit. Touch scroll on phones already worked via touch-action:pan-y on #authView.)
+  $$("#authView, .chat-body, .select-menu, .heat").forEach(el => el.setAttribute("data-lenis-prevent", ""));
 
   return instance;
 }
 
 lenis = initLenis();
+
+// === Round 14: auth-screen smooth scroll (separate Lenis instance). ===
+// User reported the sign-up page scroll feels jumpy / not momentum-smooth
+// like the main page. Root cause: the outer `lenis` is scoped to window —
+// it can't smooth-scroll #authView because that element is position:fixed
+// with overflow-y:auto (an internal scroll container, not the document).
+// Round 13 made native scroll WORK on #authView via data-lenis-prevent +
+// overflow-y:auto, but native scroll has no momentum. This round attaches
+// a SECOND Lenis instance scoped to #authView so wheel + touch on the auth
+// screen get the same lerp-based momentum smoothing as the main page.
+// Outer `lenis` is stopped when auth shows (no window scroll behind the
+// overlay); data-lenis-prevent on #authView keeps the outer instance from
+// interfering with the inner one even when both are running. Same
+// reduced-motion + low-end gates as outer lenis (cheap RAF on throttled
+// hardware would make things worse, not better).
+let authLenis = null;
+let authLenisRafId = null;
+
+function initAuthLenis() {
+  if (reducedMotion || lowEndDevice || !window.Lenis) return null;
+  const authView = document.querySelector('#authView');
+  if (!authView || authLenis) return authLenis;
+  try {
+    const instance = new Lenis({
+      wrapper: authView,
+      content: authView,
+      lerp: 0.08,
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      autoResize: true,
+    });
+    function raf(time) {
+      instance.raf(time);
+      authLenisRafId = requestAnimationFrame(raf);
+    }
+    authLenisRafId = requestAnimationFrame(raf);
+    authLenis = instance;
+  } catch(e) {
+    // Lenis wrapper-option not supported or unexpected error → fall back to
+    // native overflow-y:auto scroll (still works, just no momentum smoothing).
+    authLenis = null;
+  }
+  return authLenis;
+}
+
+function startAuthLenis() {
+  if (!authLenis) initAuthLenis();
+  if (authLenis) { try { authLenis.start(); } catch(e){} }
+}
+
+function stopAuthLenis() {
+  if (authLenis) { try { authLenis.stop(); } catch(e){} }
+}
 
 (function initParallax(){
   // Stage 4: aurora drifts at a fraction of scroll. One listener, one
@@ -2017,6 +2078,7 @@ function showApp() {
     avEl.classList.remove("app-enter"); void avEl.offsetWidth; avEl.classList.add("app-enter");
     currentView = $(".view.active")?.id.replace("view-", "") || "dashboard";
     if (lenis) lenis.start();
+    stopAuthLenis();  // Round 14: release auth-screen smooth-scroll RAF while app is showing
     const activeLink = $(".navlinks a.active");
     if (activeLink) moveSlider(activeLink);
     moveMobileSlider($(".mobilenav a.active"));
@@ -2037,6 +2099,7 @@ function logout() {
     if (lenis) lenis.stop();
     $("#appView").style.display = "none";
     $("#authView").style.display = "flex";
+    startAuthLenis();  // Round 14: activate auth-screen smooth-scroll on re-show
 }
 
 if (token) {
@@ -2044,6 +2107,7 @@ if (token) {
 } else {
     $("#authView").style.display = "flex";
     if (lenis) lenis.stop();
+    startAuthLenis();  // Round 14: activate auth-screen smooth-scroll on first paint
     applyLanguage(currentLang);
 }
 
@@ -2365,6 +2429,7 @@ window.addEventListener('resize', () => {
   if(activeLink) moveSlider(activeLink);
   moveMobileSlider($(".mobilenav a.active"));
   if(lenis) lenis.resize();
+  if(authLenis) { try { authLenis.resize(); } catch(e){} }  // Round 14: keep auth-screen smooth-scroll dims in sync
 });
 
 function updateDifficultyButtons(grade) {
@@ -2394,11 +2459,20 @@ async function loadDashboard(){
   try{
     const [stats,topics,recent,heat,usage]=await Promise.all([api("/api/stats"),api("/api/topics"),api("/api/recent?limit=20"),api("/api/heatmap"),api("/api/usage")]);
     
+    // Round-13 (Item 4): badge label is now GENERIC + tier-differentiated, not a
+    // hardcoded model id. The previous "LLAMA-3.1-8B" / "LLAMA-3.3-70B" text was
+    // stale the moment Groq deprecated those ids (shutdown 2026-08-16). A generic
+    // "Groq AI" / "Groq AI+" label: (a) won't go stale when Groq ships new models,
+    // (b) honestly tells the user what's powering the quiz, (c) still signals the
+    // paid-tier model upgrade (the +) without leaking the exact model id, which
+    // is a backend config detail (env-overridable) that changes for operational
+    // reasons unrelated to the user. The real per-tier model lives in main.py's
+    // TIER_MODELS; the badge is decorative branding, not an API contract.
     const modelBadge = $("#quizModelBadge");
     if (usage && usage.tier === 'free') {
-        modelBadge.textContent = '⚡ LLAMA-3.1-8B';
+        modelBadge.textContent = '⚡ Groq AI';
     } else if (usage) {
-        modelBadge.textContent = '⚡ LLAMA-3.3-70B';
+        modelBadge.textContent = '⚡ Groq AI+';
     }
     
     $("#streakChip").textContent=stats.streak+" "+ (translations[currentLang].days || "days");
@@ -4272,23 +4346,44 @@ function showGenLoader(source) {
 function hideGenLoader() { if (genLoaderEl) genLoaderEl.hidden = true; }
 
 (function initCursorFX() {
-  // P2: the cursor-follow glow/tilt engine is the most pointermove-heavy
-  // effect (a listener that does getBoundingClientRect + closest() on every
-  // mouse move). Skip it entirely on low-end devices so the main thread
-  // stays free for real interaction.
+  // P2 + Round-13 (Item 6): the cursor-follow glow/tilt engine is the most
+  // pointermove-heavy effect. Skip it entirely on low-end devices so the main
+  // thread stays free for real interaction.
+  //
+  // Round-13 FIX: the original handler ran getBoundingClientRect() + closest()
+  // + 3-5 style.setProperty() writes on EVERY RAW pointermove event. High-
+  // precision mice fire pointermove at 120-240Hz, so that was 120-240 forced
+  // layout reflows per second, each dirtying layout for the next call. When
+  // the user scrolled while hovering, this handler + Lenis's own RAF scroll
+  // callback both fought for the frame budget → the janky/stiff scroll the
+  // user reported.
+  //
+  // Fix: throttle to requestAnimationFrame. The raw pointermove handler now
+  // only stores the latest event + schedules a single RAF; the expensive work
+  // (closest + getBoundingClientRect + style writes) runs AT MOST once per
+  // frame (60Hz), coalesced into one batch. This leaves the rest of each
+  // frame free for Lenis's scroll updates, so hover + scroll together stay
+  // smooth. Intermediate pointer positions within a frame are discarded (the
+  // glow only needs the final-per-frame position — visual difference is
+  // imperceptible at 60fps).
   if (reducedMotion || lowEndDevice) return;
   const GLOW = ".btn, .opt, .src-card";
   const TILT = ".src-card";
   let fxEl = null;
+  let pendingEvt = null;       // latest pointermove event, coalesced per frame
+  let rafScheduled = false;   // is a RAF callback already pending?
   const clearTilt = el => { el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg"); };
-  document.addEventListener("pointermove", e => {
+  function processFrame() {
+    rafScheduled = false;
+    const e = pendingEvt;
+    pendingEvt = null;
     // P2 runtime guard: the async RAF probe can flip lowEndDevice after this
     // listener attached; once flipped, no-op + clear any in-progress tilt.
-    if (lowEndDevice) { if (fxEl) { clearTilt(fxEl); fxEl = null; } return; }
-    if (e.pointerType !== "mouse") return;
+    if (!e || lowEndDevice) { if (fxEl) { clearTilt(fxEl); fxEl = null; } return; }
     const el = e.target && e.target.closest ? e.target.closest(GLOW) : null;
     if (fxEl && fxEl !== el) { clearTilt(fxEl); fxEl = null; }
     if (!el || el.disabled) return;
+    // ONE getBoundingClientRect per frame max (was N per frame before).
     const r = el.getBoundingClientRect();
     if (!r.width && !r.height) return;
     const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
@@ -4299,6 +4394,17 @@ function hideGenLoader() { if (genLoaderEl) genLoaderEl.hidden = true; }
       el.style.setProperty("--ry", ((px - 0.5) * 6).toFixed(2) + "deg");
     }
     fxEl = el;
+  }
+  document.addEventListener("pointermove", e => {
+    if (lowEndDevice) { if (fxEl) { clearTilt(fxEl); fxEl = null; } return; }
+    if (e.pointerType !== "mouse") return;
+    // Coalesce: keep only the latest event; schedule ONE RAF for the frame.
+    // The expensive work happens in processFrame(), at most 60x/sec.
+    pendingEvt = e;
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(processFrame);
+    }
   }, { passive: true });
   document.addEventListener("pointerout", e => {
     if (fxEl && !fxEl.contains(e.relatedTarget)) { clearTilt(fxEl); fxEl = null; }
@@ -4326,4 +4432,4 @@ async function processCheckout(btnId) {
 </script>
 </body>
 </html>
-                                                       
+                                                       
