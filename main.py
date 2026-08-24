@@ -1238,6 +1238,14 @@ async def manifest():
     resp.headers["Cache-Control"] = "public, max-age=3600"
     return resp
 
+# Round-12: the HTML <link rel="manifest" href="/el-peak-manifest.json"> uses the
+# "el-peak-" prefixed path, but the canonical route above is /manifest.json.
+# This alias serves the same manifest at the prefixed path so the PWA link tag
+# resolves (was returning 404 on production, breaking installability).
+@app.get("/el-peak-manifest.json", include_in_schema=False)
+async def manifest_alias():
+    return await manifest()
+
 @app.get("/sw.js", include_in_schema=False)
 async def service_worker():
     sw_path = BASE_DIR / "sw.js"
@@ -1470,7 +1478,12 @@ async def get_usage(user: Annotated[dict, Depends(get_current_user)]):
         "pdf_used": usage.get("pdf_uploads_used", 0),
         "pdf_limit": limits["pdf_uploads"],
         "pdf_max_mb": limits["pdf_max_mb"],
-        "prices": TIER_PRICES,
+        # Round-12: TIER_PRICES is keyed by (tier, period) TUPLES, which json.dumps
+        # refuses to serialize ("keys must be str, int, float, bool or None, not
+        # tuple") -> the whole /api/usage endpoint was returning 500 in production.
+        # Flatten to a JSON-safe dict keyed by "tier_period" strings so the
+        # frontend still gets every price pair, just in a serializable shape.
+        "prices": {f"{t}_{p}": amt for (t, p), amt in TIER_PRICES.items()},
         "simulated_payments": ALLOW_SIMULATED_PAYMENTS and not _paymob_configured()
     }
 

@@ -257,7 +257,12 @@ html[data-lowend="true"] .conn-dot::after{display:none}
 .how-step-title{font-size:12px;font-weight:600;color:var(--ink);flex:1;line-height:1.2}
 .how-step-chev{width:14px;height:14px;color:var(--muted);transition:transform .3s var(--ease-wobble),color .25s var(--smooth);flex-shrink:0}
 .how-step[open] .how-step-chev{transform:rotate(180deg);color:var(--accent)}
-.how-step-body{font-size:11px;color:var(--muted);line-height:1.5;padding:0 12px 11px 44px;animation:featIn .4s var(--smooth) both}
+/* Round-12: how-step-body is now animated via JS height (see toggle handler).
+   Removed the static featIn animation (it conflicted with the JS-driven
+   max-height/opacity transition by forcing opacity:0 on initial paint).
+   Base padding kept; JS adds overflow:hidden + max-height:0 inline when
+   collapsed and animates to scrollHeight when expanded. */
+.how-step-body{font-size:11px;color:var(--muted);line-height:1.5;padding:0 12px 11px 44px;will-change:max-height,opacity}
 @media (prefers-reduced-motion: reduce){.how-works,.how-step,.how-step:nth-of-type(n),.how-step-body{animation:none}.how-step-chev{transition:none}}
 html[data-lowend="true"] .how-works,html[data-lowend="true"] .how-step,html[data-lowend="true"] .how-step:nth-of-type(n),html[data-lowend="true"] .how-step-body{animation:none}
 .google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,0.1);border:none;margin-bottom:20px;padding:12px 24px;border-radius:100px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .2s var(--spring)}
@@ -3700,11 +3705,71 @@ function initConnectionStatus(){
 }
 initConnectionStatus();
 
-// How-it-works accordion: only one step open at a time (cleaner than native
-// <details> multi-open default). Toggle event fires after open state changes.
+// How-it-works accordion — Round-12: animated open/close.
+// Previously the <details> snapped open with no height transition. Now we
+// intercept the native "toggle" event and animate max-height + opacity so
+// the body slides down on open and slides up on close. Still only one step
+// open at a time (cleaner than the native multi-open default). Keyboard +
+// screen-reader behavior is unchanged because we DON'T preventDefault — we
+// let the <details> set its open state, then animate the body to match.
+//
+// Notes:
+//  - The "toggle" event fires AFTER the open attribute has changed, so inside
+//    the handler s.open already reflects the new state.
+//  - For close: we first set maxHeight to the current scrollHeight (so the
+//    element has a concrete pixel height to animate FROM), force a reflow,
+//    then set maxHeight to 0 (the animation target) — this is the standard
+//    "animate from auto" trick.
+//  - For open: set maxHeight to scrollHeight, then after the transition
+//    settles, set maxHeight to "none" so the body can grow if the viewport
+//    reflows (e.g. font-size change on responsive breakpoints).
+//  - prefers-reduced-motion + low-end devices skip the animation (CSS handles
+//    transitions, JS just sets final state immediately).
 $$("#howWorks .how-step").forEach(s => {
+  const body = s.querySelector(".how-step-body");
+  // Round-12: only prefers-reduced-motion skips the animation (real a11y need).
+  // Low-end devices DO get the animation — it's a single tiny max-height/opacity
+  // transition on one element, costs nothing, and the user explicitly asked for
+  // the open/close animation everywhere. The CSS @media (prefers-reduced-motion)
+  // rule already nulls the chevron transition; here we match that for the body.
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (body && !reduce) {
+    body.style.overflow = "hidden";
+    body.style.transition = "max-height .36s var(--ease-wobble), opacity .26s var(--smooth)";
+    body.style.maxHeight = s.open ? "none" : "0px";
+    body.style.opacity = s.open ? "1" : "0";
+  }
   s.addEventListener("toggle", () => {
-    if (s.open) $$("#howWorks .how-step").forEach(o => { if (o !== s) o.open = false; });
+    // Only one step open at a time — close siblings (with their own animation).
+    if (s.open) {
+      $$("#howWorks .how-step").forEach(o => {
+        if (o !== s && o.open) {
+          const ob = o.querySelector(".how-step-body");
+          if (ob && ob.style.transition) {
+            // animate sibling close
+            ob.style.maxHeight = ob.scrollHeight + "px";
+            void ob.offsetHeight; // reflow
+            ob.style.maxHeight = "0px";
+            ob.style.opacity = "0";
+          }
+          o.open = false; // triggers this handler recursively, but o.open is already false so the else-branch runs once
+        }
+      });
+    }
+    if (!body || !body.style.transition) return; // reduced-motion / low-end: native snap
+    if (s.open) {
+      // open: 0 -> scrollHeight -> none
+      body.style.maxHeight = body.scrollHeight + "px";
+      body.style.opacity = "1";
+      clearTimeout(body._t);
+      body._t = setTimeout(() => { if (s.open) body.style.maxHeight = "none"; }, 380);
+    } else {
+      // close: none/auto -> scrollHeight -> 0
+      body.style.maxHeight = body.scrollHeight + "px";
+      void body.offsetHeight; // reflow so the browser sees the concrete height before we collapse
+      body.style.maxHeight = "0px";
+      body.style.opacity = "0";
+    }
   });
 });
 
@@ -4261,4 +4326,4 @@ async function processCheckout(btnId) {
 </script>
 </body>
 </html>
-                                                       
+                                                       
