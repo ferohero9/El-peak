@@ -114,7 +114,43 @@ else:
     logger.warning("ALLOWED_ORIGINS unset; using wildcard (development only).")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+# P0: Groq deprecated llama-3.1-8b-instant and llama-3.3-70b-versatile (removed
+# from the Production Models list; Groq directs migration to the gpt-oss line).
+# Current valid identifiers: openai/gpt-oss-20b (fast/cheap, replaces the 8b)
+# and openai/gpt-oss-120b (larger, replaces the 70b). Defaults use the current
+# ids; the legacy Llama ids are kept only as late fallbacks in TIER_FALLBACK_
+# MODELS so a key that still has access to them is no worse off. Every per-tier
+# model is env-overridable so model/pricing changes ship without a code edit.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_MODEL_FREE = os.getenv("GROQ_MODEL_FREE", "openai/gpt-oss-20b")
+GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-20b")
+GROQ_MODEL_PRO = os.getenv("GROQ_MODEL_PRO", "openai/gpt-oss-120b")
+# Cheap/fast model used by the topic-validation gate (one short call per cache
+# miss). Must stay on the smallest current model + max_tokens=4 so it never
+# doubles Groq load meaningfully.
+GROQ_MODEL_GATE = os.getenv("GROQ_MODEL_GATE", "openai/gpt-oss-20b")
+# P1.2: cap on simultaneous outbound Groq calls. Groq's free tier is 30 RPM /
+# 1000 RPD per model at the ORGANIZATION level, so a burst of concurrent users
+# can blow the budget before per-user throttling reacts. This semaphore bounds
+# concurrent in-flight Groq HTTP calls across the whole process (and, with Redis
+# rate-limit state, across instances via the shared cooldown). Default 8 leaves
+# headroom under a 30 RPM ceiling (~0.5s avg per call → ~120 RPM theoretical,
+# but real calls are 1-4s so effective ceiling is well within budget).
+GROQ_CONCURRENCY_LIMIT = int(os.getenv("GROQ_CONCURRENCY_LIMIT", "8"))
+# P1.2: per-request cooldown. The historical RATE_LIMIT_SECONDS (15) applied
+# to everyone. Free-tier users get a longer cooldown so an individual's bursts
+# spread out and the shared org-level Groq budget lasts as the user count grows.
+# PROPOSAL (awaiting confirmation): FREE_TIER_COOLDOWN_SECONDS=30.
+# Reasoning: Groq free tier is 30 RPM per model at the org level, shared by ALL
+# users of this app's key. With ~1,000 free users, the org budget — not the
+# per-user budget — is the hard ceiling; a 30s per-user cooldown spreads an
+# individual's cache-miss bursts to <=2/min, and combined with the 7-day topic
+# cache + cross-instance single-flight + concurrency cap + 429 backoff, keeps
+# aggregate Groq misses within reach of the cache's effective capacity. 30s is
+# aggressive enough to protect the shared budget, lenient enough (~2 AI actions/
+# min ceiling per free user) that the app doesn't feel broken. Paid tiers keep
+# the 15s global cooldown. Both are env-tunable without a code change.
+FREE_TIER_COOLDOWN_SECONDS = int(os.getenv("FREE_TIER_COOLDOWN_SECONDS", "30"))
 PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY")
 PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "12345")
 PAYMOB_IFRAME_ID = os.getenv("PAYMOB_IFRAME_ID", "12345")
@@ -186,29 +222,83 @@ TIER_LIMITS = {
     }
 }
 TIER_MODELS = {
-    "free": "llama-3.1-8b-instant",
-    "plus": "openai/gpt-oss-20b",
-    "pro": "llama-3.3-70b-versatile"
+    "free": GROQ_MODEL_FREE,
+    "plus": GROQ_MODEL_PLUS,
+    "pro": GROQ_MODEL_PRO
 }
-# P1.2: preserved fallback chain acts as our circuit breaker.
+# P1.2: fallback chain acts as our circuit breaker. Current gpt-oss ids first
+# (confirmed valid), then the legacy Llama ids as a last resort — they may still
+# resolve for some keys until Groq's shutdown date, and cost nothing if they
+# 404 since we've already succeeded on a current model earlier in the chain.
 TIER_FALLBACK_MODELS = {
     "free": [
+        "openai/gpt-oss-20b",
         "llama-3.1-8b-instant"
     ],
     "plus": [
         "openai/gpt-oss-20b",
+        "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant"
     ],
     "pro": [
-        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
+        "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant"
     ]
 }
+# P0.2: billing restructure. Prices now carry a billing PERIOD alongside the
+# tier, not the tier alone. Weekly is the only purchasable period right now
+# (hosting wind-down in ~20 days — we can't honor a full month); monthly stays
+# defined so it can be re-enabled later by flipping MONTHLY_BILLING_ENABLED,
+# with zero code change. Amounts are in piastres (1 EGP = 100 piastres).
+#   Plus:  39 EGP/week  (was 99 EGP/month reference)
+#   Pro:   59 EGP/week  (was 199 EGP/month reference)
+#   Monthly (disabled): Plus 99 EGP, Pro 199 EGP — kept for the greyed-out UI.
+MONTHLY_BILLING_ENABLED = os.getenv("MONTHLY_BILLING_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
 TIER_PRICES = {
-    "plus": 9900,
-    "pro": 19900
+    # (tier, period) -> amount in piastres. Period is part of the key now.
+    ("plus", "week"):  3900,
+    ("pro",  "week"):  5900,
+    ("plus", "month"): 9900,   # not purchasable while MONTHLY_BILLING_ENABLED is false
+    ("pro",  "month"): 19900,  # not purchasable while MONTHLY_BILLING_ENABLED is false
 }
+# How long a successful payment extends the subscription, per period.
+TIER_PERIOD_DAYS = {"week": 7, "month": 30}
+# The single period a checkout is allowed to create right now.
+ACTIVE_BILLING_PERIOD = "week"
+
+def purchasable_periods() -> list[str]:
+    """Periods the checkout endpoint will actually let a user buy today."""
+    periods = ["week"]
+    if MONTHLY_BILLING_ENABLED:
+        periods.append("month")
+    return periods
+
+# -----------------------------
+# GROQ CONCURRENCY CAP (P1.2)
+# -----------------------------
+# Bounds simultaneous outbound Groq calls so a burst of concurrent users can't
+# all hit Groq at once even if individually rate-limited. Created lazily so it
+# binds to the running event loop (safe under uvicorn --workers / reload).
+_GROQ_SEMAPHORE: asyncio.Semaphore | None = None
+
+def get_groq_semaphore() -> asyncio.Semaphore:
+    global _GROQ_SEMAPHORE
+    if _GROQ_SEMAPHORE is None:
+        _GROQ_SEMAPHORE = asyncio.Semaphore(GROQ_CONCURRENCY_LIMIT)
+    return _GROQ_SEMAPHORE
+
+class GroqRateLimitError(RuntimeError):
+    """Raised when Groq returns 429 (account/org rate limit). Distinct from
+    other Groq errors so the fallback chain can retry-with-backoff on a 429
+    instead of immediately giving up to the static-bank fallback."""
+    pass
+
+class GroqAuthError(RuntimeError):
+    """Raised when Groq returns 401/403 — typically a missing/invalid key.
+    Surfaced as a clear, actionable error rather than a generic 'AI unavailable'."""
+    pass
 
 # -----------------------------
 # SHARED HTTP CLIENT (P0.3)
@@ -401,6 +491,37 @@ def _hmac_value(value: Any) -> str:
         return "true" if value == True else "false"
     return str(value)
 
+def parse_merchant_order_id(merchant_order_id: str) -> dict | None:
+    """P0.2: parse a Paymob merchant_order_id back into
+    {user_id, tier, period}. Pure so the webhook and tests can call it.
+
+    NEW format (this deploy): user_{id}_{tier}_{period}_{ts}
+        -> ['user', id, tier, period, ts]  e.g. user_42_plus_week_1700000000
+    LEGACY format (pre-deploy, may still be pending): user_{id}_{tier}_{ts}
+        -> ['user', id, tier, ts]           e.g. user_42_plus_1700000000
+
+    Legacy payments default to period='month' (the only period that existed
+    before this change), so a pending payment made right before the deploy
+    still finalizes correctly with a 30-day expiry.
+    Returns None on any unparseable value.
+    """
+    if not merchant_order_id:
+        return None
+    parts = merchant_order_id.split("_")
+    if len(parts) < 3:
+        return None
+    try:
+        user_id = int(parts[1])
+    except Exception:
+        return None
+    tier = parts[2].strip().lower()
+    if tier not in ("plus", "pro"):
+        return None
+    period = "month"  # legacy default
+    if len(parts) >= 4 and parts[3].strip().lower() in ("week", "month"):
+        period = parts[3].strip().lower()
+    return {"user_id": user_id, "tier": tier, "period": period}
+
 def client_ip(request: Request) -> str:
     """P0.5: respect Railway/LB proxy header, fall back to socket peer."""
     fwd = request.headers.get("x-forwarded-for", "")
@@ -427,8 +548,18 @@ async def single_flight_cached(cache_key: str, ttl: int, generate):
     Returns (payload, was_cached). `generate` is an async callable producing
     the payload to cache on miss. Concurrent identical requests wait for the
     first generator's result (up to ~10s) instead of firing duplicate Groq calls.
+
+    P0: FAIL-SOFT. Every cache/lock touch is wrapped so a Redis that was up at
+    startup but dies mid-flight (or throws on a corrupt value) degrades to a
+    real Groq call instead of erroring the request. The cache is an
+    optimization — it must never BLOCK a real generation.
     """
-    cached = await cache.get_ai_cache_redis(cache_key, ttl)
+    # First lookup. Any cache error -> treat as a miss and generate for real.
+    try:
+        cached = await cache.get_ai_cache_redis(cache_key, ttl)
+    except Exception as e:
+        logger.warning("AI cache read failed (fail-soft to live call): %s", e)
+        cached = None
     if cached is not None:
         return cached, True
 
@@ -442,7 +573,11 @@ async def single_flight_cached(cache_key: str, ttl: int, generate):
     if acquired:
         try:
             # Double-check after acquiring: another instance may have finished.
-            cached = await cache.get_ai_cache_redis(cache_key, ttl)
+            try:
+                cached = await cache.get_ai_cache_redis(cache_key, ttl)
+            except Exception as e:
+                logger.warning("AI cache double-check read failed (fail-soft): %s", e)
+                cached = None
             if cached is not None:
                 return cached, True
             payload = await generate()
@@ -458,9 +593,13 @@ async def single_flight_cached(cache_key: str, ttl: int, generate):
                 pass
 
     # Did not acquire: another request is generating. Poll the cache briefly.
+    # Each poll is fail-soft too — a Redis blip shouldn't kill the request.
     for _ in range(10):
         await asyncio.sleep(1)
-        cached = await cache.get_ai_cache_redis(cache_key, ttl)
+        try:
+            cached = await cache.get_ai_cache_redis(cache_key, ttl)
+        except Exception:
+            cached = None
         if cached is not None:
             return cached, True
 
@@ -571,6 +710,10 @@ class AskIn(BaseModel):
 
 class CheckoutIn(BaseModel):
     tier: str
+    # P0.2: billing period is now part of what a checkout selects. Defaults to
+    # the single active purchasable period (week) so existing clients that send
+    # only {tier} keep working and get a weekly checkout.
+    period: Optional[str] = None
 
 class SettingsIn(BaseModel):
     username: Optional[str] = None
@@ -678,9 +821,15 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> dic
     user["effective_tier"] = effective_tier_from_user(user)
     return user
 
-async def check_rate_limit(user_id: int):
-    # P2.2: Redis-backed, correct across instances.
-    allowed, wait_seconds = await cache.check_rate_limit_redis(f"ai:{user_id}", RATE_LIMIT_SECONDS)
+async def check_rate_limit(user_id: int, tier: str = "free"):
+    """P1.2: tier-aware cooldown. Free-tier users get a longer per-request
+    cooldown (FREE_TIER_COOLDOWN_SECONDS, default 30s — proposal) to spread
+    their bursts and protect the shared org-level Groq budget as the free user
+    count grows. Paid tiers keep the global RATE_LIMIT_SECONDS (default 15s).
+    Redis-backed so the cooldown is correct across instances."""
+    tier = (tier or "free").strip().lower()
+    seconds = FREE_TIER_COOLDOWN_SECONDS if tier == "free" else RATE_LIMIT_SECONDS
+    allowed, wait_seconds = await cache.check_rate_limit_redis(f"ai:{user_id}", seconds)
     if not allowed:
         raise HTTPException(
             status_code=429,
@@ -706,9 +855,13 @@ async def groq_chat(
     model_override: Optional[str] = None,
     timeout: int = 120
 ) -> str:
+    # P0: surface a missing/invalid key as a distinct, actionable error so
+    # the failure mode is obvious in logs and to the caller — do NOT mask it
+    # behind a generic 'AI unavailable'. This is the single most common cause
+    # of 'AI not working' in a fresh deployment.
     key = os.getenv("GROQ_API_KEY")
     if not key:
-        raise RuntimeError("Missing GROQ_API_KEY.")
+        raise GroqAuthError("GROQ_API_KEY is not set. AI features cannot run until a valid Groq key is configured.")
     model_to_use = model_override or GROQ_MODEL
     payload = {
         "model": model_to_use,
@@ -721,15 +874,28 @@ async def groq_chat(
         "Content-Type": "application/json"
     }
     client = get_http_client()
-    r = await client.post(GROQ_URL, headers=headers, json=payload, timeout=timeout)
+    # P1.2: bound concurrent outbound Groq calls so a burst of users can't
+    # all hit Groq at once. The semaphore is acquired only around the actual
+    # HTTP call; parsing happens outside the critical section.
+    sem = get_groq_semaphore()
+    async with sem:
+        r = await client.post(GROQ_URL, headers=headers, json=payload, timeout=timeout)
     if r.status_code != 200:
         try:
             err = r.json()
             err_msg = err.get("error", {}).get("message", str(err))
         except Exception:
             err_msg = r.text
-        logger.error("GROQ API ERROR %s: %s", r.status_code, err_msg)
-        raise RuntimeError(f"Groq API Error: {err_msg}")
+        logger.error("GROQ API ERROR %s (model=%s): %s", r.status_code, model_to_use, err_msg)
+        # P1.2: distinguish a 429 (org-level rate limit — worth a bounded retry
+        # with backoff) and 401/403 (auth — not retryable) from other errors,
+        # so the fallback chain can react correctly instead of always falling
+        # through to the static bank on the very first rate-limit response.
+        if r.status_code == 429:
+            raise GroqRateLimitError(f"Groq rate limit (429) on {model_to_use}: {err_msg}")
+        if r.status_code in (401, 403):
+            raise GroqAuthError(f"Groq auth error ({r.status_code}): {err_msg}")
+        raise RuntimeError(f"Groq API Error ({r.status_code}) on {model_to_use}: {err_msg}")
     data = r.json()
     return data["choices"][0]["message"]["content"]
 
@@ -748,18 +914,39 @@ async def groq_chat_with_fallback(
     models.extend(TIER_FALLBACK_MODELS.get(tier, [GROQ_MODEL]))
     models = _unique_models(models)
     last_error = None
+    # P1.2: a 429 is an ORG-LEVEL rate limit shared across ALL models for this
+    # key, so naively switching models won't recover. Give Groq's limiter a
+    # moment to reset with ONE bounded retry-with-backoff before moving on;
+    # only fall through to the static-bank fallback if the retry also 429s.
+    GROQ_429_BACKOFF = float(os.getenv("GROQ_429_BACKOFF_SECONDS", "1.5"))
+    GROQ_429_MAX_RETRIES = int(os.getenv("GROQ_429_MAX_RETRIES", "1"))
     for model in models:
-        try:
-            return await groq_chat(
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                model_override=model
-            )
-        except Exception as e:
-            last_error = e
-            logger.warning("Groq model %s failed: %s", model, str(e))
-            continue
+        attempts = 0
+        while True:
+            try:
+                return await groq_chat(
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    model_override=model
+                )
+            except GroqRateLimitError as e:
+                attempts += 1
+                last_error = e
+                if attempts > GROQ_429_MAX_RETRIES:
+                    # Limiter didn't reset; move to the next model in the chain.
+                    logger.warning("Groq 429 on %s after %d attempt(s); trying next model.", model, attempts)
+                    break
+                logger.info("Groq 429 on %s; backoff %.1fs before retry.", model, GROQ_429_BACKOFF)
+                await asyncio.sleep(GROQ_429_BACKOFF)
+                continue
+            except GroqAuthError as e:
+                # Auth errors are not retryable and not model-specific; stop.
+                raise
+            except Exception as e:
+                last_error = e
+                logger.warning("Groq model %s failed: %s", model, str(e))
+                break
     raise last_error or RuntimeError("Groq unavailable.")
 
 async def validate_quiz_topic(topic: str) -> None:
@@ -784,9 +971,12 @@ async def validate_quiz_topic(topic: str) -> None:
                       {"role": "user", "content": user}],
             temperature=0.0,
             max_tokens=4,
-            model_override="llama-3.1-8b-instant",
+            model_override=GROQ_MODEL_GATE,
             timeout=15
         )
+    except GroqAuthError:
+        # Key problem is global; no point gating — let the real call surface it.
+        return
     except Exception as e:
         logger.info("Topic gate unavailable (fail-open): %s", str(e))
         return
@@ -1287,16 +1477,39 @@ async def get_usage(user: Annotated[dict, Depends(get_current_user)]):
 @app.post("/api/payment/checkout")
 async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get_current_user)]):
     tier = payload.tier.strip().lower()
-    if tier not in TIER_PRICES:
+    if tier not in ("plus", "pro"):
         raise HTTPException(400, "Invalid tier selected.")
+    # P0.2: resolve billing period. Defaults to the single active purchasable
+    # period (week) so legacy clients that send only {tier} still work and get
+    # a weekly checkout. Monthly is gated behind MONTHLY_BILLING_ENABLED and
+    # is rejected with a clear "Coming Soon" 409 when disabled — this is the
+    # whole point: we cannot honor a 30-day subscription with ~20 days of
+    # hosting left, so monthly must be truly unpurchasable, not just hidden.
+    period = (payload.period or ACTIVE_BILLING_PERIOD).strip().lower()
+    if period not in ("week", "month"):
+        raise HTTPException(400, "Invalid billing period. Must be 'week' or 'month'.")
+    if period == "month" and not MONTHLY_BILLING_ENABLED:
+        raise HTTPException(
+            409,
+            "Monthly billing is coming soon. Only weekly plans are available right now."
+        )
+    if period == "week" and not MONTHLY_BILLING_ENABLED and period != ACTIVE_BILLING_PERIOD:
+        # Defensive: week is always purchasable while the app is live.
+        pass
+    amount = TIER_PRICES.get((tier, period))
+    if amount is None:
+        raise HTTPException(400, "No price defined for that tier/period.")
     if not _paymob_configured():
         if ALLOW_SIMULATED_PAYMENTS:
-            logger.warning("Paymob not configured. Simulating successful checkout for user %s.", user["id"])
-            await db.upgrade_user_tier(user["id"], tier)
+            logger.warning("Paymob not configured. Simulating successful %s checkout for user %s.", period, user["id"])
+            # Simulated path must honor the period's expiry too (7 days for week).
+            await db.upgrade_user_tier(user["id"], tier, billing_period=period)
             return {"checkout_url": "/?upgraded=true"}
         raise HTTPException(503, "Payments are not configured.")
-    amount = TIER_PRICES[tier]
-    merchant_order_id = f"user_{user['id']}_{tier}_{int(time.time())}"
+    # merchant_order_id now ENCODES THE PERIOD as well as the tier, so the
+    # webhook can apply the correct subscription length (7 vs 30 days) without
+    # a separate column or a DB migration. Format: user_{id}_{tier}_{period}_{ts}
+    merchant_order_id = f"user_{user['id']}_{tier}_{period}_{int(time.time())}"
     await db.create_payment(
         user_id=user["id"],
         tier=tier,
@@ -1429,28 +1642,27 @@ async def payment_webhook(request: Request):
             raw_payload=json.dumps(payload, ensure_ascii=False)
         )
         return {"status": "ignored", "reason": "payment not successful"}
-    parts = merchant_order_id.split("_")
-    if len(parts) < 3:
+    parsed = parse_merchant_order_id(merchant_order_id)
+    if parsed is None:
         return {"status": "ignored", "reason": "invalid merchant_order_id"}
-    try:
-        user_id = int(parts[1])
-    except Exception:
-        return {"status": "ignored", "reason": "invalid user id"}
-    tier = parts[2].strip().lower()
-    if tier not in TIER_PRICES:
-        return {"status": "ignored", "reason": "invalid tier"}
+    user_id = parsed["user_id"]
+    tier = parsed["tier"]
+    period = parsed["period"]  # 'week' (new format) or 'month' (legacy default)
     upgraded = await db.finalize_payment(
         user_id=user_id,
         tier=tier,
         merchant_order_id=merchant_order_id,
         amount_cents=obj.get("amount_cents"),
-        raw_payload=json.dumps(payload, ensure_ascii=False)
+        raw_payload=json.dumps(payload, ensure_ascii=False),
+        billing_period=period
     )
     if upgraded:
-        logger.info("Upgraded user %s to %s", user_id, tier)
+        logger.info("Upgraded user %s to %s (%s)", user_id, tier, period)
     return {
         "status": "success",
-        "upgraded": upgraded
+        "upgraded": upgraded,
+        "tier": tier,
+        "period": period
     }
 
 @app.get("/api/payments")
@@ -1511,10 +1723,11 @@ async def quiz_static(
 
 @app.post("/api/quiz/ai")
 async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_user)]):
-    await check_rate_limit(user["id"])
     await db.reset_usage_if_needed(user["id"])
     usage = await db.get_user_usage(user["id"])
     tier = effective_tier_from_user(usage or user)
+    # P1.2: tier-aware cooldown (free tier gets the longer 30s cooldown).
+    await check_rate_limit(user["id"], tier)
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
     num_questions = min(payload.num_questions, limits["max_ai_questions_per_request"])
     if usage["ai_questions_used"] + num_questions > limits["ai_questions"]:
@@ -1529,13 +1742,21 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
     cache_key = make_ai_quiz_cache_key(payload.topic, grade, payload.difficulty, num_questions, language)
 
     # P1.3: topic gate — only when we'd actually pay for a generation (cache miss).
-    if not await cache.get_ai_cache_redis(cache_key, AI_QUIZ_CACHE_TTL):
+    # P0: fail-soft the cache read so a Redis blip doesn't error the request.
+    try:
+        _cached_pre = await cache.get_ai_cache_redis(cache_key, AI_QUIZ_CACHE_TTL)
+    except Exception as e:
+        logger.warning("Quiz cache pre-check read failed (fail-soft): %s", e)
+        _cached_pre = None
+    if not _cached_pre:
         await validate_quiz_topic(payload.topic)
 
     async def generate():
         if language == "ar":
             lang_instruction = (
-                "Please generate the questions, options, and explanations strictly in Arabic. "
+                "P1: The student's account language is Arabic. Generate the questions, options, and "
+                "explanations STRICTLY in Arabic, regardless of the language of the topic string "
+                "(the topic may be given in English — still produce Arabic output). "
                 "CRITICAL: If the topic involves Arabic poetry, literature, or history, you MUST be strictly factual. "
                 "DO NOT invent or hallucinate poetry verses. If you do not know the exact verse, ask a general question "
                 "about the poem's theme or author instead."
@@ -1576,6 +1797,14 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
     try:
         result, was_cached = await single_flight_cached(cache_key, AI_QUIZ_CACHE_TTL, generate)
         clean = result.get("questions", [])
+    except GroqAuthError as e:
+        # P0: a missing/invalid Groq key is a configuration error, not a
+        # transient outage. Do NOT silently serve the static bank and make the
+        # user think AI works — surface a clear, actionable 503 instead.
+        logger.error("AI Quiz — Groq auth/key problem: %s", str(e))
+        raise HTTPException(503, "AI is not configured right now (Groq key missing or invalid). Please contact support.")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning("AI Quiz Error: %s", str(e))
         fallback = _match_static(
@@ -1625,10 +1854,11 @@ async def quiz_pdf_enqueue(
     """
     if ARQ_POOL is None:
         raise HTTPException(503, "Background worker is not configured. Set REDIS_URL and run the ARQ worker.")
-    await check_rate_limit(user["id"])
     await db.reset_usage_if_needed(user["id"])
     usage = await db.get_user_usage(user["id"])
     tier = effective_tier_from_user(usage or user)
+    # P1.2: tier-aware cooldown (PDF uploads also consume the shared Groq budget).
+    await check_rate_limit(user["id"], tier)
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
     if usage["pdf_uploads_used"] >= limits["pdf_uploads"]:
         raise HTTPException(
@@ -1775,7 +2005,7 @@ async def coach(
     user: Annotated[dict, Depends(get_current_user)],
     subjects: Optional[List[str]] = Query(None)
 ):
-    await check_rate_limit(user["id"])
+    await check_rate_limit(user["id"], effective_tier_from_user(user))
     topics = await db.get_topics(user["id"])
     sched = await db.get_schedule(user["id"])
     recent = await db.recent_attempts(user["id"], 6)
@@ -1865,6 +2095,13 @@ async def coach(
         data.setdefault("motivation", "Small consistent reps beat rare heroic sessions.")
         data["ai"] = True
         return data
+    except GroqAuthError as e:
+        # P0: surface a key/config problem instead of silently serving the
+        # heuristic plan (which would hide the real outage from the operator).
+        logger.error("Coach — Groq auth/key problem: %s", str(e))
+        raise HTTPException(503, "AI is not configured right now (Groq key missing or invalid). Please contact support.")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning("Coach fallback triggered: %s", str(e))
         return heuristic_coach(weak, trend)
@@ -1915,12 +2152,34 @@ def heuristic_coach(weak: List[dict], trend: float) -> dict:
 # -----------------------------
 @app.post("/api/ask")
 async def ask_tutor(payload: AskIn, user: Annotated[dict, Depends(get_current_user)]):
-    await check_rate_limit(user["id"])
+    # P1.2: tier-aware cooldown so free-tier bursts spread out.
+    await check_rate_limit(user["id"], effective_tier_from_user(user))
     language = (user.get("language") or "en").strip().lower()
+    # P1: STRICT Arabic default. When the account language is Arabic, the
+    # tutor ALWAYS replies in Arabic by default — regardless of the language
+    # the question is typed in — unless the user EXPLICITLY asks for an
+    # English reply in this very message ("answer in english", "in english
+    # please", "رد بالإنجليزية"). The override is detected by the model from
+    # the instruction below; it is a prompt-level switch (per the task), not a
+    # hardcoded keyword list, so natural phrasings like "can you do this one
+    # in english?" still work.
     if language == "ar":
-        language_instruction = "If the user asks in Arabic, answer in Arabic. Otherwise answer clearly."
+        language_instruction = (
+            "The user's account language is set to Arabic. You MUST reply in Arabic by "
+            "default, regardless of the language the question itself is written in. "
+            "Even if the user writes the question in English or mixes languages, your "
+            "answer must be in Arabic. EXCEPTION: for THIS single reply only, switch to "
+            "English IF AND ONLY IF the user's latest message explicitly asks for an "
+            "English answer (for example: 'answer in English', 'in english please', "
+            "'reply in English', 'رد بالإنجليزية', 'أريد الإجابة بالإنجليزية'). Code, math "
+            "formulas, chemical equations, and proper nouns may stay in their original "
+            "form inside an otherwise-Arabic answer."
+        )
     else:
-        language_instruction = "Answer primarily in English unless the user asks in Arabic."
+        language_instruction = (
+            "Answer in English. If the user writes in Arabic, you may answer in Arabic "
+            "to match them, but default to English."
+        )
     sanitized_history = []
     for item in payload.history[-12:]:
         if not isinstance(item, dict):
@@ -1959,6 +2218,13 @@ async def ask_tutor(payload: AskIn, user: Annotated[dict, Depends(get_current_us
             max_tokens=1000
         )
         return {"reply": reply}
+    except GroqAuthError as e:
+        # P0: do NOT mask a missing/invalid Groq key behind a generic 'thinking
+        # too hard' message — surface the real cause so an operator can fix it.
+        logger.error("Tutor Chat — Groq auth/key problem: %s", str(e))
+        raise HTTPException(503, "AI is not configured right now (Groq key missing or invalid). Please contact support.")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Tutor Chat Error: %s", str(e))
         raise HTTPException(503, "El-Peak is thinking too hard right now. Please try again.")
