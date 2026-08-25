@@ -127,18 +127,26 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # added as a CROSS-FAMILY tertiary fallback so a single OpenAI-weight-specific
 # Groq outage is less likely to take down the whole chain.
 #
-# Tier mapping (Item 5):
-#   free -> gpt-oss-20b   (cost-conscious, fast)
-#   plus -> gpt-oss-120b  (flagship = the paid model-quality upgrade vs free)
-#   pro  -> gpt-oss-120b  (same flagship; pro differentiates via higher quotas)
-#   gate -> gpt-oss-20b   (cheap 4-token yes/no classification)
+# Round-19 (Option 3 — language routing, user-approved): most El-Peak users are
+# Arabic students who need Arabic grammar + math. Research (console.groq.com
+# docs/model pages, ArabicMMLU/ALUE/ILMAAM evals, Artificial Analysis index)
+# shows qwen3.6-27b is far stronger than gpt-oss-20b on Arabic (~+10-14 pts
+# ArabicMMLU, ALUE >80%, 201 languages w/ RTL + dialect training) and stronger
+# than BOTH gpt-oss models on math/reasoning (AA Intelligence 38 vs 24 vs 15).
+# gpt-oss stays the cheap+fast English engine. Tier map (see ROUTE_MODELS):
+#   free: en -> gpt-oss-20b          ar -> qwen3.6-27b NON-thinking (fast)
+#   plus: en -> gpt-oss-120b         ar -> qwen3.6-27b THINKING (deep)
+#   pro:  all -> qwen3.6-27b THINKING (deep) — honestly differentiates Pro
+#   gate -> gpt-oss-20b   (cheap 4-token yes/no classification, unchanged)
 #   default GROQ_MODEL -> gpt-oss-120b (best for general quality-critical calls)
 # Every per-tier model is env-overridable so model/pricing changes ship without
-# a code edit.
+# a code edit. Bonus: Groq rate limits are PER MODEL, so splitting traffic
+# across gpt-oss + qwen roughly doubles the org-level RPM/RPD budget.
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 GROQ_MODEL_FREE = os.getenv("GROQ_MODEL_FREE", "openai/gpt-oss-20b")
 GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-120b")
 GROQ_MODEL_PRO = os.getenv("GROQ_MODEL_PRO", "openai/gpt-oss-120b")
+GROQ_MODEL_QWEN = os.getenv("GROQ_MODEL_QWEN", "qwen/qwen3.6-27b")
 # Cheap/fast model used by the topic-validation gate (one short call per cache
 # miss). Must stay on the smallest current model + max_tokens=4 so it never
 # doubles Groq load meaningfully.
@@ -235,34 +243,63 @@ TIER_LIMITS = {
         "max_ai_questions_per_request": 5
     }
 }
-TIER_MODELS = {
-    "free": GROQ_MODEL_FREE,
-    "plus": GROQ_MODEL_PLUS,
-    "pro": GROQ_MODEL_PRO
+# Round-19 (Option 3): language-routed model selection. The routing language
+# is the OUTPUT language of the call (Arabic account OR Arabic-script input ->
+# "ar"), detected per-request by is_arabic() below — a cheap codepoint ratio
+# check, NOT an extra AI call.
+ROUTE_MODELS = {
+    "free": {
+        "en": {"model": GROQ_MODEL_FREE, "thinking": False},
+        "ar": {"model": GROQ_MODEL_QWEN, "thinking": False},
+    },
+    "plus": {
+        "en": {"model": GROQ_MODEL_PLUS, "thinking": False},
+        "ar": {"model": GROQ_MODEL_QWEN, "thinking": True},
+    },
+    "pro": {
+        "en": {"model": GROQ_MODEL_QWEN, "thinking": True},
+        "ar": {"model": GROQ_MODEL_QWEN, "thinking": True},
+    },
 }
-# P1.2 + Round-13: fallback chain acts as our circuit breaker. Primary model
-# first, then a cross-family tertiary (qwen) so a single OpenAI-weight-specific
-# Groq outage is less likely to take down the whole chain. The dead Llama ids
-# (llama-3.1-8b-instant, llama-3.3-70b-versatile — shutdown 2026-08-16) are
-# REMOVED: keeping a dead id in the chain means a failed primary cascades to a
-# guaranteed-dead fallback, compounding the failure instead of recovering.
-TIER_FALLBACK_MODELS = {
-    "free": [
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-120b",
-        "qwen/qwen3.6-27b"
-    ],
-    "plus": [
-        "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "qwen/qwen3.6-27b"
-    ],
-    "pro": [
-        "openai/gpt-oss-120b",
-        "qwen/qwen3.6-27b",
-        "openai/gpt-oss-20b"
-    ]
+# P1.2 + Round-13 + Round-19: fallback chain acts as our circuit breaker.
+# Primary route first, then cross-family fallbacks so a single-family Groq
+# outage is less likely to take down the whole chain. The dead Llama ids are
+# REMOVED (shutdown 2026-08-16): a dead id in the chain means a failed primary
+# cascades to a guaranteed-dead fallback. Thinking only applies to qwen models
+# (groq_chat derives per-family params), so falling back from qwen-thinking to
+# gpt-oss degrades gracefully to that model's default medium effort.
+ROUTE_FALLBACKS = {
+    ("free", "en"): [GROQ_MODEL_FREE, GROQ_MODEL_PLUS, GROQ_MODEL_QWEN],
+    ("free", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_FREE, GROQ_MODEL_PLUS],
+    ("plus", "en"): [GROQ_MODEL_PLUS, GROQ_MODEL_FREE, GROQ_MODEL_QWEN],
+    ("plus", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
+    ("pro", "en"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
+    ("pro", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
 }
+
+# Round-19: Arabic-script ranges (base, supplement, extended-A, presentation
+# forms A/B). Covers MSA + dialect text incl. presentation-form ligatures.
+_ARABIC_RANGES = (
+    (0x0600, 0x06FF), (0x0750, 0x077F), (0x08A0, 0x08FF),
+    (0xFB50, 0xFDFF), (0xFE70, 0xFEFF),
+)
+
+def is_arabic(text: str, threshold: float = 0.25) -> bool:
+    """Round-19 (Option 3): cheap script detection for EN->GPT / AR->Qwen
+    routing. True when >=25% of the letters are Arabic-script — enough to catch
+    mixed EN/AR questions like 'explain التكامل by parts' without flipping on
+    stray Latin loanwords inside Arabic text."""
+    if not text:
+        return False
+    letters = 0
+    arabic = 0
+    for ch in text:
+        if ch.isalpha():
+            letters += 1
+            o = ord(ch)
+            if any(lo <= o <= hi for lo, hi in _ARABIC_RANGES):
+                arabic += 1
+    return letters > 0 and (arabic / letters) >= threshold
 # P0.2: billing restructure. Prices now carry a billing PERIOD alongside the
 # tier, not the tier alone. Weekly is the only purchasable period right now
 # (hosting wind-down in ~20 days — we can't honor a full month); monthly stays
@@ -869,7 +906,10 @@ async def groq_chat(
     temperature: float = 0.6,
     max_tokens: int = 1200,
     model_override: Optional[str] = None,
-    timeout: int = 120
+    timeout: int = 120,
+    thinking: bool = False,
+    reasoning_effort: Optional[str] = None,
+    identity: Optional[str] = None
 ) -> str:
     # P0: surface a missing/invalid key as a distinct, actionable error so
     # the failure mode is obvious in logs and to the caller — do NOT mask it
@@ -879,12 +919,56 @@ async def groq_chat(
     if not key:
         raise GroqAuthError("GROQ_API_KEY is not set. AI features cannot run until a valid Groq key is configured.")
     model_to_use = model_override or GROQ_MODEL
+    # Round-19b (user-reported bug: tutor said "I am ChatGPT" in both
+    # languages): OpenAI-family models self-identify as ChatGPT unless told
+    # otherwise. When a caller passes an identity, append a final system
+    # message that makes the model answer honestly — "El-Peak's AI powered by
+    # <actual model> on Groq" — and never claim to be ChatGPT or another
+    # company's product. Injected HERE (not at the call site) so the stated
+    # model stays truthful even when the fallback chain switches engines.
+    if identity:
+        messages = list(messages) + [{
+            "role": "system",
+            "content": (
+                f"IDENTITY: You are {identity} inside the El-Peak study app, running as "
+                f"the model '{model_to_use}' on Groq. If the user asks who you are, what "
+                "AI/model/chatbot you are, or whether you are ChatGPT/GPT/Qwen or similar, "
+                f"answer honestly and briefly: you are {identity} in El-Peak, powered by "
+                f"'{model_to_use}' running on Groq. NEVER claim to be ChatGPT, GPT, or "
+                "any other company's product."
+            )
+        }]
     payload = {
         "model": model_to_use,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens
     }
+    # Round-19 (Option 3): per-family reasoning controls, per Groq's reasoning
+    # docs (console.groq.com/docs/reasoning):
+    #   qwen3.6-27b  -> reasoning_effort "none" (fast, no thinking tokens) or
+    #                   "default" (deep thinking). Thinking responses use
+    #                   reasoning_format="hidden" so thinking content NEVER
+    #                   reaches message.content — quiz JSON parsing and the
+    #                   tutor chat stay clean by construction.
+    #   gpt-oss-*    -> reasoning_effort low|medium|high; we leave the platform
+    #                   default (medium) unless a caller overrides.
+    # Qwen non-thinking sampling follows Groq's model-card best practice
+    # (temp .7 / top_p .8 / presence_penalty 1.5); thinking uses top_p .95.
+    # Thinking tokens count toward the completion budget, so deep-thinking
+    # calls get headroom above the caller's content cap (16K = qwen max out).
+    if "qwen" in model_to_use:
+        effort = reasoning_effort or ("default" if thinking else "none")
+        payload["reasoning_effort"] = effort
+        if effort != "none":
+            payload["reasoning_format"] = "hidden"
+            payload["top_p"] = 0.95
+            payload["max_tokens"] = min(16384, max_tokens + 2500)
+        else:
+            payload["top_p"] = 0.80
+            payload["presence_penalty"] = 1.5
+    elif "gpt-oss" in model_to_use and reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
     headers = {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json"
@@ -920,14 +1004,23 @@ async def groq_chat_with_fallback(
     tier: str,
     temperature: float = 0.6,
     max_tokens: int = 1200,
-    model_override: Optional[str] = None
+    model_override: Optional[str] = None,
+    lang: str = "en",
+    identity: Optional[str] = None
 ) -> str:
     tier = (tier or "free").strip().lower()
+    # Round-19 (Option 3): resolve the language-routed primary + thinking flag.
+    lang = (lang or "en").strip().lower()
+    if lang not in ("en", "ar"):
+        lang = "en"
+    tier_routes = ROUTE_MODELS.get(tier, ROUTE_MODELS["free"])
+    route = tier_routes.get(lang, tier_routes["en"])
+    thinking = route["thinking"]
     models = []
     if model_override:
         models.append(model_override)
-    models.append(TIER_MODELS.get(tier, GROQ_MODEL))
-    models.extend(TIER_FALLBACK_MODELS.get(tier, [GROQ_MODEL]))
+    models.append(route["model"])
+    models.extend(ROUTE_FALLBACKS.get((tier, lang), [GROQ_MODEL]))
     models = _unique_models(models)
     last_error = None
     # P1.2: a 429 is an ORG-LEVEL rate limit shared across ALL models for this
@@ -944,7 +1037,9 @@ async def groq_chat_with_fallback(
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
-                    model_override=model
+                    model_override=model,
+                    thinking=thinking,
+                    identity=identity
                 )
             except GroqRateLimitError as e:
                 attempts += 1
@@ -965,29 +1060,80 @@ async def groq_chat_with_fallback(
                 break
     raise last_error or RuntimeError("Groq unavailable.")
 
+# Round-19b: Arabic verdicts the gate models sometimes answer with despite
+# the English-only instruction (gpt-oss and qwen both do this for Arabic
+# topics) — parse BOTH languages defensively.
+_GATE_AR_REJECT = ("غير صالح", "مرفوض", "لا يصلح", "لا يصح", "غير مناسب", "ليس موضوعًا")
+_GATE_AR_ACCEPT = ("صالح", "مقبول", "نعم")
+
+def _gate_rejects(verdict: str) -> bool:
+    """
+    Round-19b: robust bilingual verdict parser. Returns True ONLY on a clear
+    rejection. Anything ambiguous (empty, truncated, chatty, unrecognized)
+    fails OPEN — a false reject on a real study topic is far worse for the
+    user than a false accept on gibberish (the paid generation call still
+    runs, and genuinely empty topics fail there anyway).
+    Order matters: INVALID must be checked before VALID because "INVALID"
+    contains "VALID" as a substring (the old startswith("VALID") logic got
+    this right only by prefix luck and broke on ANY preamble).
+    """
+    v = (verdict or "").strip()
+    if not v:
+        return False
+    vu = v.upper()
+    if "INVALID" in vu:
+        return True
+    if "VALID" in vu:
+        return False
+    if any(k in v for k in _GATE_AR_REJECT):
+        return True
+    if any(k in v for k in _GATE_AR_ACCEPT):
+        return False
+    return False  # unparseable -> fail open
+
 async def validate_quiz_topic(topic: str) -> None:
     """
-    P1.3: cheap pre-check on the smallest model — reject gibberish,
-    commands/injections, or topics with no factual content BEFORE paying
-    for a full generation call. Not counted against the monthly AI-question
-    quota (only successful generations are); still sits inside the
-    request's rate limit. Fails OPEN: if the gate itself errors, the real
+    P1.3: cheap pre-check — reject gibberish, commands/injections, or topics
+    with no factual content BEFORE paying for a full generation call. Not
+    counted against the monthly AI-question quota (only successful
+    generations are); still sits inside the request's rate limit. Fails OPEN:
+    if the gate itself errors or its verdict can't be parsed, the real
     generation call proceeds.
+
+    Round-19b fixes (user-reported bugs):
+    - EVERY Arabic topic was rejected: gpt-oss-20b answered the English
+      VALID/INVALID prompt in Arabic (e.g. 'صالح'), which the old
+      startswith('VALID') parser read as INVALID. Arabic topics now gate on
+      the Qwen engine (our best Arabic model), and the parser understands
+      verdicts in BOTH languages.
+    - SOME quizzable English topics were rejected: the old parser required
+      the reply to START with 'VALID' with max_tokens=4, so any preamble,
+      truncation, or chatty reply ('Answer: VAL', 'The topic is VALID')
+      read as INVALID. Now the whole reply is scanned (INVALID checked
+      first), max_tokens is 12, and unparseable replies fail OPEN.
     """
+    is_ar = is_arabic(topic)
     system = (
-        "You are a quiz-topic validator. Reply with exactly one word and nothing else: "
-        "VALID if the text names a real subject a factual multiple-choice quiz could be "
-        "written about; INVALID if it is gibberish, a request or command, or has no "
-        "factual content to quiz on."
+        "You are a quiz-topic validator for a study app. Reply with exactly one "
+        "English word and nothing else: VALID if the text names a real subject "
+        "(in ANY language — Arabic topics are exactly as valid as English ones) "
+        "that a factual multiple-choice quiz could be written about; INVALID if "
+        "it is gibberish, a request or command, or has no factual content to "
+        "quiz on. Always answer with the English word VALID or INVALID — never "
+        "translate the word, never explain."
     )
     user = f"Topic to validate: {topic[:200]}"
+    # Arabic topics gate on Qwen: gpt-oss-20b both misunderstands Arabic
+    # topics AND tends to reply in Arabic, which used to read as a reject.
+    # A Qwen gate call is ~60 tokens total — negligible cost.
+    gate_model = GROQ_MODEL_QWEN if is_ar else GROQ_MODEL_GATE
     try:
         raw = await groq_chat(
             messages=[{"role": "system", "content": system},
                       {"role": "user", "content": user}],
             temperature=0.0,
-            max_tokens=4,
-            model_override=GROQ_MODEL_GATE,
+            max_tokens=12,
+            model_override=gate_model,
             timeout=15
         )
     except GroqAuthError:
@@ -996,11 +1142,12 @@ async def validate_quiz_topic(topic: str) -> None:
     except Exception as e:
         logger.info("Topic gate unavailable (fail-open): %s", str(e))
         return
-    verdict = (raw or "").strip().upper()
-    if not verdict.startswith("VALID"):
+    if _gate_rejects(raw):
+        logger.info("Topic gate rejected %r (verdict=%r, gate=%s)", topic[:80], (raw or "")[:40], gate_model)
         raise HTTPException(
             400,
-            "That topic doesn't look quizzable. Try a real subject like 'Photosynthesis' or 'Cold War'."
+            "That topic doesn't look quizzable. Try a real subject like 'Photosynthesis' or 'Cold War'. "
+            "هذا الموضوع لا يصلح لاختبار — جرّب موضوعًا دراسيًا حقيقيًا مثل «التمثيل الضوئي» أو «اللغة العربية»."
         )
 
 # -----------------------------
@@ -1500,6 +1647,28 @@ async def get_usage(user: Annotated[dict, Depends(get_current_user)]):
         # Flatten to a JSON-safe dict keyed by "tier_period" strings so the
         # frontend still gets every price pair, just in a serializable shape.
         "prices": {f"{t}_{p}": amt for (t, p), amt in TIER_PRICES.items()},
+        # Round-17 (Item 2): expose the LIVE per-tier model ids so the frontend
+        # can print the REAL model name in the subscription boxes. User report:
+        # "Upgraded AI Model" (plus) vs "Premium AI Model" (pro) was misleading —
+        # plus and pro run the SAME model; only quotas differ. These are the
+        # env-overridable values (GROQ_MODEL_FREE/PLUS/PRO), so the UI never
+        # goes stale when the deployment swaps models — it mirrors whatever
+        # this backend actually calls. Frontend pretty-prints (strips the
+        # vendor prefix, uppercases) and falls back to the same defaults if
+        # it must render before /api/usage responds.
+        # Round-17 + Round-19 (Option 3): LIVE language-routed model table
+        # ({tier: {en: id, ar: id}}) + deep_thinking flags, so the frontend
+        # prints the REAL model per tier per language. Env-overridable
+        # server-side (GROQ_MODEL_FREE/PLUS/PRO/QWEN); the frontend falls back
+        # to the same defaults and also accepts the old flat {tier: id} shape.
+        "models": {
+            tier_key: {"en": routes["en"]["model"], "ar": routes["ar"]["model"]}
+            for tier_key, routes in ROUTE_MODELS.items()
+        },
+        "deep_thinking": {
+            tier_key: {"en": routes["en"]["thinking"], "ar": routes["ar"]["thinking"]}
+            for tier_key, routes in ROUTE_MODELS.items()
+        },
         "simulated_payments": ALLOW_SIMULATED_PAYMENTS and not _paymob_configured()
     }
 
@@ -1812,11 +1981,16 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
             }
         ]
         max_tokens = max(400, num_questions * 250)
+        # Round-19 (Option 3): route by OUTPUT language — Arabic account OR
+        # Arabic-script topic goes to Qwen (strongest Arabic + math); English
+        # topics stay on the fast/cheap GPT-OSS engine. Pro = Qwen deep-thinking.
+        route_lang = "ar" if (language == "ar" or is_arabic(payload.topic)) else "en"
         raw = await groq_chat_with_fallback(
             messages=messages,
             tier=tier,
             temperature=0.7,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
+            lang=route_lang
         )
         clean = _clean_questions(extract_json(raw), num_questions)
         if not clean:
@@ -2112,7 +2286,9 @@ async def coach(
             ],
             tier=effective_tier_from_user(user),
             temperature=0.6,
-            max_tokens=1200
+            max_tokens=1200,
+            lang=language,  # Round-19: coach output language == account language
+            identity="El-Peak's AI study coach"  # Round-19b: never claim ChatGPT
         )
         data = extract_json(raw)
         if not isinstance(data, dict):
@@ -2240,11 +2416,17 @@ async def ask_tutor(payload: AskIn, user: Annotated[dict, Depends(get_current_us
         }
     ]
     try:
+        # Round-19 (Option 3): Arabic-script question OR Arabic account -> Qwen
+        # (the reply will be Arabic either way — Qwen writes the best Arabic).
+        # English question on an English account -> fast GPT-OSS engine.
+        route_lang = "ar" if (language == "ar" or is_arabic(payload.question)) else "en"
         reply = await groq_chat_with_fallback(
             messages=messages,
             tier=effective_tier_from_user(user),
             temperature=0.5,
-            max_tokens=1000
+            max_tokens=1000,
+            lang=route_lang,
+            identity="El-Peak's AI study tutor"  # Round-19b: honest identity — never ChatGPT
         )
         return {"reply": reply}
     except GroqAuthError as e:

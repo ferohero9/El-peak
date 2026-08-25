@@ -47,33 +47,57 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # qwen/qwen3.6-27b. Groq announced llama-3.1-8b-instant + llama-3.3-70b-versatile
 # deprecation on 2026-06-17 (shutdown 2026-08-16) — those ids are REMOVED from
 # the fallback chain. qwen3.6-27b added as cross-family tertiary fallback.
-# Tier mapping: free=gpt-oss-20b, plus=gpt-oss-120b, pro=gpt-oss-120b.
-# Mirrors main.py; kept local so the worker stays standalone. KEEP IN SYNC.
+# Round-19 (Option 3, mirrors main.py — KEEP IN SYNC): language-routed tiers:
+#   free: en -> gpt-oss-20b      ar -> qwen3.6-27b non-thinking
+#   plus: en -> gpt-oss-120b     ar -> qwen3.6-27b thinking
+#   pro:  all -> qwen3.6-27b thinking
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_MODEL_FREE = os.getenv("GROQ_MODEL_FREE", "openai/gpt-oss-20b")
+GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-120b")
+GROQ_MODEL_QWEN = os.getenv("GROQ_MODEL_QWEN", "qwen/qwen3.6-27b")
 
-# Mirrors main.py tier routing; kept local so the worker stays standalone.
-TIER_MODELS = {
-    "free": os.getenv("GROQ_MODEL_FREE", "openai/gpt-oss-20b"),
-    "plus": os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-120b"),
-    "pro":  os.getenv("GROQ_MODEL_PRO",  "openai/gpt-oss-120b")
+# Round-19 (Option 3): language-routed model selection (mirrors main.py).
+ROUTE_MODELS = {
+    "free": {
+        "en": {"model": GROQ_MODEL_FREE, "thinking": False},
+        "ar": {"model": GROQ_MODEL_QWEN, "thinking": False},
+    },
+    "plus": {
+        "en": {"model": GROQ_MODEL_PLUS, "thinking": False},
+        "ar": {"model": GROQ_MODEL_QWEN, "thinking": True},
+    },
+    "pro": {
+        "en": {"model": GROQ_MODEL_QWEN, "thinking": True},
+        "ar": {"model": GROQ_MODEL_QWEN, "thinking": True},
+    },
 }
-TIER_FALLBACK_MODELS = {
-    "free": [
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-120b",
-        "qwen/qwen3.6-27b"
-    ],
-    "plus": [
-        "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "qwen/qwen3.6-27b"
-    ],
-    "pro": [
-        "openai/gpt-oss-120b",
-        "qwen/qwen3.6-27b",
-        "openai/gpt-oss-20b"
-    ]
+ROUTE_FALLBACKS = {
+    ("free", "en"): [GROQ_MODEL_FREE, GROQ_MODEL_PLUS, GROQ_MODEL_QWEN],
+    ("free", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_FREE, GROQ_MODEL_PLUS],
+    ("plus", "en"): [GROQ_MODEL_PLUS, GROQ_MODEL_FREE, GROQ_MODEL_QWEN],
+    ("plus", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
+    ("pro", "en"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
+    ("pro", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
 }
+
+# Round-19: Arabic-script detection (mirrors main.py is_arabic).
+_ARABIC_RANGES = (
+    (0x0600, 0x06FF), (0x0750, 0x077F), (0x08A0, 0x08FF),
+    (0xFB50, 0xFDFF), (0xFE70, 0xFEFF),
+)
+
+def is_arabic(text: str, threshold: float = 0.25) -> bool:
+    if not text:
+        return False
+    letters = 0
+    arabic = 0
+    for ch in text:
+        if ch.isalpha():
+            letters += 1
+            o = ord(ch)
+            if any(lo <= o <= hi for lo, hi in _ARABIC_RANGES):
+                arabic += 1
+    return letters > 0 and (arabic / letters) >= threshold
 
 QUIZ_SCHEMA = (
     '{"questions":[{"question": "...", "options":["A","B","C","D"],'
@@ -113,17 +137,53 @@ async def groq_chat(
     temperature: float = 0.6,
     max_tokens: int = 1200,
     model_override: str = None,
-    timeout: int = 60
+    timeout: int = 60,
+    thinking: bool = False,
+    reasoning_effort: str = None,
+    identity: str = None  # KEEP-IN-SYNC with main.py (unused in the PDF pipeline)
 ) -> str:
     key = os.getenv("GROQ_API_KEY")
     if not key:
         raise RuntimeError("Missing GROQ_API_KEY.")
+    # Round-19b (mirrors main.py): append an honest-identity system message
+    # when asked to. The PDF quiz pipeline never passes this, but the mirror
+    # stays signature-identical to main.py's groq_chat.
+    model_to_use_pre = model_override or GROQ_MODEL
+    if identity:
+        messages = list(messages) + [{
+            "role": "system",
+            "content": (
+                f"IDENTITY: You are {identity} inside the El-Peak study app, running as "
+                f"the model '{model_to_use_pre}' on Groq. If the user asks who you are, what "
+                "AI/model/chatbot you are, or whether you are ChatGPT/GPT/Qwen or similar, "
+                f"answer honestly and briefly: you are {identity} in El-Peak, powered by "
+                f"'{model_to_use_pre}' running on Groq. NEVER claim to be ChatGPT, GPT, or "
+                "any other company's product."
+            )
+        }]
     payload = {
         "model": model_override or GROQ_MODEL,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens
     }
+    # Round-19 (Option 3, mirrors main.py): per-family reasoning controls.
+    # qwen -> reasoning_effort none|default; thinking uses reasoning_format
+# "hidden" so thinking content never pollutes message.content (PDF quiz JSON
+    # stays parseable). gpt-oss -> low|medium|high (platform default if unset).
+    model_to_use = payload["model"]
+    if "qwen" in model_to_use:
+        effort = reasoning_effort or ("default" if thinking else "none")
+        payload["reasoning_effort"] = effort
+        if effort != "none":
+            payload["reasoning_format"] = "hidden"
+            payload["top_p"] = 0.95
+            payload["max_tokens"] = min(16384, max_tokens + 2500)
+        else:
+            payload["top_p"] = 0.80
+            payload["presence_penalty"] = 1.5
+    elif "gpt-oss" in model_to_use and reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
     headers = {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json"
@@ -145,11 +205,19 @@ async def groq_chat_with_fallback(
     messages: List[dict],
     tier: str,
     temperature: float = 0.6,
-    max_tokens: int = 1200
+    max_tokens: int = 1200,
+    lang: str = "en"
 ) -> str:
     tier = (tier or "free").strip().lower()
-    models = [TIER_MODELS.get(tier, GROQ_MODEL)]
-    models.extend(TIER_FALLBACK_MODELS.get(tier, [GROQ_MODEL]))
+    # Round-19 (Option 3): resolve the language-routed primary + thinking flag.
+    lang = (lang or "en").strip().lower()
+    if lang not in ("en", "ar"):
+        lang = "en"
+    tier_routes = ROUTE_MODELS.get(tier, ROUTE_MODELS["free"])
+    route = tier_routes.get(lang, tier_routes["en"])
+    thinking = route["thinking"]
+    models = [route["model"]]
+    models.extend(ROUTE_FALLBACKS.get((tier, lang), [GROQ_MODEL]))
     models = _unique_models(models)
     last_error = None
     for model in models:
@@ -159,7 +227,8 @@ async def groq_chat_with_fallback(
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                model_override=model
+                model_override=model,
+                thinking=thinking
             )
         except Exception as e:
             last_error = e
@@ -377,12 +446,21 @@ async def process_pdf_quiz(
 
     client = ctx["http"]
     try:
+        # Round-19 (Option 3): route by OUTPUT language. Arabic account OR
+        # Arabic-script document/label -> Qwen (best Arabic + math); English
+        # docs stay on the fast GPT-OSS engine. Pro = Qwen deep-thinking.
+        route_lang = "ar" if (
+            (language or "en").strip().lower() == "ar"
+            or is_arabic(excerpt[:2000])
+            or is_arabic(label)
+        ) else "en"
         raw = await groq_chat_with_fallback(
             client,
             messages=messages,
             tier=tier,
             temperature=0.6,
-            max_tokens=1600
+            max_tokens=1600,
+            lang=route_lang
         )
         clean = _clean_questions(extract_json(raw), num_questions)
     except Exception as e:

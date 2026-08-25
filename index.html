@@ -15,10 +15,17 @@
 <style>
 :root, [data-theme="dark"] {
   color-scheme: dark;
-  --bg:#070710; --ink:#f8fafc; --muted:#94a3b8; 
+  --bg:#070710; --ink:#f8fafc; --muted:#94a3b8;
   --glass:rgba(255,255,255,0.04); --glass-strong:rgba(255,255,255,0.08); --glass-border:rgba(255,255,255,0.08);
   --glass-popover:rgba(20,20,30,0.85);
   --accent:#6366f1; --accent-glow:rgba(99,102,241,0.4); --accent-text:#ffffff;
+  /* Round-16: static radial gradient stops for the body background. Always
+     visible (even when .aurora is display:none on low-end devices) so the
+     page never reads as "blank". color-mix in srgb keeps the gradient
+     theme-aware (indigo in dark, indigo+purple in light). */
+  --bg-grad-1:color-mix(in srgb, var(--accent) 16%, transparent);
+  --bg-grad-2:color-mix(in srgb, #a855f7 13%, transparent);
+  --bg-grad-3:color-mix(in srgb, #22d3ee 10%, transparent);
   --mint:#34d399; --coral:#fb7185; --amber:#fbbf24; --sky:#38bdf8;
   --r:24px; --blur:40px;
   --disp:'Outfit',sans-serif; --body:'Inter',sans-serif;
@@ -40,6 +47,11 @@
   --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.75); --glass-border:rgba(15,23,42,0.05);
   --glass-popover:rgba(255,255,255,0.9);
   --accent:#4f46e5; --accent-glow:rgba(79,70,229,0.25); --accent-text:#ffffff;
+  /* Round-16: light-theme gradient stops — bumped opacity so the washes are
+     visible against the light gray base (#eef2f7). */
+  --bg-grad-1:color-mix(in srgb, var(--accent) 22%, transparent);
+  --bg-grad-2:color-mix(in srgb, #a855f7 18%, transparent);
+  --bg-grad-3:color-mix(in srgb, #22d3ee 14%, transparent);
   --shadow-sm:0 4px 12px rgba(79,70,229,0.05);
   --shadow-hover:0 16px 40px rgba(79,70,229,0.1);
   --glass-rim: inset 0 1px 0 rgba(255,255,255,0.7);
@@ -52,7 +64,14 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-stopped { overflow: hidden; }
 .lenis.lenis-smooth iframe { pointer-events: none; }
 
-body{font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100vh;overflow-x:hidden;transition:background .5s var(--smooth), color .5s var(--smooth)}
+/* Round-16: body now carries a STATIC 3-stop radial gradient (indigo top-left,
+   purple bottom-right, cyan top-right). Always visible — even when .aurora is
+   display:none on low-end devices (the user's preview env was detecting low-end
+   and hiding the aurora, leaving a blank flat #070710 bg). The aurora still
+   floats ABOVE this gradient for non-low-end devices, adding animated blobs.
+   background-image is split from background-color so the existing transition
+   (theme switch) only animates the color, not the gradient stops. */
+body{font-family:var(--body);background-color:var(--bg);background-image:radial-gradient(ellipse 65% 70% at 18% 0%, var(--bg-grad-1), transparent 70%),radial-gradient(ellipse 55% 60% at 85% 100%, var(--bg-grad-2), transparent 70%),radial-gradient(ellipse 45% 50% at 92% 8%, var(--bg-grad-3), transparent 65%);background-attachment:fixed;background-repeat:no-repeat;color:var(--ink);min-height:100vh;overflow-x:hidden;transition:background-color .5s var(--smooth), color .5s var(--smooth)}
 button{font-family:inherit;cursor:pointer;outline:none;border:none;background:none;color:inherit}
 input,select{font-family:inherit;outline:none;background:none;color:inherit}
 ::selection{background:var(--accent);color:#fff}
@@ -76,7 +95,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
    (features + conn-status + how-works) is in .auth-extras below the card,
    scrollable but no longer competing for attention with the form. */
 #authView{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 24px 32px;gap:14px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;touch-action:pan-y}
-.auth-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:32px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--glass-rim),var(--shadow-hover);padding:40px;width:100%;max-width:380px;animation:authIn .6s var(--spring);display:flex;flex-direction:column;align-items:center;position:relative;flex-shrink:0}
+.auth-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:32px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--glass-rim),var(--shadow-hover);padding:40px 40px 44px;width:100%;max-width:380px;animation:authIn .6s var(--spring);display:flex;flex-direction:column;align-items:center;position:relative;flex-shrink:0}
 /* Round-11 — secondary panel below the card for marketing/explainer content.
    Visually distinct from the card (no glass blur, lighter background) so the
    card remains the primary focus. Constrained to the same max-width so the
@@ -97,20 +116,25 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
    2. max-width:380px  — small phones (further compress)
    3. max-height:760px  — short desktop / landscape phone windows
                           (trim vertical margins without shrinking width) */
+/* Round 14: spacing pass — bumped margin-bottoms + form gap + auth-card
+   padding-top so the card breathes (was reading as cramped per user report).
+   Login form may now slightly overflow viewport on phones but #authView's
+   overflow-y:auto + Lenis-instance (added this round) makes scrolling smooth. */
 @media (max-width:480px){
-  #authView{padding:14px 14px 24px;gap:10px}
-  .auth-card{padding:28px 22px;border-radius:24px}
-  .auth-logo{font-size:22px;gap:8px}
+  #authView{padding:16px 14px 24px;gap:12px}
+  .auth-card{padding:30px 22px 28px;border-radius:24px}
+  .auth-quick-settings{margin-bottom:12px;gap:12px}
+  .auth-logo{font-size:22px;gap:8px;margin-bottom:16px}
   .auth-logo svg{width:24px;height:24px}
-  .auth-sub{font-size:13px;margin-bottom:18px}
-  .google-btn{margin-bottom:16px;padding:11px 18px;font-size:12.5px}
-  .auth-divider{margin-bottom:16px;font-size:10px}
-  .auth-tabs{margin-bottom:18px;padding:3px}
+  .auth-sub{font-size:13px;margin-bottom:24px}
+  .google-btn{margin-bottom:22px;padding:11px 18px;font-size:12.5px}
+  .auth-divider{margin-bottom:22px;font-size:10px}
+  .auth-tabs{margin-bottom:24px;padding:3px}
   .auth-tab{padding:9px;font-size:12.5px}
-  .auth-form{gap:12px}
+  .auth-form{gap:18px}
   .auth-form .field input,.auth-form .field select{padding:12px 14px;font-size:13.5px;border-radius:13px}
   .auth-form .field label{font-size:11.5px;margin-bottom:5px;display:block}
-  .auth-btn{margin-top:6px;padding:12px 16px;font-size:13.5px}
+  .auth-btn{margin-top:16px;padding:12px 16px;font-size:13.5px}
   .auth-extras{gap:10px}
   .auth-features{gap:6px}
   .auth-feature{padding:10px 4px;gap:5px}
@@ -127,18 +151,19 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   .how-step-body{font-size:10.5px;padding:0 10px 9px 38px;line-height:1.45}
 }
 @media (max-width:380px){
-  #authView{padding:12px 12px 20px;gap:8px}
-  .auth-card{padding:22px 18px;border-radius:20px}
-  .auth-logo{font-size:20px;gap:7px}
+  #authView{padding:14px 12px 22px;gap:10px}
+  .auth-card{padding:24px 18px 22px;border-radius:20px}
+  .auth-quick-settings{margin-bottom:10px;gap:10px}
+  .auth-logo{font-size:20px;gap:7px;margin-bottom:12px}
   .auth-logo svg{width:22px;height:22px}
-  .auth-sub{font-size:12px;margin-bottom:14px}
-  .google-btn{margin-bottom:12px;padding:10px 14px;font-size:12px}
-  .auth-divider{margin-bottom:12px;letter-spacing:0.07em}
-  .auth-tabs{margin-bottom:14px}
+  .auth-sub{font-size:12px;margin-bottom:20px}
+  .google-btn{margin-bottom:18px;padding:10px 14px;font-size:12px}
+  .auth-divider{margin-bottom:18px;letter-spacing:0.07em}
+  .auth-tabs{margin-bottom:20px}
   .auth-tab{padding:8px;font-size:12px}
-  .auth-form{gap:10px}
+  .auth-form{gap:16px}
   .auth-form .field input,.auth-form .field select{padding:11px 12px;font-size:13px;border-radius:12px}
-  .auth-btn{padding:11px 14px;font-size:13px}
+  .auth-btn{padding:11px 14px;font-size:13px;margin-top:14px}
   .auth-extras{gap:8px}
   .auth-feature{padding:8px 3px;gap:4px}
   .auth-feature-title{font-size:10.5px}
@@ -147,25 +172,26 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   .how-step{margin-bottom:4px}
   .how-step-head{padding:7px 9px}
   .how-step-body{padding:0 9px 8px 36px}
-  /* Round-13 (Item 2): compress the toggle cluster on tiny phones so it
-     doesn't crowd the logo. Offset 20→16px, gap 16→12px, lang-btn padding
-     7×14 → 6×12, min-width 42→38px, theme-btn 38→34px. Still touch-friendly
-     (34px ≥ the 32px minimum for secondary controls on mobile). */
-  .auth-quick-settings{top:16px;right:16px;gap:12px}
-  html[dir="rtl"] .auth-quick-settings{left:16px}
+  /* Round-16: tiny-phones still get the in-flow toggle row; just shrink the
+     gap + margin so the row doesn't eat too much of a 320px viewport. The
+     pill + button sizes stay touch-friendly (34px ≥ 32px target minimum). */
   .auth-lang-toggle{padding:4px;gap:3px}
   .auth-lang-btn{padding:6px 12px;min-width:38px}
   .auth-theme-btn{width:34px;height:34px}
 }
 @media (max-height:760px) and (min-width:481px){
   /* Short windows (laptop browser in half-screen, landscape phone, kiosk) —
-     the card is narrow enough but too tall. Trim only vertical metrics. */
-  .auth-card{padding:30px 36px}
-  .auth-sub{margin-bottom:16px}
-  .google-btn{margin-bottom:14px;padding:11px 20px}
-  .auth-divider{margin-bottom:14px}
-  .auth-tabs{margin-bottom:16px}
-  .auth-form{gap:12px}
+     the card is narrow enough but too tall. Trim only vertical metrics.
+     Round 15: bumped trim values slightly to give even short viewports more
+     breathing room (the cramped complaint was universal).
+     Round 16: padding-top dropped 36→28 since toggles no longer absolute. */
+  .auth-card{padding:28px 36px 32px}
+  .auth-quick-settings{margin-bottom:10px;gap:14px}
+  .auth-sub{margin-bottom:20px}
+  .google-btn{margin-bottom:18px;padding:11px 20px}
+  .auth-divider{margin-bottom:18px}
+  .auth-tabs{margin-bottom:20px}
+  .auth-form{gap:16px}
   .auth-extras{gap:10px}
   .auth-features{gap:6px}
   .auth-feature{padding:10px 4px}
@@ -177,26 +203,22 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
    button (and a conditional 4th grade field), login has 2 + button. Without
    this min-height, switching to login would shrink the form below the fold. */
 .auth-forms{min-height:200px}
-.auth-logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:24px;margin-bottom:4px;justify-content:center}
+.auth-logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:24px;margin-bottom:22px;justify-content:center}
 .auth-logo svg{width:28px;height:28px}
-.auth-sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:24px}
-/* Round-13 (Item 2): toggle spacing layout pass. Round 11 bumped gap 8→12px
-   and offset 16→14px but the cluster still reads as pinned to the corner,
-   detached from the card's padding rhythm (card padding is 40px; a 14px
-   corner offset makes the toggles feel like an afterthought). This round:
-   - Offset 14→20px so the cluster sits clearly inside the card's glass
-     frame, not flush against the edge.
-   - Gap 12→16px so the two chips read as distinct controls, not a smudge.
-   - lang-btn padding 6×13 → 7×14, min-width 38→42px: the EN/ع pills get
-     real horizontal breathing room.
-   - theme-btn 34→38px to MATCH the lang-toggle's outer height
-     (5px padding + 28px btn + 5px padding + 2px border = 40px ≈ 38px) so
-     the two read as a single row of equal-height chips. The 2px delta is
-     imperceptible and 38px is a standard icon-button size.
-   - Mobile (max-width:380px) compresses back toward Round-11 values so
-     the cluster doesn't eat the logo's space on a 320px viewport. */
-.auth-quick-settings{position:absolute;top:20px;right:20px;display:flex;align-items:center;gap:16px;z-index:3}
-html[dir="rtl"] .auth-quick-settings{right:auto;left:20px}
+.auth-sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:32px}
+/* Round-16 (Item 2): toggle cluster moved OUT of absolute positioning into
+   in-flow layout. The absolute-positioned cluster was 160px wide and pinned
+   to top:24px right:24px inside a 380px card — that meant its left edge sat
+   at x=202 from card-left, but the centered 125px logo spans x=127→252, so
+   the toggle cluster was OVERLAPPING the logo by ~58×26px. That's the
+   "cramped and don't fit" the user kept reporting.
+   Now: toggles flow as the FIRST row of the card (justify-content:flex-end
+   so they sit flush-right), with margin-bottom separating them from the
+   logo below. The logo gets the full card width to itself, no overlap.
+   Card padding-top correspondingly dropped 56→40 (no need to "reserve"
+   space for absolute toggles that no longer exist). RTL flips naturally
+   via flex-end (no manual right:auto/left override needed). */
+.auth-quick-settings{width:100%;display:flex;align-items:center;justify-content:flex-end;gap:16px;margin-bottom:14px;z-index:3;flex-shrink:0}
 .auth-lang-toggle{display:flex;gap:4px;padding:5px;background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
 .auth-lang-btn{padding:7px 14px;border-radius:100px;font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--muted);transition:color .25s var(--smooth),background .25s var(--smooth),box-shadow .25s var(--smooth);min-width:42px;line-height:1}
 .auth-lang-btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-text);box-shadow:0 2px 10px var(--accent-glow)}
@@ -282,20 +304,20 @@ html[data-lowend="true"] .conn-dot::after{display:none}
 .how-step-body{font-size:11px;color:var(--muted);line-height:1.5;padding:0 12px 11px 44px;will-change:max-height,opacity}
 @media (prefers-reduced-motion: reduce){.how-works,.how-step,.how-step:nth-of-type(n),.how-step-body{animation:none}.how-step-chev{transition:none}}
 html[data-lowend="true"] .how-works,html[data-lowend="true"] .how-step,html[data-lowend="true"] .how-step:nth-of-type(n),html[data-lowend="true"] .how-step-body{animation:none}
-.google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,0.1);border:none;margin-bottom:20px;padding:12px 24px;border-radius:100px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .2s var(--spring)}
+.google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,0.1);border:none;margin-bottom:28px;padding:12px 24px;border-radius:100px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .2s var(--spring)}
 .google-btn:hover{transform:translateY(-2px)}
 .google-btn:disabled{opacity:.6;pointer-events:none}
 .google-btn:active{transform:translateY(0) scale(.97)}
 .google-btn svg{width:18px;height:18px}
-.auth-divider{width:100%;display:flex;align-items:center;gap:12px;margin-bottom:20px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em}
+.auth-divider{width:100%;display:flex;align-items:center;gap:12px;margin-bottom:28px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em}
 .auth-divider::before, .auth-divider::after{content:"";flex:1;height:1px;background:var(--glass-border)}
-.auth-tabs{display:flex;width:100%;background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:100px;padding:4px;margin-bottom:24px}
+.auth-tabs{display:flex;width:100%;background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:100px;padding:4px;margin-bottom:32px}
 .auth-tab{flex:1;padding:10px;border-radius:100px;font-weight:600;font-size:13px;color:var(--muted);transition:all .3s var(--smooth);text-align:center;cursor:pointer}
 .auth-tab.active{background:var(--accent);color:var(--accent-text);box-shadow:0 4px 15px var(--accent-glow)}
 .auth-tab:active{transform:scale(.96)}
 .auth-forms{position:relative;width:100%;transition:height var(--t-slow) var(--spring)}
 .auth-forms.morphing{overflow:hidden}
-.auth-form{display:none;flex-direction:column;gap:16px;width:100%}
+.auth-form{display:none;flex-direction:column;gap:24px;width:100%}
 .auth-form.active{display:flex}
 .auth-form.active>*{animation:fieldIn .45s var(--smooth) backwards}
 .auth-form.active>*:nth-child(2){animation-delay:.04s}
@@ -305,12 +327,12 @@ html[data-lowend="true"] .how-works,html[data-lowend="true"] .how-step,html[data
 #authGradeField,#settingsGradeField{animation:fieldIn .45s var(--smooth)}
 @keyframes fieldIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
 .auth-form.active{position:relative}
-.auth-forms.morphing .auth-form.leaving{display:flex;position:absolute;top:0;left:0;width:100%;flex-direction:column;gap:16px;pointer-events:none;animation:fieldOut .22s var(--smooth) both}
+.auth-forms.morphing .auth-form.leaving{display:flex;position:absolute;top:0;left:0;width:100%;flex-direction:column;gap:24px;pointer-events:none;animation:fieldOut .22s var(--smooth) both}
 @keyframes fieldOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-10px) scale(.98)}}
 .auth-form .field{width:100%}
 .auth-form .field input,.auth-form .field select{width:100%;padding:14px 18px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px}
 .auth-form .field input:focus,.auth-form .field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
-.auth-btn{width:100%;margin-top:8px;justify-content:center}
+.auth-btn{width:100%;margin-top:20px;justify-content:center}
 
 nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:blur(var(--blur));background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--glass-rim),var(--shadow-sm);width:calc(100% - 48px);max-width:1100px;height:60px}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;padding-left:8px}
@@ -470,6 +492,67 @@ input[type="range"].custom-range:active::-moz-range-thumb{transform:scale(1.3)}
 .drop.over{transform:scale(1.02);background:var(--glass-strong)}
 .qcard{max-width:680px;margin:0 auto}
 .qtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted)}
+/* === Round-17 (Item 1): long-topic truncation pass ===
+   A PDF upload's filename becomes the quiz topic label (backend:
+   Path(file.filename).stem). A long name previously rendered IN FULL in the
+   quiz header, result screen, Best-Topic stat, suggestion chips, scheduler
+   task meta, and the drop-zone filename — breaking layouts and looking bad
+   (user report). Every topic-name surface now clamps to ONE line with an
+   ellipsis; JS also sets title="" so hovering reveals the full name. */
+.qtop #qMeta{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#resTopic{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bestRidge{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fileName{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px}
+/* .sug chips: truncation lives in the main .sug rule below (inline-block +
+   max-width + ellipsis; the original inline-flex + dead gap:6px was replaced
+   in place — an earlier duplicate rule here would lose the cascade). */
+/* Scheduler task "◈ topic" meta chip */
+.task .meta .mtopic{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* === Round-19: boot/loading splash (user request) ===
+   Full-page splash visible on first paint (before the main script parses),
+   removed after the app/auth screen is painted (min ~900ms, hard cap 3s so a
+   stalled asset can never trap the user). Carries the AI-disclaimer line
+   ("AI can make mistakes") in EN or AR based on the saved language. */
+#bootScreen{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background-color:var(--bg);background-image:radial-gradient(ellipse 65% 70% at 18% 0%,var(--bg-grad-1),transparent 70%),radial-gradient(ellipse 55% 60% at 85% 100%,var(--bg-grad-2),transparent 70%),radial-gradient(ellipse 45% 50% at 92% 8%,var(--bg-grad-3),transparent 65%);transition:opacity .55s var(--smooth),visibility .55s var(--smooth)}
+#bootScreen.boot-hide{opacity:0;visibility:hidden;pointer-events:none}
+.boot-mark{width:54px;height:54px}
+.boot-mark path{stroke:var(--accent);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke-dasharray:46;stroke-dashoffset:46;animation:bootDraw 1.15s var(--smooth) .1s forwards}
+@keyframes bootDraw{to{stroke-dashoffset:0}}
+.boot-word{font-family:var(--disp);font-size:20px;font-weight:700;letter-spacing:.42em;margin-right:-.42em}
+.boot-bar{width:170px;height:3px;border-radius:99px;background:var(--glass-strong);overflow:hidden}
+.boot-bar i{display:block;height:100%;width:42%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--sky));animation:bootSlide 1.05s ease-in-out infinite}
+@keyframes bootSlide{0%{transform:translateX(-110%)}100%{transform:translateX(280%)}}
+.boot-note{font-size:12px;line-height:1.6;color:var(--muted);max-width:300px;text-align:center;padding:0 16px}
+.boot-note .boot-warn{color:var(--amber);font-weight:700}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+@media(prefers-reduced-motion:reduce){
+  .boot-mark path{animation:none;stroke-dashoffset:0}
+  .boot-bar i{animation:none;transform:translateX(60%)}
+  #bootScreen{transition:opacity .01s}
+}
+
+/* === Round-19: plan comparison (Free/Plus/Pro perks, user request) ===
+   Replaces the 2-line upgrade boxes with an honest 3-tier comparison:
+   exact quotas + per-language model lines. Profile shows all three side by
+   side (stacks on mobile); the upgrade modal keeps the compact 2-box row. */
+.plan-compare{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.plan-box{position:relative;display:flex;flex-direction:column;gap:8px;padding:22px 18px 18px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass);text-align:center}
+.plan-box.plan-plus,.plan-box.plan-pro{cursor:pointer;transition:transform var(--t-med) var(--spring),border-color .25s,background .25s}
+.plan-box.plan-plus:hover,.plan-box.plan-pro:hover{transform:translateY(-3px)}
+.plan-box.plan-pro{border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.plan-name{font-family:var(--disp);font-weight:700;font-size:18px}
+.plan-price{font-size:23px;font-weight:800}
+.plan-period{font-size:11px;color:var(--muted);margin-top:-6px}
+.plan-tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--accent);color:var(--accent-text);font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 11px;border-radius:99px;box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 40%,transparent)}
+ul.perks{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted);text-align:start;flex:1}
+ul.perks li{display:flex;gap:8px;align-items:flex-start;line-height:1.5;min-width:0}
+ul.perks li::before{content:"✓";color:var(--accent);font-weight:800;flex-shrink:0}
+ul.perks li b{color:var(--ink);font-weight:700;word-break:break-word}
+ul.perks .dt-tag{display:inline-block;margin-left:2px;padding:1px 7px;border-radius:7px;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);font-size:9.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+ul.perks.perks-sm{gap:6px;font-size:11px}
+.modal-free-note{font-size:11.5px;color:var(--muted);margin:-6px 0 16px;line-height:1.5}
+@media(max-width:880px){.plan-compare{grid-template-columns:1fr}}
 .qbar{height:4px;border-radius:99px;background:var(--glass-strong);overflow:hidden;margin-bottom:28px}
 .qbar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .5s var(--smooth);box-shadow:0 0 10px var(--accent-glow)}
 .qtext{font-family:var(--disp);font-size:24px;font-weight:600;line-height:1.35;margin-bottom:24px}
@@ -567,7 +650,7 @@ input[type="range"].custom-range:active::-moz-range-thumb{transform:scale(1.3)}
 .del{color:var(--muted);font-size:14px;transition:transform var(--t-fast) var(--spring),color .3s}
 .del:active{transform:scale(.85)}
 .del:hover{color:var(--coral)}
-.sug{display:inline-flex;align-items:center;gap:6px;margin:0 8px 8px 0;padding:8px 12px;border-radius:100px;border:1px solid var(--glass-border);background:var(--glass);color:var(--muted);font-weight:600;font-size:12px;transition:transform var(--t-med) var(--spring),border-color .3s,color .3s,background .3s}
+.sug{display:inline-block;max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;margin:0 8px 8px 0;padding:8px 12px;border-radius:100px;border:1px solid var(--glass-border);background:var(--glass);color:var(--muted);font-weight:600;font-size:12px;transition:transform var(--t-med) var(--spring),border-color .3s,color .3s,background .3s}
 .sug:hover{border-color:var(--accent);color:var(--ink);transform:translateY(-1px)}
 .sug:active{transform:scale(.95)}
 .sug.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
@@ -639,20 +722,13 @@ input[type="range"].custom-range:active::-moz-range-thumb{transform:scale(1.3)}
 @keyframes toastOut{to{opacity:0;transform:translateY(10px) scale(.94)}}
 @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
 
-/* === Round 13 (Item 1): brand hero (auth card) — STATIC GLOW restored.
-   Round 11 over-corrected: it removed BOTH the pulsing/twinkle animation AND
-   the static drop-shadow glow, leaving the logo flat. The user's actual
-   objection was the *motion* ("that glowing effect"). This round restores a
-   CALM, STATIC drop-shadow glow on .brand-peak — no animation. Theme-aware:
-   indigo glow in dark (matches --accent-glow), warm amber in light (matches
-   the sun fill #f59e0b). Single drop-shadow = cheap on GPU; low-end devices
-   get a tighter radius to save fillrate. Verified visible in both themes. */
-.auth-logo .brand-peak{overflow:visible;filter:drop-shadow(0 0 6px var(--accent-glow))}
-[data-theme="light"] .auth-logo .brand-peak{filter:drop-shadow(0 0 5px rgba(245,158,11,.45))}
-.auth-logo .peak-sun{transform-origin:14.5px 5px}
-.auth-logo .peak-particle{transform-origin:center}
-html[data-lowend="true"] .auth-logo .brand-peak{filter:drop-shadow(0 0 3px var(--accent-glow))}
-html[data-lowend="true"][data-theme="light"] .auth-logo .brand-peak{filter:drop-shadow(0 0 3px rgba(245,158,11,.4))}
+/* === Round 15: logo stripped to JUST the mountain stroke (one path).
+   Round 14 removed the drop-shadow glow + the peak-sun circle, but user
+   reported still perceiving a "weird effect". To eliminate ANY possible
+   visual artifact (low-opacity peak-bg fill, tiny peak-star/peak-particle
+   dots that could read as noise), this round removes ALL of them too.
+   Logo is now one clean indigo mountain stroke — nothing else. */
+.auth-logo .brand-peak{overflow:visible;filter:none}
 
 /* === Round 5: demo try button (auth card) — dashed-border invitation CTA === */
 .demo-try-btn{width:100%;margin-top:14px;padding:13px;border-radius:14px;border:1px dashed var(--glass-border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;cursor:pointer;transition:color var(--t-tap) var(--smooth),border-color var(--t-tap) var(--smooth),background var(--t-tap) var(--smooth),transform var(--t-tap) var(--smooth);display:flex;align-items:center;justify-content:center;gap:8px;animation:featIn .5s var(--spring) both;animation-delay:.24s;font-family:var(--body)}
@@ -718,21 +794,9 @@ html[data-lowend="true"] .demo-opt.wrong{animation:none}
 .demo-weak .dsc{font-size:12.5px;color:var(--ink);line-height:1.5}
 .demo-cta{margin-top:6px}
 
-/* === Round 13 (Item 1): theme-aware brand colors + STATIC GLOW (restored).
-   Dark theme: stars are subtle white dots, accent is indigo (#6366f1) so the
-   drop-shadow glow reads as a soft indigo halo. Light theme: sun is warm amber
-   (#f59e0b) and the drop-shadow glow reads as amber — a sunrise-over-mountain
-   feel. No twinkle/pulse animation (that was the user's actual objection in
-   Round 11); the glow is purely static. Glow filter lives on .brand-peak
-   (above), colors live here on the individual paths. */
-[data-theme="dark"] .auth-logo .peak-star{fill:#fff;opacity:.35}
-[data-theme="dark"] .auth-logo .peak-star.s2{opacity:.28}
-[data-theme="dark"] .auth-logo .peak-star.s3{opacity:.22}
-[data-theme="light"] .auth-logo .peak-star{display:none}
-[data-theme="light"] .auth-logo .peak-sun{fill:#f59e0b;opacity:1}
-[data-theme="light"] .auth-logo .peak-particle{fill:#f59e0b;opacity:.5}
-[data-theme="light"] .auth-logo .peak-bg{fill:#f59e0b;opacity:.22}
-html[data-lowend="true"] .auth-logo .peak-star{display:none}
+/* (Round 15: logo stripped to JUST the mountain stroke path — peak-stars,
+   peak-particles, peak-bg fill all removed from SVG markup. Their orphaned
+   theme-color rules below were also removed. Logo is now one indigo stroke.) */
 
 /* === Round 6: demo topic picker === */
 .demo-picker-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:18px;line-height:1.5}
@@ -1041,6 +1105,31 @@ html[data-lowend="true"] #tip {
 </head>
 <body>
 
+<!-- Round-19: boot/loading splash (user request). Visible on first paint;
+     the main script removes it once the auth/app screen is painted (min
+     ~900ms, hard cap 3s). The AI-mistakes disclaimer is required copy. -->
+<div id="bootScreen" role="status" aria-live="polite">
+  <svg class="boot-mark" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 18 L7 4 L10 12 L13 6 L18 18"/></svg>
+  <div class="boot-word">EL-PEAK</div>
+  <div class="boot-bar" aria-hidden="true"><i></i></div>
+  <p class="boot-note" id="bootNote"><span class="boot-warn">AI can make mistakes.</span> Double-check important answers.</p>
+  <span class="sr-only">Loading El-Peak Study Compass</span>
+</div>
+<script>
+/* Boot i18n: runs before the main script so the disclaimer is in the right
+   language on the very first frame (ep-lang is written by setLanguage). */
+(function(){
+  try{
+    var l = localStorage.getItem("ep-lang") || ((navigator.language||"en").toLowerCase().indexOf("ar")===0 ? "ar" : "en");
+    var n = document.getElementById("bootNote");
+    if (n && l === "ar") {
+      n.dir = "rtl";
+      n.innerHTML = '<span class="boot-warn">\u0642\u062F \u064A\u062E\u0637\u0626 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064A.</span> \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u062C\u0627\u0628\u0627\u062A \u0627\u0644\u0645\u0647\u0645\u0629.';
+    }
+  }catch(e){}
+})();
+</script>
+
 <div class="aurora">
   <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
 </div>
@@ -1059,15 +1148,7 @@ html[data-lowend="true"] #tip {
     </div>
     <div class="auth-logo">
       <svg viewBox="0 0 20 20" fill="none" class="brand-peak" aria-hidden="true">
-        <circle class="peak-star s1" cx="3" cy="3" r=".4"/>
-        <circle class="peak-star s2" cx="17" cy="2" r=".35"/>
-        <circle class="peak-star s3" cx="9" cy="2.5" r=".3"/>
-        <circle class="peak-sun" cx="14.5" cy="5" r="2.1" fill="var(--accent)"/>
-        <path class="peak-bg" d="M2 18 L7 4 L10 12 L13 6 L18 18 Z" fill="var(--accent)" opacity=".18"/>
         <path d="M2 18 L7 4 L10 12 L13 6 L18 18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle class="peak-particle p1" cx="5" cy="15" r=".55" fill="var(--accent)"/>
-        <circle class="peak-particle p2" cx="11" cy="14" r=".45" fill="var(--accent)"/>
-        <circle class="peak-particle p3" cx="15.5" cy="12" r=".5" fill="var(--accent)"/>
       </svg>
       El-Peak
     </div>
@@ -1429,20 +1510,45 @@ html[data-lowend="true"] #tip {
 
         <div class="card">
           <h2 class="sec" data-i18n="upgrade_plan">Upgrade Plan</h2>
-          <p class="sub" style="margin-bottom: 20px;" data-i18n="upgrade_sub">Unlock higher usage limits and a more powerful AI model.</p>
-          <div class="profile-upgrade-boxes">
-            <div class="upgrade-box" id="plusBox" style="flex:1;padding:20px;border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;text-align:center">
-              <div style="font-family:var(--disp);font-weight:700;font-size:18px">Plus</div>
-              <div style="font-size:24px;font-weight:800;margin:8px 0">39 EGP</div>
-              <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="week">week</span></div>
-              <div style="margin-top:12px;font-size:12px;color:var(--muted)">120 AI Questions<br>15 PDF Uploads<br><b>Upgraded AI Model</b></div>
+          <p class="sub" style="margin-bottom: 20px;" data-i18n="upgrade_sub">Every perk, side by side — pick the plan that fits your ascent.</p>
+          <div class="plan-compare">
+            <div class="plan-box plan-free" id="freeBox">
+              <span class="plan-tag" id="freePlanTag" data-i18n="current_plan_tag">Current Plan</span>
+              <div class="plan-name">Free</div>
+              <div class="plan-price" data-i18n="free_price">Free</div>
+              <ul class="perks">
+                <li data-i18n="perk_free_1">30 AI quiz questions / month</li>
+                <li data-i18n="perk_free_2">3 PDF uploads / month (up to 20 pages)</li>
+                <li><span data-i18n="lang_en_label">English</span>: <b id="freeModelName">GPT-OSS-20B</b></li>
+                <li><span data-i18n="lang_ar_label">العربية</span>: <b id="freeModelAr">Qwen3.6-27B</b></li>
+                <li data-i18n="perk_free_3">AI tutor, coach, scheduler &amp; achievements</li>
+              </ul>
+            </div>
+            <div class="plan-box plan-plus" id="plusBox">
+              <span class="plan-tag" id="plusPlanTag" data-i18n="current_plan_tag" hidden>Current Plan</span>
+              <div class="plan-name">Plus</div>
+              <div class="plan-price">39 EGP</div>
+              <div class="plan-period">/ <span data-i18n="week">week</span></div>
+              <ul class="perks">
+                <li data-i18n="perk_plus_1">120 AI questions / month (4× Free)</li>
+                <li data-i18n="perk_plus_2">15 PDF uploads / month (40 pages, 15 MB)</li>
+                <li><span data-i18n="lang_en_label">English</span>: <b id="plusModelName">GPT-OSS-120B</b></li>
+                <li><span data-i18n="lang_ar_label">العربية</span>: <b id="plusModelAr">Qwen3.6-27B</b> <span class="dt-tag" id="plusModelArDt" data-i18n="deep_thinking_tag">Deep Thinking</span></li>
+                <li data-i18n="perk_plus_3">Everything in Free</li>
+              </ul>
               <div class="monthly-disabled"><s>99 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
             </div>
-            <div class="upgrade-box" id="proBox" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
-              <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
-              <div style="font-size:24px;font-weight:800;margin:8px 0">59 EGP</div>
-              <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="week">week</span></div>
-              <div style="margin-top:12px;font-size:12px;color:var(--muted)">350 AI Questions<br>45 PDF Uploads<br><b>Premium AI Model</b></div>
+            <div class="plan-box plan-pro" id="proBox">
+              <span class="plan-tag" id="proPlanTag" data-i18n="current_plan_tag" hidden>Current Plan</span>
+              <div class="plan-name">Pro</div>
+              <div class="plan-price">59 EGP</div>
+              <div class="plan-period">/ <span data-i18n="week">week</span></div>
+              <ul class="perks">
+                <li data-i18n="perk_pro_1">350 AI questions / month</li>
+                <li data-i18n="perk_pro_2">45 PDF uploads / month (60 pages, 15 MB)</li>
+                <li><span data-i18n="lang_all_label">All languages</span>: <b id="proModelName">Qwen3.6-27B</b> <span class="dt-tag" id="proModelDt" data-i18n="deep_thinking_tag">Deep Thinking</span></li>
+                <li data-i18n="perk_pro_3">Everything in Plus</li>
+              </ul>
               <div class="monthly-disabled"><s>199 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
             </div>
           </div>
@@ -1564,19 +1670,30 @@ html[data-lowend="true"] #tip {
   <div class="auth-card" style="max-width:450px">
     <div class="auth-logo" data-i18n="limit_reached">Limit Reached</div>
     <div class="auth-sub" data-i18n="limit_sub">You've used all your free credits for this month. Upgrade to keep your ascent going!</div>
+    <p class="modal-free-note" data-i18n="free_reminder">Free plan keeps: 30 AI questions + 3 PDF uploads every month.</p>
     <div class="profile-upgrade-boxes">
-      <div class="upgrade-box" id="plusBoxModal" style="flex:1;padding:20px;border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;text-align:center">
-        <div style="font-family:var(--disp);font-weight:700;font-size:18px">Plus</div>
-        <div style="font-size:24px;font-weight:800;margin:8px 0">39 EGP</div>
-        <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="week">week</span></div>
-        <div style="margin-top:12px;font-size:12px;color:var(--muted)">120 AI Questions<br>15 PDF Uploads</div>
+      <div class="upgrade-box plan-box plan-plus" id="plusBoxModal" style="flex:1;padding:18px 16px 14px;text-align:center">
+        <div class="plan-name">Plus</div>
+        <div class="plan-price">39 EGP</div>
+        <div class="plan-period">/ <span data-i18n="week">week</span></div>
+        <ul class="perks perks-sm">
+          <li data-i18n="perk_plus_1">120 AI questions / month (4× Free)</li>
+          <li data-i18n="perk_plus_2">15 PDF uploads / month (40 pages, 15 MB)</li>
+          <li><span data-i18n="lang_en_label">English</span>: <b id="plusModelNameModal">GPT-OSS-120B</b></li>
+          <li><span data-i18n="lang_ar_label">العربية</span>: <b id="plusModelArModal">Qwen3.6-27B</b> <span class="dt-tag" id="plusModelArDtModal" data-i18n="deep_thinking_tag">Deep Thinking</span></li>
+        </ul>
         <div class="monthly-disabled"><s>99 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
       </div>
-      <div class="upgrade-box" id="proBoxModal" style="flex:1;padding:20px;border:1px solid var(--accent);background:rgba(99,102,241,0.1);border-radius:16px;cursor:pointer;text-align:center">
-        <div style="font-family:var(--disp);font-weight:700;font-size:18px">Pro</div>
-        <div style="font-size:24px;font-weight:800;margin:8px 0">59 EGP</div>
-        <div style="font-size:11px;color:var(--muted)">/ <span data-i18n="week">week</span></div>
-        <div style="margin-top:12px;font-size:12px;color:var(--muted)">350 AI Questions<br>45 PDF Uploads<br><b>Premium AI Model</b></div>
+      <div class="upgrade-box plan-box plan-pro" id="proBoxModal" style="flex:1;padding:18px 16px 14px;text-align:center">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">59 EGP</div>
+        <div class="plan-period">/ <span data-i18n="week">week</span></div>
+        <ul class="perks perks-sm">
+          <li data-i18n="perk_pro_1">350 AI questions / month</li>
+          <li data-i18n="perk_pro_2">45 PDF uploads / month (60 pages, 15 MB)</li>
+          <li><span data-i18n="lang_all_label">All languages</span>: <b id="proModelNameModal">Qwen3.6-27B</b> <span class="dt-tag" id="proModelDtModal" data-i18n="deep_thinking_tag">Deep Thinking</span></li>
+          <li data-i18n="perk_pro_3">Everything in Plus</li>
+        </ul>
         <div class="monthly-disabled"><s>199 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
       </div>
     </div>
@@ -1618,6 +1735,18 @@ html[data-lowend="true"] #tip {
 <script>
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 
+/* === Round-17 helpers ===
+   esc(): HTML-escape a string before injecting it into innerHTML templates
+   or title=""/data-topic="" attributes. Topic names derive from PDF
+   FILENAMES, so <, >, &, and quotes are all legal and previously rendered
+   raw — an escaped-quotes-only fix existed on ONE attribute (coachSubjects)
+   while every other topic template injected raw. Now all templates below
+   route through esc().
+   clip(): JS-side mid-string truncation for surfaces where CSS ellipsis
+   can't reach (SVG radar labels already did their own slice — kept). */
+const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+const clip = (s, n) => { s = String(s ?? ""); return s.length > n ? s.slice(0, Math.max(1, n - 1)) + "…" : s; };
+
 const translations = {
   en: {
     auth_sub: "Sign in to sync your ascent", google_btn: "Continue with Google", or: "OR", login: "Log In", signup: "Sign Up", password: "Password",
@@ -1636,7 +1765,12 @@ const translations = {
     ai_coach: "AI Coach", summit_plan: "Summit Plan", coach_sub: "Powered by Groq. It analyses weak topics, deadlines and your accuracy trend, then builds a 7-day revision plan.",
     generate_plan: "Generate Revision Plan", account: "Account", your_profile: "Your Profile", profile_sub: "Manage your subscription, track your usage limits, and view your recent quiz activity.",
     account_usage: "Account & Usage", current_plan: "Current Plan", ai_questions_m: "AI Questions (Monthly)", pdf_uploads_m: "PDF Uploads (Monthly)", recent_activity: "Recent Activity",
-    upgrade_plan: "Upgrade Plan", upgrade_sub: "Unlock higher usage limits and a more powerful AI model.", month: "month", week: "week", coming_soon: "Coming Soon", proceed_payment: "Proceed to Payment",
+    upgrade_plan: "Upgrade Plan", upgrade_sub: "Every perk, side by side — pick the plan that fits your ascent.", month: "month", week: "week", coming_soon: "Coming Soon", proceed_payment: "Proceed to Payment",
+    current_plan_tag: "Current Plan", free_price: "Free", lang_en_label: "English", lang_ar_label: "العربية", lang_all_label: "All languages", deep_thinking_tag: "Deep Thinking",
+    perk_free_1: "30 AI quiz questions / month", perk_free_2: "3 PDF uploads / month (up to 20 pages)", perk_free_3: "AI tutor, coach, scheduler & achievements",
+    perk_plus_1: "120 AI questions / month (4× Free)", perk_plus_2: "15 PDF uploads / month (40 pages, 15 MB)", perk_plus_3: "Everything in Free",
+    perk_pro_1: "350 AI questions / month", perk_pro_2: "45 PDF uploads / month (60 pages, 15 MB)", perk_pro_3: "Everything in Plus",
+    free_reminder: "Free plan keeps: 30 AI questions + 3 PDF uploads every month.",
     preferences: "Preferences", settings_sub: "Manage your account details, change your password, and set your preferred language.", account_info: "Account Information",
     email: "Email", username: "Username", language: "Language", save_changes: "Save Changes", security: "Security", current_pass: "Current Password", new_pass: "New Password",
     update_password: "Update Password", tutor: "El-Peak Tutor", powered_groq: "Powered by Groq · Online", tutor_welcome: "Hey! I'm your AI tutor. Ask me anything about your studies.",
@@ -1722,7 +1856,12 @@ const translations = {
     ai_coach: "مدرب الذكاء الاصطناعي", summit_plan: "خطة القمة", coach_sub: "مدعوم بواسطة Groq. يحلل المواضيع الضعيفة والمواعيد النهائية واتجاه دقتك، ثم يبني خطة مراجعة لمدة 7 أيام.",
     generate_plan: "إنشاء خطة المراجعة", account: "الحساب", your_profile: "ملفك الشخصي", profile_sub: "إدارة اشتراكك، وتتبع حدود الاستخدام، وعرض نشاط الاختبار الأخير.",
     account_usage: "الحساب والاستخدام", current_plan: "الخطة الحالية", ai_questions_m: "أسئلة الذكاء الاصطناعي (شهرياً)", pdf_uploads_m: "رفع PDF (شهرياً)", recent_activity: "النشاط الأخير",
-    upgrade_plan: "ترقية الخطة", upgrade_sub: "افتح حدود استخدام أعلى ونموذج ذكاء اصطناعي أقوى.", month: "شهر", week: "أسبوع", coming_soon: "قريباً", proceed_payment: "المتابعة إلى الدفع",
+    upgrade_plan: "ترقية الخطة", upgrade_sub: "قارن كل المزايا جنبًا إلى جنب واختر الخطة التي تناسب صعودك.", month: "شهر", week: "أسبوع", coming_soon: "قريباً", proceed_payment: "المتابعة إلى الدفع",
+    current_plan_tag: "خطتك الحالية", free_price: "مجاني", lang_en_label: "الإنجليزية", lang_ar_label: "العربية", lang_all_label: "كل اللغات", deep_thinking_tag: "تفكير عميق",
+    perk_free_1: "30 سؤال ذكاء اصطناعي شهريًا", perk_free_2: "3 ملفات PDF شهريًا (حتى 20 صفحة)", perk_free_3: "مدرّس ذكي ومدرب وجدولة وإنجازات",
+    perk_plus_1: "120 سؤالًا شهريًا (4× المجانية)", perk_plus_2: "15 ملف PDF شهريًا (40 صفحة، 15 MB)", perk_plus_3: "كل مزايا الخطة المجانية",
+    perk_pro_1: "350 سؤالًا شهريًا", perk_pro_2: "45 ملف PDF شهريًا (60 صفحة، 15 MB)", perk_pro_3: "كل مزايا خطة Plus",
+    free_reminder: "تبقى الخطة المجانية: 30 سؤالًا + 3 ملفات PDF كل شهر.",
     preferences: "التفضيلات", settings_sub: "إدارة تفاصيل حسابك، وتغيير كلمة المرور، وضبط لغتك المفضلة.", account_info: "معلومات الحساب",
     email: "البريد الإلكتروني", username: "اسم المستخدم", language: "اللغة", save_changes: "حفظ التغييرات", security: "الأمان", current_pass: "كلمة المرور الحالية", new_pass: "كلمة مرور جديدة",
     update_password: "تحديث كلمة المرور", tutor: "مدرس El-Peak", powered_groq: "مدعوم من Groq · متصل", tutor_welcome: "مرحباً! أنا مدرسك الذكي. اسألني أي شيء عن دراستك.",
@@ -1949,6 +2088,59 @@ function initLenis() {
 
 lenis = initLenis();
 
+// === Round 14: auth-screen smooth scroll (separate Lenis instance). ===
+// User reported the sign-up page scroll feels jumpy / not momentum-smooth
+// like the main page. Root cause: the outer `lenis` is scoped to window —
+// it can't smooth-scroll #authView because that element is position:fixed
+// with overflow-y:auto (an internal scroll container, not the document).
+// Round 13 made native scroll WORK on #authView via data-lenis-prevent +
+// overflow-y:auto, but native scroll has no momentum. This round attaches
+// a SECOND Lenis instance scoped to #authView so wheel + touch on the auth
+// screen get the same lerp-based momentum smoothing as the main page.
+// Outer `lenis` is stopped when auth shows (no window scroll behind the
+// overlay); data-lenis-prevent on #authView keeps the outer instance from
+// interfering with the inner one even when both are running. Same
+// reduced-motion + low-end gates as outer lenis (cheap RAF on throttled
+// hardware would make things worse, not better).
+let authLenis = null;
+let authLenisRafId = null;
+
+function initAuthLenis() {
+  if (reducedMotion || lowEndDevice || !window.Lenis) return null;
+  const authView = document.querySelector('#authView');
+  if (!authView || authLenis) return authLenis;
+  try {
+    const instance = new Lenis({
+      wrapper: authView,
+      content: authView,
+      lerp: 0.08,
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      autoResize: true,
+    });
+    function raf(time) {
+      instance.raf(time);
+      authLenisRafId = requestAnimationFrame(raf);
+    }
+    authLenisRafId = requestAnimationFrame(raf);
+    authLenis = instance;
+  } catch(e) {
+    // Lenis wrapper-option not supported or unexpected error → fall back to
+    // native overflow-y:auto scroll (still works, just no momentum smoothing).
+    authLenis = null;
+  }
+  return authLenis;
+}
+
+function startAuthLenis() {
+  if (!authLenis) initAuthLenis();
+  if (authLenis) { try { authLenis.start(); } catch(e){} }
+}
+
+function stopAuthLenis() {
+  if (authLenis) { try { authLenis.stop(); } catch(e){} }
+}
+
 (function initParallax(){
   // Stage 4: aurora drifts at a fraction of scroll. One listener, one
   // transform write per scroll event (no layout, no rAF loop). Skipped
@@ -2044,6 +2236,7 @@ function showApp() {
     avEl.classList.remove("app-enter"); void avEl.offsetWidth; avEl.classList.add("app-enter");
     currentView = $(".view.active")?.id.replace("view-", "") || "dashboard";
     if (lenis) lenis.start();
+    stopAuthLenis();  // Round 14: release auth-screen smooth-scroll RAF while app is showing
     const activeLink = $(".navlinks a.active");
     if (activeLink) moveSlider(activeLink);
     moveMobileSlider($(".mobilenav a.active"));
@@ -2064,6 +2257,7 @@ function logout() {
     if (lenis) lenis.stop();
     $("#appView").style.display = "none";
     $("#authView").style.display = "flex";
+    startAuthLenis();  // Round 14: activate auth-screen smooth-scroll on re-show
 }
 
 if (token) {
@@ -2071,8 +2265,32 @@ if (token) {
 } else {
     $("#authView").style.display = "flex";
     if (lenis) lenis.stop();
+    startAuthLenis();  // Round 14: activate auth-screen smooth-scroll on first paint
     applyLanguage(currentLang);
 }
+
+/* Round-19: boot-splash teardown. The auth/app screen is now painted — hide
+   the splash after a minimum display (so it never flashes) and a hard cap
+   (so a stalled asset can never trap the user behind the overlay). */
+(function(){
+  const bs = $("#bootScreen");
+  if (!bs) return;
+  const MIN_SHOW = 900, HARD_CAP = 3000;
+  const t0 = performance.now();
+  let done = false;
+  function hide(){
+    if (done) return;
+    done = true;
+    const wait = Math.max(0, MIN_SHOW - (performance.now() - t0));
+    setTimeout(() => {
+      bs.classList.add("boot-hide");
+      setTimeout(() => { bs.remove(); }, 650);
+    }, wait);
+  }
+  if (document.readyState === "complete") hide();
+  else window.addEventListener("load", hide, { once: true });
+  setTimeout(hide, HARD_CAP);
+})();
 
 const authForms = $("#authForms");
 let authMorphTimer = null;
@@ -2392,6 +2610,7 @@ window.addEventListener('resize', () => {
   if(activeLink) moveSlider(activeLink);
   moveMobileSlider($(".mobilenav a.active"));
   if(lenis) lenis.resize();
+  if(authLenis) { try { authLenis.resize(); } catch(e){} }  // Round 14: keep auth-screen smooth-scroll dims in sync
 });
 
 function updateDifficultyButtons(grade) {
@@ -2417,30 +2636,122 @@ function updateDifficultyButtons(grade) {
     if (window.segRefresh) window.segRefresh();
 }
 
+/* === Round-17 + Round-19: REAL model names in the subscription UI ===
+   Round-17 replaced the misleading "Upgraded/Premium AI Model" labels with the
+   live per-tier ids. Round-19 (Option 3) upgrades the table to PER-LANGUAGE
+   routing: {tier: {en: id, ar: id}} + deep_thinking flags, mirroring the
+   backend's ROUTE_MODELS (English -> fast GPT-OSS, Arabic -> Qwen, Pro ->
+   Qwen deep-thinking everywhere). prettyModel() strips the vendor prefix and
+   pretty-cases ("openai/gpt-oss-120b" -> "GPT-OSS-120B", "qwen/qwen3.6-27b"
+   -> "Qwen3.6-27B"). Fallbacks mirror the backend defaults so the boxes
+   render correctly before /api/usage answers (or offline in the static demo);
+   the old flat {tier: "id"} shape is still accepted. */
+let tierModels = {
+  free: {en: "openai/gpt-oss-20b",  ar: "qwen/qwen3.6-27b"},
+  plus: {en: "openai/gpt-oss-120b", ar: "qwen/qwen3.6-27b"},
+  pro:  {en: "qwen/qwen3.6-27b",    ar: "qwen/qwen3.6-27b"}
+};
+let tierThinking = {
+  free: {en: false, ar: false},
+  plus: {en: false, ar: true},
+  pro:  {en: true,  ar: true}
+};
+function prettyModel(id){
+  const s = String(id||"").split("/").pop().trim();
+  if (!s) return "AI";
+  if (/^qwen/i.test(s)) return "Qwen" + s.slice(4).toUpperCase(); // Qwen3.6-27B
+  return s.toUpperCase();                                           // GPT-OSS-120B
+}
+function tKey(k){
+  return (translations[currentLang] && translations[currentLang][k]) ||
+         (translations.en && translations.en[k]) || k;
+}
+function modelLine(tier, lang){
+  const id = (tierModels[tier] && tierModels[tier][lang]) || "";
+  const deep = !!(tierThinking[tier] && tierThinking[tier][lang]);
+  return prettyModel(id) + (deep ? " · " + tKey("deep_thinking_tag") : "");
+}
+// Round-19: <b> holds the MODEL NAME only; the Deep-Thinking pill next to it
+// is a separate span toggled by the route's thinking flag (avoids the doubled
+// "Deep Thinking" text modelLine() would inject into the <b>).
+function setModel(sel, dtSel, tier, lang){
+  const id = (tierModels[tier] && tierModels[tier][lang]) || "";
+  setTxtGlobal(sel, prettyModel(id));
+  const deep = !!(tierThinking[tier] && tierThinking[tier][lang]);
+  if (dtSel) { const el = document.querySelector(dtSel); if (el) el.hidden = !deep; }
+}
+function setTxtGlobal(sel, txt){ const el = document.querySelector(sel); if (el) el.textContent = txt; }
+function _normTierModels(m){
+  // Back-compat: old backends send flat {tier: "id"}; new ones send
+  // {tier: {en: id, ar: id}}. Normalize to the per-language shape.
+  const out = {};
+  ["free","plus","pro"].forEach(t => {
+    const v = m && m[t];
+    if (v && typeof v === "object") out[t] = {en: v.en || v.ar || "", ar: v.ar || v.en || ""};
+    else if (typeof v === "string" && v) out[t] = {en: v, ar: v};
+  });
+  return out;
+}
+let lastKnownTier = null; // cached tier — showUpgradeModal re-applies with null usage
+function applyTierModels(usage){
+  try {
+    if (usage && usage.models && typeof usage.models === "object") {
+      const n = _normTierModels(usage.models);
+      for (const t of Object.keys(n)) tierModels[t] = n[t];
+    }
+    if (usage && usage.deep_thinking && typeof usage.deep_thinking === "object") {
+      for (const t of ["free","plus","pro"]) {
+        if (usage.deep_thinking[t]) tierThinking[t] = Object.assign({}, tierThinking[t], usage.deep_thinking[t]);
+      }
+    }
+  } catch(e){ /* keep fallbacks */ }
+  const setTxt = (sel, txt) => { const el=$(sel); if (el) el.textContent = txt; };
+  // Plan-compare boxes (profile) — one line per language.
+  setModel("#freeModelName", null, "free", "en");
+  setModel("#freeModelAr",   null, "free", "ar");
+  setModel("#plusModelName", null, "plus", "en");
+  setModel("#plusModelAr",   "#plusModelArDt", "plus", "ar");
+  setModel("#proModelName",  "#proModelDt", "pro", "en"); // Pro: one model, all languages
+  // Upgrade-modal boxes.
+  setModel("#plusModelNameModal", null, "plus", "en");
+  setModel("#plusModelArModal",   "#plusModelArDtModal", "plus", "ar");
+  setModel("#proModelNameModal",  "#proModelDtModal", "pro", "en");
+  // "Current Plan" ribbon on the right box.
+  if (usage && usage.tier) lastKnownTier = usage.tier;
+  const tier = lastKnownTier;
+  [["#freePlanTag","free"],["#plusPlanTag","plus"],["#proPlanTag","pro"]].forEach(([sel,t]) => {
+    const el = $(sel); if (el) el.hidden = (tier !== t);
+  });
+  // Quiz-engine badge: prints the user's OWN tier's model for the CURRENT UI
+  // language (the model their next quiz actually runs on). Hover title lists
+  // both languages with the full ids — an honest, complete signal.
+  const badge = $("#quizModelBadge");
+  if (badge) {
+    const myTier = tier || "free";
+    const myLang = currentLang === "ar" ? "ar" : "en";
+    const id = (tierModels[myTier] && tierModels[myTier][myLang]) || tierModels.free[myLang];
+    badge.textContent = "⚡ Groq · " + prettyModel(id);
+    badge.title = "English quizzes: " + (tierModels[myTier].en || "?") +
+                  " · العربية: " + (tierModels[myTier].ar || "?") +
+                  " — on Groq LPU inference";
+  }
+}
+
 async function loadDashboard(){
   try{
     const [stats,topics,recent,heat,usage]=await Promise.all([api("/api/stats"),api("/api/topics"),api("/api/recent?limit=20"),api("/api/heatmap"),api("/api/usage")]);
-    
-    // Round-13 (Item 4): badge label is now GENERIC + tier-differentiated, not a
-    // hardcoded model id. The previous "LLAMA-3.1-8B" / "LLAMA-3.3-70B" text was
-    // stale the moment Groq deprecated those ids (shutdown 2026-08-16). A generic
-    // "Groq AI" / "Groq AI+" label: (a) won't go stale when Groq ships new models,
-    // (b) honestly tells the user what's powering the quiz, (c) still signals the
-    // paid-tier model upgrade (the +) without leaking the exact model id, which
-    // is a backend config detail (env-overridable) that changes for operational
-    // reasons unrelated to the user. The real per-tier model lives in main.py's
-    // TIER_MODELS; the badge is decorative branding, not an API contract.
-    const modelBadge = $("#quizModelBadge");
-    if (usage && usage.tier === 'free') {
-        modelBadge.textContent = '⚡ Groq AI';
-    } else if (usage) {
-        modelBadge.textContent = '⚡ Groq AI+';
-    }
-    
+
+    // Round-17 (Item 2): subscription boxes + quiz badge print the REAL
+    // per-tier model names from /api/usage (fallback = backend defaults).
+    applyTierModels(usage);
+
     $("#streakChip").textContent=stats.streak+" "+ (translations[currentLang].days || "days");
     count($("#peakVal"),stats.peak);count($("#streakVal"),stats.streak);count($("#reps7"),stats.attempts_7d);
     count($("#avgAcc"),Math.round(stats.avg_pct),"%");count($("#weakN"),stats.weak_count);
-    $("#bestRidge").textContent=stats.best_topic||"—";
+    // Round-17: Best-Topic stat — ellipsis clips, title attr shows the full name.
+    const bestRidgeEl=$("#bestRidge");
+    bestRidgeEl.textContent=stats.best_topic||"—";
+    bestRidgeEl.title=stats.best_topic||"";
     $("#peakArc").style.strokeDashoffset=213.6*(1-stats.peak/100);
     renderRadar(topics);renderTrend(recent);renderHeat(heat);renderRecent(recent);
   }catch(e){toast("Dashboard load failed: "+e.message)}
@@ -2449,7 +2760,11 @@ async function loadDashboard(){
 async function loadProfile() {
     try {
         const [usage, recent] = await Promise.all([api("/api/usage"), api("/api/recent?limit=10")]);
-        
+
+        // Round-17 (Item 2): refresh the model names on the upgrade boxes
+        // (this is the screen where they live).
+        applyTierModels(usage);
+
         $("#tierBadge").textContent = usage.tier;
         $("#profileTier").textContent = usage.tier;
         $("#aiUsageText").textContent = `${usage.ai_used} / ${usage.ai_limit}`;
@@ -2459,8 +2774,10 @@ async function loadProfile() {
         
         $("#profileRecentList").innerHTML = recent.length ? recent.map(a => {
             const col = a.pct >= 70 ? "var(--mint)" : a.pct >= 50 ? "var(--amber)" : "var(--coral)";
+            // Round-17: esc() + title attr (full topic on hover; filenames
+            // can contain HTML-significant chars).
             return `<div class="rowline" data-id="${a.id}">
-                <span class="r-topic">${a.topic}</span>
+                <span class="r-topic" title="${esc(a.topic)}">${esc(a.topic)}</span>
                 <span class="r-time">${ago(a.created_at)}</span>
                 <span class="badge ${a.source === "static" ? "static" : "ai"}">${a.source === "static" ? "BANK" : a.source.toUpperCase()}</span>
                 <span class="pctpill" style="color:${col}">${a.pct}%</span>
@@ -3813,7 +4130,10 @@ function renderRadar(topics){
   const t=topics.slice(0,8);if(!t.length){$("#radarBox").innerHTML='<p class="sub">No topics yet.</p>';return}
   const S=280,c=S/2,R=90,n=t.length;let g="";
   for(let ring=1;ring<=4;ring++){let pts=t.map((_,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,r=R*ring/4;return`${c+r*Math.cos(a)},${c+r*Math.sin(a)}`}).join(" ");g+=`<polygon points="${pts}" fill="none" stroke="var(--glass-border)" stroke-width="1"/>`}
-  t.forEach((tp,i)=>{const a=-Math.PI/2+i*2*Math.PI/n;g+=`<line x1="${c}" y1="${c}" x2="${c+R*Math.cos(a)}" y2="${c+R*Math.sin(a)}" stroke="var(--glass-border)"/>`;g+=`<text x="${c+(R+20)*Math.cos(a)}" y="${c+(R+20)*Math.sin(a)}" font-size="10" fill="var(--muted)" text-anchor="middle" dominant-baseline="middle" font-family="Inter">${tp.name.length>12?tp.name.slice(0,11)+"…":tp.name}</text>`});
+  // Round-17: radar labels — keep the 12-char JS clip (SVG text has no CSS
+  // ellipsis), escape the name, and add an SVG <title> child so hovering a
+  // label reveals the full topic name.
+  t.forEach((tp,i)=>{const a=-Math.PI/2+i*2*Math.PI/n;g+=`<line x1="${c}" y1="${c}" x2="${c+R*Math.cos(a)}" y2="${c+R*Math.sin(a)}" stroke="var(--glass-border)"/>`;g+=`<text x="${c+(R+20)*Math.cos(a)}" y="${c+(R+20)*Math.sin(a)}" font-size="10" fill="var(--muted)" text-anchor="middle" dominant-baseline="middle" font-family="Inter">${esc(clip(tp.name,12))}<title>${esc(tp.name)}</title></text>`});
   const pts=t.map((tp,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,r=R*tp.score/100;return`${c+r*Math.cos(a)},${c+r*Math.sin(a)}`}).join(" ");
   g+=`<polygon points="${pts}" fill="rgba(99,102,241,0.15)" stroke="var(--accent)" stroke-width="2" style="filter:drop-shadow(0 0 8px var(--accent-glow));transform-origin:${c}px ${c}px;animation:radarIn .7s var(--ease-wobble)"/>`;
   $("#radarBox").innerHTML=`<svg viewBox="0 0 ${S} ${S}" style="width:100%;max-width:320px"><style>@keyframes radarIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}</style>${g}</svg>`;
@@ -3871,12 +4191,19 @@ function quietlyRefreshStats(){
   api("/api/heatmap").then(renderHeat).catch(()=>{});
   api("/api/stats").then(s=>{
     count($("#reps7"),s.attempts_7d);count($("#avgAcc"),Math.round(s.avg_pct),"%");
-    count($("#weakN"),s.weak_count);$("#bestRidge").textContent=s.best_topic||"—";
+    count($("#weakN"),s.weak_count);
+    // Round-17: Best-Topic stat — ellipsis + title (full name on hover).
+    const bestRidgeEl2=$("#bestRidge");
+    bestRidgeEl2.textContent=s.best_topic||"—";
+    bestRidgeEl2.title=s.best_topic||"";
     count($("#peakVal"),s.peak);$("#peakArc").style.strokeDashoffset=213.6*(1-s.peak/100);
   }).catch(()=>{});
 }
 function renderRecent(recent){
-  $("#recentList").innerHTML=recent.length?recent.slice(0,6).map(a=>{const col=a.pct>=70?"var(--mint)":a.pct>=50?"var(--amber)":"var(--coral)";return `<div class="rowline" data-id="${a.id}"><span class="r-topic">${a.topic}</span><span class="r-time">${ago(a.created_at)}</span><span class="badge ${a.source==="static"?"static":"ai"}">${a.source==="static"?"BANK":a.source.toUpperCase()}</span><span class="pctpill" style="color:${col}">${a.pct}%</span><button class="rowdel" data-id="${a.id}" title="Delete record">✕</button></div>`}).join(""):'<p class="sub">No attempts logged yet.</p>';
+  // Round-17: r-topic now carries esc(topic) + title attr (full name on
+  // hover). Filenames can contain <, >, & and quotes — esc() neutralizes
+  // them for the innerHTML template.
+  $("#recentList").innerHTML=recent.length?recent.slice(0,6).map(a=>{const col=a.pct>=70?"var(--mint)":a.pct>=50?"var(--amber)":"var(--coral)";return `<div class="rowline" data-id="${a.id}"><span class="r-topic" title="${esc(a.topic)}">${esc(a.topic)}</span><span class="r-time">${ago(a.created_at)}</span><span class="badge ${a.source==="static"?"static":"ai"}">${a.source==="static"?"BANK":a.source.toUpperCase()}</span><span class="pctpill" style="color:${col}">${a.pct}%</span><button class="rowdel" data-id="${a.id}" title="Delete record">✕</button></div>`}).join(""):'<p class="sub">No attempts logged yet.</p>';
   wireRowDeletes($("#recentList"),"No attempts logged yet.",quietlyRefreshStats);
 }
 
@@ -3942,10 +4269,14 @@ window.segRefresh=()=>segMoves.forEach(f=>f());
 const segVal=(id,attr)=>$("#"+id+" button.on").dataset[attr];
 
  $("#drop").onclick=()=>$("#fileInput").click();
- $("#fileInput").onchange=e=>{pdfFile=e.target.files[0]||null;$("#fileName").textContent=pdfFile?`✔ ${pdfFile.name} (${(pdfFile.size/1e6).toFixed(1)} MB)`:""};
+ // Round-17: #fileName (drop-zone confirmation line) now sets textContent +
+ // title attr. CSS ellipsis clamps the visible line; hovering shows the
+ // full filename. textContent (not innerHTML) = free HTML-escaping.
+ const setFileName=()=>{const el=$("#fileName");if(!el)return;if(pdfFile){el.textContent=`✔ ${pdfFile.name} (${(pdfFile.size/1e6).toFixed(1)} MB)`;el.title=pdfFile.name||""}else{el.textContent="";el.title=""}};
+ $("#fileInput").onchange=e=>{pdfFile=e.target.files[0]||null;setFileName()};
 ["dragover","dragenter"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.add("over")}));
 ["dragleave","drop"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.remove("over")}));
- $("#drop").addEventListener("drop",e=>{pdfFile=e.dataTransfer.files[0]||null;$("#fileName").textContent=pdfFile?`✔ ${pdfFile.name}`:""});
+ $("#drop").addEventListener("drop",e=>{pdfFile=e.dataTransfer.files[0]||null;setFileName()});
 
 function resetBeginBtn() {
     const btn = $("#beginBtn");
@@ -4040,7 +4371,11 @@ $("#beginBtn").onclick = async () => {
 };
 function renderQ(){
   const q=quiz.questions[qi];
-  $("#qMeta").textContent=`Q ${qi+1}/${quiz.questions.length} · ${quiz.topic}`;
+  // Round-17: title attr = full topic name on hover (CSS ellipsis clips the
+  // visible line; PDF filenames can be very long).
+  const qMeta=$("#qMeta");
+  qMeta.textContent=`Q ${qi+1}/${quiz.questions.length} · ${quiz.topic}`;
+  qMeta.title=quiz.topic||"";
   $("#qBadge").innerHTML=quiz.ai?`<span class="badge ${quiz.source==="pdf"?"pdf":"ai"}">${quiz.source==="pdf"?"PDF · AI":"AI"}</span>`:`<span class="badge static">BANK</span>`;
   $("#qBar").style.width=(qi/quiz.questions.length*100)+"%";
   $("#qText").textContent=q.question;$("#qExplain").innerHTML="";$("#qNext").hidden=true;
@@ -4066,7 +4401,10 @@ async function finish(){
     const t=r.topic,pct=Math.round(correct/quiz.questions.length*100);
     $("#resPct").textContent=pct+"%";
     $("#resDelta").innerHTML=`<span class="badge ${t.delta>=0?"static":"pdf"}">${t.delta>=0?"▲ +":"▼ "}${t.delta} mastery</span>`;
-    $("#resTopic").textContent=`${t.name}: ${t.old}% → ${t.new}%`;
+    // Round-17: result-screen topic line — CSS ellipsis clips, title shows all.
+    const resTopicEl=$("#resTopic");
+    resTopicEl.textContent=`${t.name}: ${t.old}% → ${t.new}%`;
+    resTopicEl.title=t.name||"";
   }catch(e){$("#resPct").textContent=Math.round(correct/quiz.questions.length*100)+"%";$("#resDelta").textContent="";$("#resTopic").textContent="⚠ "+e.message}
   $("#resultCard").hidden=false;
 }
@@ -4076,9 +4414,11 @@ async function finish(){
 async function loadSchedule(){
   try{
     const s=await api("/api/schedule");
-    $("#queueList").innerHTML=s.queue.length?s.queue.map((t,i)=>`<div class="task"><span class="rank">${String(i+1).padStart(2,"0")}</span><span class="grow"><span class="tt">${t.title}</span><span class="meta"><span class="tier ${t.tier.replace(/\s+/g,"").toUpperCase()}">${t.tier}</span>${t.topic?`<span>◈ ${t.topic}</span>`:""}<span>due ${ago(t.deadline).replace(" ago","")||"now"}</span><span>priority ${t.priority}</span></span></span><button class="check" data-id="${t.id}" title="Done">✓</button><button class="del" data-id="${t.id}" title="Delete">✕</button></div>`).join(""):'<p class="sub">Queue clear. Add an objective or tap a radar blip.</p>';
-    $("#clearedList").innerHTML=s.cleared.map(t=>`<div class="task" style="opacity:.55"><span class="grow"><span class="tt" style="text-decoration:line-through">${t.title}</span></span><span class="tier DONE">DONE</span><button class="del" data-id="${t.id}">✕</button></div>`).join("")||'<p class="sub">Nothing cleared yet.</p>';
-    $("#sugRow").innerHTML=s.suggestions.map(x=>`<button class="sug" data-topic="${x.topic}">+ ${x.topic} · ${Math.round(x.score)}%</button>`).join("")||'<span class="sub">No weak unscheduled topics 🎉</span>';
+    // Round-17: task titles/topics + suggestion chips get esc() + title attr;
+    // the "◈ topic" meta span gets .mtopic (CSS max-width+ellipsis).
+    $("#queueList").innerHTML=s.queue.length?s.queue.map((t,i)=>`<div class="task"><span class="rank">${String(i+1).padStart(2,"0")}</span><span class="grow"><span class="tt" title="${esc(t.title)}">${esc(t.title)}</span><span class="meta"><span class="tier ${t.tier.replace(/\s+/g,"").toUpperCase()}">${t.tier}</span>${t.topic?`<span class="mtopic" title="${esc(t.topic)}">◈ ${esc(t.topic)}</span>`:""}<span>due ${ago(t.deadline).replace(" ago","")||"now"}</span><span>priority ${t.priority}</span></span></span><button class="check" data-id="${t.id}" title="Done">✓</button><button class="del" data-id="${t.id}" title="Delete">✕</button></div>`).join(""):'<p class="sub">Queue clear. Add an objective or tap a radar blip.</p>';
+    $("#clearedList").innerHTML=s.cleared.map(t=>`<div class="task" style="opacity:.55"><span class="grow"><span class="tt" style="text-decoration:line-through" title="${esc(t.title)}">${esc(t.title)}</span></span><span class="tier DONE">DONE</span><button class="del" data-id="${t.id}">✕</button></div>`).join("")||'<p class="sub">Nothing cleared yet.</p>';
+    $("#sugRow").innerHTML=s.suggestions.map(x=>`<button class="sug" data-topic="${esc(x.topic)}" title="${esc(x.topic)}">+ ${esc(x.topic)} · ${Math.round(x.score)}%</button>`).join("")||'<span class="sub">No weak unscheduled topics 🎉</span>';
     $$(".check").forEach(b=>b.onclick=async()=>{
         const p=api("/api/tasks/"+b.dataset.id,{method:"PATCH"});
         b.classList.add("just-done");
@@ -4201,7 +4541,7 @@ async function loadCoachSubjects(){
     const topics=await api("/api/topics");
     if(!topics.length){wrap.style.display="none";return}
     wrap.style.display="block";
-    $("#coachSubjects").innerHTML=topics.map(t=>`<button class="sug" data-topic="${t.name.replace(/"/g,"&quot;")}">${t.name} · ${Math.round(t.score)}%</button>`).join("");
+    $("#coachSubjects").innerHTML=topics.map(t=>`<button class="sug" data-topic="${esc(t.name)}" title="${esc(t.name)}">${esc(t.name)} · ${Math.round(t.score)}%</button>`).join("");
     $$("#coachSubjects .sug").forEach(b=>b.onclick=()=>b.classList.toggle("on"));
   }catch(e){wrap.style.display="none"}
 }
@@ -4268,7 +4608,10 @@ let selectedTier = "pro";
 // request a weekly checkout; if monthly is re-enabled later this is the
 // single place to make it selectable again.
 const selectedPeriod = "week";
-function showUpgradeModal() { $("#upgradeModal").style.display = "flex"; }
+// Round-17: opening the upgrade modal re-applies the (possibly API-refreshed)
+// model names to the modal boxes. If /api/usage hasn't answered yet the HTML
+// fallbacks ("GPT-OSS-120B Model", matching the backend defaults) remain.
+function showUpgradeModal() { applyTierModels(null); $("#upgradeModal").style.display = "flex"; }
 function closeUpgradeModal(){
     const m = $("#upgradeModal");
     if (!m || m.style.display === "none") return;
@@ -4283,10 +4626,14 @@ function wireUpgradeBoxes(boxIds) {
         const box = document.getElementById(id);
         if (!box) return;
         box.onclick = () => {
+            // Round-19: clear INLINE styles only ("" falls back to the
+            // .plan-box class styling — the Pro box keeps its accent border
+            // and tint instead of being flattened to transparent).
             boxIds.forEach(bid => {
                 const b = document.getElementById(bid);
-                if(b) b.style.border = "1px solid var(--glass-border)";
-                if(b) b.style.background = "transparent";
+                if (!b) return;
+                b.style.border = "";
+                b.style.background = "";
             });
             box.style.border = "1px solid var(--accent)";
             box.style.background = "rgba(99,102,241,0.1)";

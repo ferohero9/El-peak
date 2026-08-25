@@ -6,6 +6,7 @@ El-Peak is a full-stack AI study companion and Progressive Web App built with Fa
 
 - Static Egyptian curriculum quiz banks
 - AI-generated quizzes using Groq
+- **Language-aware model routing (Round 19)**: Free EN→GPT-OSS-20B / AR→Qwen3.6-27B fast; Plus EN→GPT-OSS-120B / AR→Qwen deep-thinking; Pro→Qwen deep-thinking for all languages
 - PDF-to-quiz conversion with OCR fallback
 - Mastery tracking and analytics
 - Urgency-weighted scheduler
@@ -26,6 +27,57 @@ El-Peak is a full-stack AI study companion and Progressive Web App built with Fa
 - Tesseract OCR
 - Vanilla JS SPA
 - PWA manifest + service worker
+
+## Deploying an update to Railway
+
+The app is deployed from these files (Dockerfile + railway.json are included).
+Two ways to ship an update:
+
+### Option A — GitHub (recommended, auto-deploys)
+
+1. Unzip `el-peak-deploy.zip` into your GitHub repo root (replace old files).
+2. Commit + push:
+
+```bash
+git add -A
+git commit -m "Round 19: language routing + boot screen + honest tier perks"
+git push
+```
+
+3. Railway rebuilds automatically (healthcheck `/health`, restart ON_FAILURE).
+4. Watch the deploy logs until "Deploy live" appears.
+
+### Option B — Railway CLI (no GitHub)
+
+```bash
+npm i -g @railway/cli
+railway login
+cd el-peak-deploy        # the unzipped folder
+railway link             # pick your El-Peak project + service
+railway up
+```
+
+### Environment variables
+
+No new variables are **required** — `GROQ_MODEL_QWEN` defaults to
+`qwen/qwen3.6-27b` in code. Keep `DATABASE_URL`, `SECRET_KEY`, `GROQ_API_KEY`,
+`REDIS_URL`, Paymob keys as they already are on Railway. Optional model
+overrides are documented in `.env.example`.
+
+### Post-deploy smoke test (2 minutes, first live run of routing)
+
+1. Hard-refresh the site — you should see the new boot/loading screen with the
+   "AI can make mistakes" note (Arabic if your app language is Arabic).
+2. Generate an **English** quiz on a free account → Railway logs should show
+   `model='openai/gpt-oss-20b'`.
+3. Generate an **Arabic** quiz on a Plus/Pro account → logs should show
+   `model='qwen/qwen3.6-27b'` with `reasoning_effort='default'` +
+   `reasoning_format='hidden'`, and the quiz JSON must still parse.
+4. Open Profile → the plan boxes must list exact perks (questions/PDF quotas,
+   per-language models) and the "Current Plan" ribbon on your tier.
+5. If Arabic quizzes ever fall back or fail JSON parsing, check Railway logs
+   for a 429/model-not-found from Groq and verify `qwen/qwen3.6-27b` is
+   available on your API key.
 
 ## Local Development
 
