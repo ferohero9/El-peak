@@ -1950,17 +1950,32 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
         await validate_quiz_topic(payload.topic)
 
     async def generate():
-        if language == "ar":
+        # Round-20 (user-reported Arabizi bug): output language now follows the
+        # TOPIC's script when they disagree — an Arabic-script topic gets an
+        # Arabic quiz even on an English account, and vice versa. Plus a hard
+        # anti-Arabizi rule: the model must write Arabic in ARABIC SCRIPT,
+        # never Latin transliteration (gpt-oss was producing 'Arabizi' output
+        # like 'kayfa halak' instead of 'كيف حالك').
+        topic_is_ar = is_arabic(payload.topic)
+        if language == "ar" or topic_is_ar:
             lang_instruction = (
-                "P1: The student's account language is Arabic. Generate the questions, options, and "
-                "explanations STRICTLY in Arabic, regardless of the language of the topic string "
-                "(the topic may be given in English — still produce Arabic output). "
+                "P1: Generate the questions, options, and explanations STRICTLY in Arabic "
+                "(Modern Standard Arabic, الفصحى) written in ARABIC SCRIPT. "
+                "CRITICAL — ARABIC SCRIPT ONLY: never write Arabic words in Latin letters "
+                "(no Arabizi / Franco-Arab — write 'كتاب' never 'kitab' or 'ktb'). Latin "
+                "characters are allowed ONLY for proper nouns, math symbols, chemical "
+                "formulas, and code. "
                 "CRITICAL: If the topic involves Arabic poetry, literature, or history, you MUST be strictly factual. "
                 "DO NOT invent or hallucinate poetry verses. If you do not know the exact verse, ask a general question "
-                "about the poem's theme or author instead."
+                "about the poem's theme or author instead. "
+                "Each explanation must state the specific fact that makes its answer correct — never a generic "
+                "template that could fit any question."
             )
         else:
-            lang_instruction = "Generate in English."
+            lang_instruction = (
+                "Generate in English. Each explanation must state the specific fact that "
+                "makes its answer correct — never a generic template that could fit any question."
+            )
         messages = [
             {
                 "role": "system",
@@ -1992,6 +2007,32 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
             max_tokens=max_tokens,
             lang=route_lang
         )
+        # Round-20: ARABIZI GUARD. If an Arabic quiz comes back written in
+        # Latin letters (gpt-oss's favorite failure mode), retry ONCE with an
+        # escalated instruction before accepting. is_arabic threshold is low
+        # (0.08) because the JSON skeleton/field names are Latin either way.
+        if route_lang == "ar" and not is_arabic(raw, 0.08):
+            logger.warning(
+                "Arabizi guard triggered for topic %r — Latin-script reply, retrying once.",
+                payload.topic[:60]
+            )
+            retry_raw = await groq_chat_with_fallback(
+                messages=messages + [{
+                    "role": "user",
+                    "content": (
+                        "IMPORTANT: Your previous reply was rejected because it wrote Arabic using Latin "
+                        "letters (Arabizi). Regenerate the FULL quiz with every question, option, and "
+                        "explanation written in ARABIC SCRIPT (الحروف العربية) — the same valid JSON schema, "
+                        "all content in proper Arabic."
+                    )
+                }],
+                tier=tier,
+                temperature=0.7,
+                max_tokens=max_tokens,
+                lang=route_lang
+            )
+            if is_arabic(retry_raw, 0.08):
+                raw = retry_raw
         clean = _clean_questions(extract_json(raw), num_questions)
         if not clean:
             raise ValueError("Empty question set from AI.")
@@ -2243,7 +2284,10 @@ async def coach(
         
     language = (user.get("language") or "en").strip().lower()
     if language == "ar":
-        language_instruction = "Write the plan in Arabic."
+        language_instruction = (
+            "Write the plan in Arabic (Modern Standard Arabic) in ARABIC SCRIPT — never "
+            "Arabizi/Franco-Arab (never write Arabic in Latin letters)."
+        )
     else:
         language_instruction = "Write the plan in English."
         
@@ -2373,7 +2417,9 @@ async def ask_tutor(payload: AskIn, user: Annotated[dict, Depends(get_current_us
             "The user's account language is set to Arabic. You MUST reply in Arabic by "
             "default, regardless of the language the question itself is written in. "
             "Even if the user writes the question in English or mixes languages, your "
-            "answer must be in Arabic. EXCEPTION: for THIS single reply only, switch to "
+            "answer must be in Arabic. Write Arabic in ARABIC SCRIPT (الحروف العربية) — "
+            "NEVER in Latin letters (no Arabizi / Franco-Arab such as 'kitab' instead of 'كتاب'). "
+            "EXCEPTION: for THIS single reply only, switch to "
             "English IF AND ONLY IF the user's latest message explicitly asks for an "
             "English answer (for example: 'answer in English', 'in english please', "
             "'reply in English', 'رد بالإنجليزية', 'أريد الإجابة بالإنجليزية'). Code, math "

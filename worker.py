@@ -413,10 +413,19 @@ async def process_pdf_quiz(
     num_questions = min(num_questions, 5)
 
     excerpt = text[:12000]
-    if (language or "en").strip().lower() == "ar":
+    # Round-20 (mirrors main.py): output language follows the DOCUMENT's script
+    # (Arabic PDF -> Arabic quiz) plus a hard anti-Arabizi rule — the model
+    # must write Arabic in ARABIC SCRIPT, never Latin transliteration.
+    doc_is_ar = is_arabic(excerpt[:2000]) or is_arabic(label)
+    if (language or "en").strip().lower() == "ar" or doc_is_ar:
         lang_instruction = (
-            "P1: The student's account language is Arabic. Generate the questions, options, and explanations "
-            "STRICTLY in Arabic, regardless of the language the PDF/document text is written in. "
+            "P1: Generate the questions, options, and explanations STRICTLY in Arabic "
+            "(Modern Standard Arabic, الفصحى) written in ARABIC SCRIPT, regardless of the "
+            "language mix in the document text. "
+            "CRITICAL — ARABIC SCRIPT ONLY: never write Arabic words in Latin letters "
+            "(no Arabizi / Franco-Arab — write 'كتاب' never 'kitab' or 'ktb'). Latin "
+            "characters are allowed ONLY for proper nouns, math symbols, chemical "
+            "formulas, and code. "
             "CRITICAL: If the document involves Arabic poetry, literature, or history, you MUST be strictly factual."
         )
     else:
@@ -439,7 +448,14 @@ async def process_pdf_quiz(
                 f"{num_questions} {difficulty} multiple-choice questions. "
                 "Make them smart: test conceptual understanding, application, or inference rather than just rote memorization. "
                 "Each must have 4 plausible options, a one-sentence explanation, and a 'context' field containing an EXACT quote "
-                "(max 300 chars) from the text.\n\nEXCERPT:\n" + excerpt
+                "(max 300 chars) from the text. "
+                "QUALITY RULES (mandatory): (1) Each explanation must name the SPECIFIC fact, words, or line "
+                "from the excerpt that makes its own answer correct — never a generic template explanation "
+                "that could apply to any question (e.g. never 'the repetition of the X sound' unless that "
+                "exact sound is in the quoted line). (2) The context quote must be copied VERBATIM from the "
+                "excerpt — never paraphrased or invented. (3) Before you finish, re-check every question: "
+                "the correct option must actually be derivable from the excerpt, and the explanation must "
+                "talk about the same content as the question.\n\nEXCERPT:\n" + excerpt
             )
         }
     ]
@@ -451,8 +467,7 @@ async def process_pdf_quiz(
         # docs stay on the fast GPT-OSS engine. Pro = Qwen deep-thinking.
         route_lang = "ar" if (
             (language or "en").strip().lower() == "ar"
-            or is_arabic(excerpt[:2000])
-            or is_arabic(label)
+            or doc_is_ar
         ) else "en"
         raw = await groq_chat_with_fallback(
             client,
@@ -462,6 +477,31 @@ async def process_pdf_quiz(
             max_tokens=1600,
             lang=route_lang
         )
+        # Round-20: ARABIZI GUARD (mirrors main.py) — if an Arabic quiz comes
+        # back in Latin letters, retry ONCE with an escalated instruction.
+        if route_lang == "ar" and not is_arabic(raw, 0.08):
+            logger.warning(
+                "Arabizi guard triggered for PDF '%s' — Latin-script reply, retrying once.",
+                label[:60]
+            )
+            retry_raw = await groq_chat_with_fallback(
+                client,
+                messages=messages + [{
+                    "role": "user",
+                    "content": (
+                        "IMPORTANT: Your previous reply was rejected because it wrote Arabic using Latin "
+                        "letters (Arabizi). Regenerate the FULL quiz with every question, option, and "
+                        "explanation written in ARABIC SCRIPT (الحروف العربية) — the same valid JSON schema, "
+                        "all content in proper Arabic."
+                    )
+                }],
+                tier=tier,
+                temperature=0.6,
+                max_tokens=1600,
+                lang=route_lang
+            )
+            if is_arabic(retry_raw, 0.08):
+                raw = retry_raw
         clean = _clean_questions(extract_json(raw), num_questions)
     except Exception as e:
         logger.error("PDF quiz Groq error for user %s: %s", user_id, e)
