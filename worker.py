@@ -42,33 +42,36 @@ import database as db
 logger = logging.getLogger("el-peak.worker")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-# P0: Groq deprecated llama-3.1-8b-instant and llama-3.3-70b-versatile (removed
-# from the Production Models list). The current valid identifiers are
-# openai/gpt-oss-20b and openai/gpt-oss-120b. Defaults use the current ids;
-# legacy Llama ids are kept only as late fallbacks. Mirrors main.py.
+# Round-13 (re-verified live against console.groq.com/docs/models + /deprecations):
+# current Production text models are openai/gpt-oss-120b, openai/gpt-oss-20b,
+# qwen/qwen3.6-27b. Groq announced llama-3.1-8b-instant + llama-3.3-70b-versatile
+# deprecation on 2026-06-17 (shutdown 2026-08-16) — those ids are REMOVED from
+# the fallback chain. qwen3.6-27b added as cross-family tertiary fallback.
+# Tier mapping: free=gpt-oss-20b, plus=gpt-oss-120b, pro=gpt-oss-120b.
+# Mirrors main.py; kept local so the worker stays standalone. KEEP IN SYNC.
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 # Mirrors main.py tier routing; kept local so the worker stays standalone.
 TIER_MODELS = {
     "free": os.getenv("GROQ_MODEL_FREE", "openai/gpt-oss-20b"),
-    "plus": os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-20b"),
+    "plus": os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-120b"),
     "pro":  os.getenv("GROQ_MODEL_PRO",  "openai/gpt-oss-120b")
 }
 TIER_FALLBACK_MODELS = {
     "free": [
         "openai/gpt-oss-20b",
-        "llama-3.1-8b-instant"
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.6-27b"
     ],
     "plus": [
+        "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant"
+        "qwen/qwen3.6-27b"
     ],
     "pro": [
         "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant"
+        "qwen/qwen3.6-27b",
+        "openai/gpt-oss-20b"
     ]
 }
 

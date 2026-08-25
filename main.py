@@ -114,16 +114,30 @@ else:
     logger.warning("ALLOWED_ORIGINS unset; using wildcard (development only).")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-# P0: Groq deprecated llama-3.1-8b-instant and llama-3.3-70b-versatile (removed
-# from the Production Models list; Groq directs migration to the gpt-oss line).
-# Current valid identifiers: openai/gpt-oss-20b (fast/cheap, replaces the 8b)
-# and openai/gpt-oss-120b (larger, replaces the 70b). Defaults use the current
-# ids; the legacy Llama ids are kept only as late fallbacks in TIER_FALLBACK_
-# MODELS so a key that still has access to them is no worse off. Every per-tier
-# model is env-overridable so model/pricing changes ship without a code edit.
+# Round-13 (re-verified live against https://console.groq.com/docs/models and
+# /docs/deprecations): the current Production text models are
+#   - openai/gpt-oss-120b  (~500 tps, $0.15/$0.60 per 1M, 131K ctx, 65K max out)
+#   - openai/gpt-oss-20b   (~1000 tps, $0.075/$0.30 per 1M, 131K ctx, 65K max out)
+#   - qwen/qwen3.6-27b     (~500 tps, $0.60/$3.00 per 1M, 131K ctx, 16K max out)
+# Groq announced llama-3.1-8b-instant + llama-3.3-70b-versatile deprecation on
+# 2026-06-17 with shutdown 2026-08-16 — Groq's own recommended replacements are
+# gpt-oss-20b (for the 8b) and gpt-oss-120b / qwen3.6-27b (for the 70b). The
+# legacy Llama ids are therefore REMOVED from the fallback chains (a dead id
+# in the chain guarantees a second failure on top of the first). qwen3.6-27b is
+# added as a CROSS-FAMILY tertiary fallback so a single OpenAI-weight-specific
+# Groq outage is less likely to take down the whole chain.
+#
+# Tier mapping (Item 5):
+#   free -> gpt-oss-20b   (cost-conscious, fast)
+#   plus -> gpt-oss-120b  (flagship = the paid model-quality upgrade vs free)
+#   pro  -> gpt-oss-120b  (same flagship; pro differentiates via higher quotas)
+#   gate -> gpt-oss-20b   (cheap 4-token yes/no classification)
+#   default GROQ_MODEL -> gpt-oss-120b (best for general quality-critical calls)
+# Every per-tier model is env-overridable so model/pricing changes ship without
+# a code edit.
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 GROQ_MODEL_FREE = os.getenv("GROQ_MODEL_FREE", "openai/gpt-oss-20b")
-GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-20b")
+GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-120b")
 GROQ_MODEL_PRO = os.getenv("GROQ_MODEL_PRO", "openai/gpt-oss-120b")
 # Cheap/fast model used by the topic-validation gate (one short call per cache
 # miss). Must stay on the smallest current model + max_tokens=4 so it never
@@ -226,25 +240,27 @@ TIER_MODELS = {
     "plus": GROQ_MODEL_PLUS,
     "pro": GROQ_MODEL_PRO
 }
-# P1.2: fallback chain acts as our circuit breaker. Current gpt-oss ids first
-# (confirmed valid), then the legacy Llama ids as a last resort — they may still
-# resolve for some keys until Groq's shutdown date, and cost nothing if they
-# 404 since we've already succeeded on a current model earlier in the chain.
+# P1.2 + Round-13: fallback chain acts as our circuit breaker. Primary model
+# first, then a cross-family tertiary (qwen) so a single OpenAI-weight-specific
+# Groq outage is less likely to take down the whole chain. The dead Llama ids
+# (llama-3.1-8b-instant, llama-3.3-70b-versatile — shutdown 2026-08-16) are
+# REMOVED: keeping a dead id in the chain means a failed primary cascades to a
+# guaranteed-dead fallback, compounding the failure instead of recovering.
 TIER_FALLBACK_MODELS = {
     "free": [
         "openai/gpt-oss-20b",
-        "llama-3.1-8b-instant"
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.6-27b"
     ],
     "plus": [
+        "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant"
+        "qwen/qwen3.6-27b"
     ],
     "pro": [
         "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant"
+        "qwen/qwen3.6-27b",
+        "openai/gpt-oss-20b"
     ]
 }
 # P0.2: billing restructure. Prices now carry a billing PERIOD alongside the
