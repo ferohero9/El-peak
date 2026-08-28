@@ -177,6 +177,13 @@ PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY")
 PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "12345")
 PAYMOB_IFRAME_ID = os.getenv("PAYMOB_IFRAME_ID", "12345")
 PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
+# Round-21: the PUBLIC key for Paymob Pixel (Embedded Checkout). Taken from
+# Dashboard -> Settings -> Account Info (looks like egy_pk_live_...). When set,
+# /api/payment/checkout creates a Payment Intention and returns its
+# client_secret so the frontend renders the card form IN-PAGE via the Pixel
+# SDK. When unset (or if the Intention API fails), checkout automatically
+# falls back to the legacy hosted-iframe flow (payment_token + iframe_id).
+PAYMOB_PUBLIC_KEY = (os.getenv("PAYMOB_PUBLIC_KEY") or "").strip()
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv(
@@ -532,6 +539,67 @@ def _paymob_configured() -> bool:
         iframe_id != 12345
     )
 
+async def _paymob_auth_token(client) -> str:
+    """Round-21: exchange the secret API key for a session auth token (the
+    auth dance the legacy payment-key flow already does; factored out so the
+    verify endpoint can reuse it). Raises on any failure."""
+    resp = await client.post(
+        "https://accept.paymob.com/api/auth/tokens",
+        json={"api_key": PAYMOB_API_KEY},
+        timeout=45
+    )
+    resp.raise_for_status()
+    token = (resp.json() or {}).get("token")
+    if not token:
+        raise ValueError("Paymob auth response missing token")
+    return token
+
+async def _create_paymob_intention(
+    client, amount_cents: int, tier: str, period: str, user: dict, merchant_order_id: str
+):
+    """Round-21: Paymob Pixel (Embedded Checkout) — create a Payment Intention
+    via POST /v1/intention/ and return (client_secret, intention_order_id).
+
+    The frontend feeds client_secret + the account PUBLIC key into the Pixel
+    SDK, which renders the card form INSIDE our page (no redirect to a hosted
+    page). client_secret is unique per intention and expires in ~1 hour.
+
+    special_reference = merchant_order_id, so the transaction callback lands
+    in the EXISTING /api/payment/webhook flow under obj.order.merchant_order_id
+    — the webhook applies the tier upgrade with zero changes.
+    """
+    resp = await client.post(
+        "https://accept.paymob.com/v1/intention/",
+        headers={"Authorization": f"Token {PAYMOB_API_KEY}"},
+        json={
+            "amount": amount_cents,
+            "currency": "EGP",
+            "payment_methods": [int(PAYMOB_INTEGRATION_ID)],
+            "items": [{
+                "name": f"El-Peak {tier.capitalize()} ({period})",
+                "amount": amount_cents,
+                "quantity": 1,
+                "description": f"El-Peak Study Compass {tier.capitalize()} plan, billed {period}ly"
+            }],
+            "billing_data": {
+                "first_name": "El-Peak",
+                "last_name": "User",
+                "email": user["email"],
+                "phone_number": "01000000000"
+            },
+            "special_reference": merchant_order_id,
+            "expiration": 3600
+        },
+        timeout=45
+    )
+    resp.raise_for_status()
+    data = resp.json() or {}
+    client_secret = data.get("client_secret")
+    if not client_secret:
+        raise ValueError("Intention response missing client_secret")
+    order_id = data.get("intention_order_id") or data.get("id")
+    return client_secret, order_id
+
 def _as_bool(value: Any) -> bool:
     if isinstance(value, bool):
         return value
@@ -767,6 +835,12 @@ class CheckoutIn(BaseModel):
     # the single active purchasable period (week) so existing clients that send
     # only {tier} keep working and get a weekly checkout.
     period: Optional[str] = None
+
+class PaymentVerifyIn(BaseModel):
+    """Round-21: client-side completion hook for the Pixel embedded checkout.
+    afterPaymentComplete fires in the BROWSER (untrusted) — the frontend calls
+    /api/payment/verify which asks Paymob directly and only then finalizes."""
+    merchant_order_id: str = Field(min_length=3, max_length=120)
 
 class SettingsIn(BaseModel):
     username: Optional[str] = None
@@ -1702,7 +1776,7 @@ async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get
             logger.warning("Paymob not configured. Simulating successful %s checkout for user %s.", period, user["id"])
             # Simulated path must honor the period's expiry too (7 days for week).
             await db.upgrade_user_tier(user["id"], tier, billing_period=period)
-            return {"checkout_url": "/?upgraded=true"}
+            return {"mode": "simulated", "checkout_url": "/?upgraded=true"}
         raise HTTPException(503, "Payments are not configured.")
     # merchant_order_id now ENCODES THE PERIOD as well as the tier, so the
     # webhook can apply the correct subscription length (7 vs 30 days) without
@@ -1715,17 +1789,40 @@ async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get
         merchant_order_id=merchant_order_id,
         status="pending"
     )
+    # Round-21: PREFERRED path — Paymob Pixel (Embedded Checkout). With a
+    # public key configured we create a Payment Intention and hand the
+    # client_secret to the frontend, which renders the card form in-page via
+    # the Pixel SDK. Any Intention failure (older account, integration not
+    # enabled for intentions, transient 5xx) falls back to the legacy
+    # hosted-iframe flow below — checkout never hard-fails because of Pixel.
+    if PAYMOB_PUBLIC_KEY:
+        try:
+            client = get_http_client()
+            client_secret, intention_order_id = await _create_paymob_intention(
+                client, amount, tier, period, user, merchant_order_id
+            )
+            if intention_order_id is not None:
+                await db.update_payment_paymob_order(
+                    merchant_order_id=merchant_order_id,
+                    paymob_order_id=str(intention_order_id)
+                )
+            return {
+                "mode": "pixel",
+                "public_key": PAYMOB_PUBLIC_KEY,
+                "client_secret": client_secret,
+                "iframe_id": int(PAYMOB_IFRAME_ID),
+                "merchant_order_id": merchant_order_id,
+                "amount_cents": amount,
+                "currency": "EGP"
+            }
+        except Exception as exc:
+            logger.error(
+                "Paymob Intention failed for %s (%s) — falling back to the hosted-iframe checkout.",
+                merchant_order_id, exc
+            )
     try:
         client = get_http_client()
-        auth_resp = await client.post(
-            "https://accept.paymob.com/api/auth/tokens",
-            json={"api_key": PAYMOB_API_KEY},
-            timeout=45
-        )
-        auth_resp.raise_for_status()
-        auth_token = auth_resp.json().get("token")
-        if not auth_token:
-            raise HTTPException(500, "Failed to authenticate with Paymob.")
+        auth_token = await _paymob_auth_token(client)
         order_resp = await client.post(
             "https://accept.paymob.com/api/ecommerce/orders",
             json={
@@ -1776,7 +1873,19 @@ async def create_checkout(payload: CheckoutIn, user: Annotated[dict, Depends(get
             paymob_order_id=str(paymob_order_id)
         )
         iframe_url = f"https://accept.paymob.com/api/acceptance/iframes/{PAYMOB_IFRAME_ID}?payment_token={payment_token}"
-        return {"checkout_url": iframe_url}
+        # Round-21: "mode" tells the frontend which experience to render —
+        # "iframe" embeds this URL inside the payment modal instead of
+        # redirecting away from the app. checkout_url is kept for older
+        # clients that still expect a redirect.
+        return {
+            "mode": "iframe",
+            "checkout_url": iframe_url,
+            "payment_token": payment_token,
+            "iframe_id": int(PAYMOB_IFRAME_ID),
+            "merchant_order_id": merchant_order_id,
+            "amount_cents": amount,
+            "currency": "EGP"
+        }
     except httpx.HTTPStatusError as exc:
         logger.error("Paymob API Error: %s", exc.response.text)
         await db.update_payment_status(merchant_order_id, "gateway_error")
@@ -1866,6 +1975,65 @@ async def payment_webhook(request: Request):
 @app.get("/api/payments")
 async def payments(user: Annotated[dict, Depends(get_current_user)]):
     return await db.get_payments(user["id"], limit=20)
+
+@app.post("/api/payment/verify")
+async def verify_payment(payload: PaymentVerifyIn, user: Annotated[dict, Depends(get_current_user)]):
+    """Round-21: server-side confirmation for the Pixel embedded checkout.
+
+    The SDK's afterPaymentComplete fires in the BROWSER — untrusted. This
+    endpoint asks Paymob directly (transaction_inquiry by merchant_order_id,
+    which is the Intention's special_reference) and only finalizes when Paymob
+    says the transaction succeeded. Idempotent by construction: finalize_payment
+    no-ops on an already-'paid' row, so the webhook (which fires independently)
+    and this endpoint can both run safely.
+
+    Authorization: the merchant_order_id embeds the user id (user_{id}_{tier}_
+    {period}_{ts}); a reference belonging to another user is rejected with 404.
+    The tier/period can't be forged either — a successful Paymob transaction
+    only exists for references the backend itself created at checkout.
+    """
+    merchant_order_id = (payload.merchant_order_id or "").strip()
+    parsed = parse_merchant_order_id(merchant_order_id)
+    if parsed is None or parsed["user_id"] != user["id"]:
+        raise HTTPException(404, "Payment not found.")
+    tier, period = parsed["tier"], parsed["period"]
+    if not _paymob_configured():
+        return {"status": "pending", "reason": "payments_not_configured"}
+    try:
+        client = get_http_client()
+        auth_token = await _paymob_auth_token(client)
+        inquiry_resp = await client.post(
+            "https://accept.paymob.com/api/ecommerce/orders/transaction_inquiry",
+            json={"auth_token": auth_token, "merchant_order_id": merchant_order_id},
+            timeout=45
+        )
+        inquiry_resp.raise_for_status()
+        data = inquiry_resp.json()
+    except Exception as exc:
+        logger.error("Paymob transaction inquiry failed for %s: %s", merchant_order_id, exc)
+        raise HTTPException(502, "Could not verify the payment with Paymob.")
+    # The inquiry returns the last transaction object; be liberal and also
+    # accept a list of transactions (older Paymob deployments did that).
+    txns = data if isinstance(data, list) else [data]
+    txns = [t for t in txns if isinstance(t, dict)]
+    if not txns:
+        return {"status": "pending", "reason": "no_transaction_yet"}
+    succeeded = next((t for t in txns if _as_bool(t.get("success"))), None)
+    if succeeded is not None:
+        upgraded = await db.finalize_payment(
+            user_id=parsed["user_id"],
+            tier=tier,
+            merchant_order_id=merchant_order_id,
+            amount_cents=succeeded.get("amount_cents"),
+            raw_payload=json.dumps(succeeded, ensure_ascii=False),
+            billing_period=period
+        )
+        if upgraded:
+            logger.info("Pixel verify upgraded user %s to %s (%s)", parsed["user_id"], tier, period)
+        return {"status": "succeeded", "upgraded": upgraded, "tier": tier, "period": period}
+    if any(_as_bool(t.get("pending")) for t in txns):
+        return {"status": "pending", "reason": "transaction_pending"}
+    return {"status": "failed"}
 
 # -----------------------------
 # DASHBOARD ROUTES

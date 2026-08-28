@@ -542,9 +542,22 @@ input[type="range"].custom-range:active::-moz-range-thumb{transform:scale(1.3)}
    names get their own stacked line and NEVER break mid-word. */
 .plan-compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-bottom:22px}
 .plan-box{position:relative;display:flex;flex-direction:column;gap:10px;padding:26px 20px 20px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass);text-align:center}
-.plan-box.plan-plus,.plan-box.plan-pro{cursor:pointer;transition:transform var(--t-med) var(--spring),border-color .25s,background .25s}
+.plan-box.plan-plus,.plan-box.plan-pro{cursor:pointer;transition:transform var(--t-med) var(--spring),border-color .25s,background .25s,box-shadow .25s}
 .plan-box.plan-plus:hover,.plan-box.plan-pro:hover{transform:translateY(-3px)}
-.plan-box.plan-pro{border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
+/* Round-20b: radio-style plan selection — EXACTLY ONE selected box at a time.
+   Pro previously carried a PERMANENT accent border + tint from .plan-pro, so
+   after clicking Plus BOTH plans looked selected (inline accent on Plus +
+   class accent falling back onto Pro). Pro is now visually neutral like Plus
+   and is flagged with a small "Recommended" chip instead; the actually
+   selected box carries .plan-sel (accent ring + tint + ✓ badge). The chip
+   hides while Pro is selected so the ✓ badge owns that corner unopposed. */
+.plan-box .rec-chip{position:absolute;top:10px;inset-inline-end:10px;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:3px 9px;border-radius:99px;white-space:nowrap;pointer-events:none}
+/* letter-spacing breaks Arabic letter joining — disable it in RTL. */
+[dir="rtl"] .plan-box .rec-chip{letter-spacing:0}
+.plan-box.plan-sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);box-shadow:0 0 0 1.5px var(--accent),0 12px 32px -14px color-mix(in srgb,var(--accent) 50%,transparent)}
+.plan-box.plan-sel::after{content:"✓";position:absolute;top:10px;inset-inline-end:10px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-text);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}
+.plan-box.plan-sel .rec-chip{display:none}
+.plan-box.plan-plus:focus-visible,.plan-box.plan-pro:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .plan-name{font-family:var(--disp);font-weight:700;font-size:19px}
 .plan-price{font-size:24px;font-weight:800}
 .plan-period{font-size:11.5px;color:var(--muted);margin-top:-8px}
@@ -567,6 +580,27 @@ ul.perks.perks-sm{gap:8px;font-size:11.5px}
 #upgradeModal .auth-card{max-width:580px;width:100%}
 #upgradeModal .profile-upgrade-boxes{gap:14px}
 .modal-free-note{font-size:11.5px;color:var(--muted);margin:-6px 0 16px;line-height:1.5}
+/* Round-21: Paymob Pixel (Embedded Checkout) modal — custom-styled container
+   where the Pixel SDK mounts its card form, plus the legacy iframe fallback
+   and the loading/success/failure status states. */
+.pay-card{max-width:460px;align-items:stretch;padding:34px 28px 26px;max-height:calc(100vh - 48px);overflow-y:auto;overscroll-behavior:contain}
+.pay-summary{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--ink);background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:12px;padding:9px 14px;text-align:center;margin-bottom:8px}
+.pay-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--muted);margin-bottom:16px}
+.pay-secure svg{width:12px;height:12px;flex-shrink:0}
+/* The Pixel container: min-height keeps the modal from jumping while the SDK
+   boots; centered content so the loading state sits mid-form. */
+.paymob-pixel-container{min-height:440px;display:flex;flex-direction:column;justify-content:center}
+/* Legacy hosted-iframe fallback: the Paymob page is served inside OUR modal. */
+#paymobIframeWrap iframe{width:100%;min-height:540px;border:0;border-radius:16px;background:var(--glass);display:block}
+.pay-iframe-note{font-size:11px;color:var(--muted);line-height:1.55;text-align:center;margin:12px 0}
+#payStatus{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:440px;text-align:center;padding:16px}
+#payStatus .pay-ic{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;animation:popIn .5s var(--spring)}
+#payStatus .pay-ic.ok{background:rgba(52,211,153,0.12);color:var(--mint);border:1.5px solid rgba(52,211,153,0.4)}
+#payStatus .pay-ic.bad{background:rgba(251,113,133,0.12);color:var(--coral);border:1.5px solid rgba(251,113,133,0.4)}
+#payStatus .pay-t{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--ink);animation:riseIn .4s var(--smooth)}
+#payStatus .pay-s{font-size:12px;color:var(--muted);line-height:1.6;max-width:320px;animation:riseIn .4s var(--smooth) .05s backwards}
+#payStatus .spinner{width:38px;height:38px;border:3px solid var(--glass-strong);border-top-color:var(--accent);border-radius:50%;animation:spin 0.9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:880px){.plan-compare{grid-template-columns:1fr}}
 .qbar{height:4px;border-radius:99px;background:var(--glass-strong);overflow:hidden;margin-bottom:28px}
 .qbar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .5s var(--smooth);box-shadow:0 0 10px var(--accent-glow)}
@@ -1541,7 +1575,7 @@ html[data-lowend="true"] #tip {
               <li data-i18n="perk_free_3">AI tutor, coach, scheduler &amp; achievements</li>
             </ul>
           </div>
-          <div class="plan-box plan-plus" id="plusBox">
+          <div class="plan-box plan-plus" id="plusBox" role="button" tabindex="0" aria-pressed="false">
             <span class="plan-tag" id="plusPlanTag" data-i18n="current_plan_tag" hidden>Current Plan</span>
             <div class="plan-name">Plus</div>
             <div class="plan-price">39 EGP</div>
@@ -1555,7 +1589,8 @@ html[data-lowend="true"] #tip {
             </ul>
             <div class="monthly-disabled"><s>99 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
           </div>
-          <div class="plan-box plan-pro" id="proBox">
+          <div class="plan-box plan-pro" id="proBox" role="button" tabindex="0" aria-pressed="true">
+            <span class="rec-chip" data-i18n="recommended">Recommended</span>
             <span class="plan-tag" id="proPlanTag" data-i18n="current_plan_tag" hidden>Current Plan</span>
             <div class="plan-name">Pro</div>
             <div class="plan-price">59 EGP</div>
@@ -1569,7 +1604,7 @@ html[data-lowend="true"] #tip {
             <div class="monthly-disabled"><s>199 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
           </div>
         </div>
-        <button class="btn auth-btn" id="btnCheckout" style="width:100%; justify-content:center;"><span data-i18n="proceed_payment">Proceed to Payment</span> →</button>
+        <button class="btn auth-btn" id="btnCheckout" style="width:100%; justify-content:center;"><span id="checkoutLabel" data-i18n="proceed_payment">Proceed to Payment</span> →</button>
       </div>
     </section>
 
@@ -1688,7 +1723,7 @@ html[data-lowend="true"] #tip {
     <div class="auth-sub" data-i18n="limit_sub">You've used all your free credits for this month. Upgrade to keep your ascent going!</div>
     <p class="modal-free-note" data-i18n="free_reminder">Free plan keeps: 30 AI questions + 3 PDF uploads every month.</p>
     <div class="profile-upgrade-boxes">
-      <div class="upgrade-box plan-box plan-plus" id="plusBoxModal" style="flex:1">
+      <div class="upgrade-box plan-box plan-plus" id="plusBoxModal" style="flex:1" role="button" tabindex="0" aria-pressed="false">
         <div class="plan-name">Plus</div>
         <div class="plan-price">39 EGP</div>
         <div class="plan-period">/ <span data-i18n="week">week</span></div>
@@ -1700,7 +1735,8 @@ html[data-lowend="true"] #tip {
         </ul>
         <div class="monthly-disabled"><s>99 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
       </div>
-      <div class="upgrade-box plan-box plan-pro" id="proBoxModal" style="flex:1">
+      <div class="upgrade-box plan-box plan-pro" id="proBoxModal" style="flex:1" role="button" tabindex="0" aria-pressed="true">
+        <span class="rec-chip" data-i18n="recommended">Recommended</span>
         <div class="plan-name">Pro</div>
         <div class="plan-price">59 EGP</div>
         <div class="plan-period">/ <span data-i18n="week">week</span></div>
@@ -1713,8 +1749,38 @@ html[data-lowend="true"] #tip {
         <div class="monthly-disabled"><s>199 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
       </div>
     </div>
-    <button class="btn auth-btn" id="btnCheckoutModal"><span data-i18n="proceed_payment">Proceed to Payment</span> →</button>
+    <button class="btn auth-btn" id="btnCheckoutModal"><span id="checkoutLabelModal" data-i18n="proceed_payment">Proceed to Payment</span> →</button>
     <button class="btn outline auth-btn" id="btnCloseUpgrade" style="margin-top:8px"><span data-i18n="maybe_later">Maybe Later</span></button>
+  </div>
+</div>
+
+<!-- Round-21: Paymob Pixel (Embedded Checkout) modal. The card form renders
+     INSIDE the app via Paymob's Pixel SDK (loaded on demand from jsDelivr) —
+     no redirect to a hosted page. When the backend can't create an Intention
+     the same modal embeds the classic hosted iframe (payment_token + iframe_id)
+     instead. Completion is confirmed SERVER-side via /api/payment/verify. -->
+<div id="paymentModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="auth-card pay-card">
+    <button type="button" class="demo-close" id="payCloseBtn" data-i18n-title="demo_close" aria-label="Close" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+    </button>
+    <div class="auth-logo" style="margin-bottom:12px;font-size:21px" id="payTitle" data-i18n="secure_checkout">Secure Checkout</div>
+    <div class="pay-summary" id="paySummary">Plus · 39 EGP / week</div>
+    <div class="pay-secure">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      <span data-i18n="secured_by_paymob">Payments processed securely by Paymob</span>
+    </div>
+    <div id="payStatus" hidden></div>
+    <div id="payBody">
+      <!-- The Paymob Pixel SDK mounts its shadow-DOM card form here. -->
+      <div id="paymobPixelContainer" class="paymob-pixel-container"></div>
+      <!-- Legacy fallback: the classic hosted iframe (payment_token). -->
+      <div id="paymobIframeWrap" hidden>
+        <iframe id="paymobIframe" title="Paymob secure payment form"></iframe>
+        <p class="pay-iframe-note" data-i18n="pay_iframe_note">Enter your card details in the secure Paymob form above. Your plan activates automatically the moment the payment is confirmed.</p>
+        <button class="btn outline" id="btnPayCheckAgain" style="width:100%;justify-content:center"><span data-i18n="pay_check_again">I've Completed the Payment</span></button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1782,11 +1848,20 @@ const translations = {
     generate_plan: "Generate Revision Plan", account: "Account", your_profile: "Your Profile", profile_sub: "Manage your subscription, track your usage limits, and view your recent quiz activity.",
     account_usage: "Account & Usage", current_plan: "Current Plan", ai_questions_m: "AI Questions (Monthly)", pdf_uploads_m: "PDF Uploads (Monthly)", recent_activity: "Recent Activity",
     upgrade_plan: "Upgrade Plan", upgrade_sub: "Every perk, side by side — pick the plan that fits your ascent.", month: "month", week: "week", coming_soon: "Coming Soon", proceed_payment: "Proceed to Payment",
-    current_plan_tag: "Current Plan", free_price: "Free", lang_en_label: "English", lang_ar_label: "العربية", lang_all_label: "All languages", deep_thinking_tag: "Deep Thinking",
+    current_plan_tag: "Current Plan", recommended: "Recommended", free_price: "Free", lang_en_label: "English", lang_ar_label: "العربية", lang_all_label: "All languages", deep_thinking_tag: "Deep Thinking",
     perk_free_1: "30 AI quiz questions / month", perk_free_2: "3 PDF uploads / month (up to 20 pages)", perk_free_3: "AI tutor, coach, scheduler & achievements",
     perk_plus_1: "120 AI questions / month (4× Free)", perk_plus_2: "15 PDF uploads / month (40 pages, 15 MB)", perk_plus_3: "Everything in Free",
     perk_pro_1: "350 AI questions / month", perk_pro_2: "45 PDF uploads / month (60 pages, 15 MB)", perk_pro_3: "Everything in Plus",
     free_reminder: "Free plan keeps: 30 AI questions + 3 PDF uploads every month.",
+    secure_checkout: "Secure Checkout", secured_by_paymob: "Payments processed securely by Paymob",
+    pay_preparing: "Preparing the secure card form…", pay_confirming: "Payment received — activating your plan…",
+    pay_confirming_slow: "Almost there — your plan activates within a minute. You can close this window.",
+    pay_success_title: "Payment successful!", pay_success_sub: "Your plan is now active. Time to climb.",
+    pay_failed_title: "Payment failed", pay_failed_sub: "No charge was made. Check your card details and try again.",
+    pay_retry: "Try Again", pay_cancelled: "Payment cancelled — no charge was made.",
+    pay_error_sdk: "Couldn't load the secure payment form.", pay_unexpected: "Unexpected payment response.",
+    pay_iframe_note: "Enter your card details in the secure Paymob form above. Your plan activates automatically the moment the payment is confirmed.",
+    pay_check_again: "I've Completed the Payment", pay_plan_week: "week",
     preferences: "Preferences", settings_sub: "Manage your account details, change your password, and set your preferred language.", account_info: "Account Information",
     email: "Email", username: "Username", language: "Language", save_changes: "Save Changes", security: "Security", current_pass: "Current Password", new_pass: "New Password",
     update_password: "Update Password", tutor: "El-Peak Tutor", powered_groq: "Powered by Groq · Online", tutor_welcome: "Hey! I'm your AI tutor. Ask me anything about your studies.",
@@ -1873,11 +1948,20 @@ const translations = {
     generate_plan: "إنشاء خطة المراجعة", account: "الحساب", your_profile: "ملفك الشخصي", profile_sub: "إدارة اشتراكك، وتتبع حدود الاستخدام، وعرض نشاط الاختبار الأخير.",
     account_usage: "الحساب والاستخدام", current_plan: "الخطة الحالية", ai_questions_m: "أسئلة الذكاء الاصطناعي (شهرياً)", pdf_uploads_m: "رفع PDF (شهرياً)", recent_activity: "النشاط الأخير",
     upgrade_plan: "ترقية الخطة", upgrade_sub: "قارن كل المزايا جنبًا إلى جنب واختر الخطة التي تناسب صعودك.", month: "شهر", week: "أسبوع", coming_soon: "قريباً", proceed_payment: "المتابعة إلى الدفع",
-    current_plan_tag: "خطتك الحالية", free_price: "مجاني", lang_en_label: "الإنجليزية", lang_ar_label: "العربية", lang_all_label: "كل اللغات", deep_thinking_tag: "تفكير عميق",
+    current_plan_tag: "خطتك الحالية", recommended: "موصى به", free_price: "مجاني", lang_en_label: "الإنجليزية", lang_ar_label: "العربية", lang_all_label: "كل اللغات", deep_thinking_tag: "تفكير عميق",
     perk_free_1: "30 سؤال ذكاء اصطناعي شهريًا", perk_free_2: "3 ملفات PDF شهريًا (حتى 20 صفحة)", perk_free_3: "مدرّس ذكي ومدرب وجدولة وإنجازات",
     perk_plus_1: "120 سؤالًا شهريًا (4× المجانية)", perk_plus_2: "15 ملف PDF شهريًا (40 صفحة، 15 MB)", perk_plus_3: "كل مزايا الخطة المجانية",
     perk_pro_1: "350 سؤالًا شهريًا", perk_pro_2: "45 ملف PDF شهريًا (60 صفحة، 15 MB)", perk_pro_3: "كل مزايا خطة Plus",
     free_reminder: "تبقى الخطة المجانية: 30 سؤالًا + 3 ملفات PDF كل شهر.",
+    secure_checkout: "دفع آمن", secured_by_paymob: "مدفوعات آمنة عبر Paymob",
+    pay_preparing: "جاري تحضير نموذج البطاقة الآمن…", pay_confirming: "تم استلام الدفع — جاري تنشيط خطتك…",
+    pay_confirming_slow: "أوشكنا على الانتهاء — ستُفعَّل خطتك خلال دقيقة. يمكنك إغلاق هذه النافذة.",
+    pay_success_title: "تم الدفع بنجاح!", pay_success_sub: "خطتك مفعّلة الآن. حان وقت التسلق.",
+    pay_failed_title: "فشل الدفع", pay_failed_sub: "لم يتم أي خصم. تحقق من بيانات بطاقتك وحاول مرة أخرى.",
+    pay_retry: "حاول مرة أخرى", pay_cancelled: "تم إلغاء الدفع — لم يتم أي خصم.",
+    pay_error_sdk: "تعذر تحميل نموذج الدفع الآمن.", pay_unexpected: "استجابة دفع غير متوقعة.",
+    pay_iframe_note: "أدخل بيانات بطاقتك في نموذج Paymob الآمن أعلاه. تُفعَّل خطتك تلقائياً لحظة تأكيد الدفع.",
+    pay_check_again: "لقد أتممت الدفع", pay_plan_week: "أسبوع",
     preferences: "التفضيلات", settings_sub: "إدارة تفاصيل حسابك، وتغيير كلمة المرور، وضبط لغتك المفضلة.", account_info: "معلومات الحساب",
     email: "البريد الإلكتروني", username: "اسم المستخدم", language: "اللغة", save_changes: "حفظ التغييرات", security: "الأمان", current_pass: "كلمة المرور الحالية", new_pass: "كلمة مرور جديدة",
     update_password: "تحديث كلمة المرور", tutor: "مدرس El-Peak", powered_groq: "مدعوم من Groq · متصل", tutor_welcome: "مرحباً! أنا مدرسك الذكي. اسألني أي شيء عن دراستك.",
@@ -1983,6 +2067,9 @@ function applyLanguage(lang) {
   // Round 8: re-render streak pill + stats in the new language.
   if (typeof updateStreakPill === "function") updateStreakPill();
   if (typeof updateDemoStats === "function") updateDemoStats();
+  // Round-20b: the checkout buttons name the selected plan + price — re-compose
+  // after the data-i18n pass above (which resets them to the bare label).
+  if (window.updateCheckoutLabel) window.updateCheckoutLabel();
 }
 
 function syncSettingsDropdowns() {
@@ -2220,6 +2307,12 @@ if (!currentLang) {
   currentLang = _bl.startsWith("ar") ? "ar" : "en";
 }
 let currentGrade = "general";
+/* Round-20b: declared EARLY on purpose. updateCheckoutLabel() (hooked into
+   applyLanguage) reads it, and applyLanguage runs during the auth-view setup
+   further down — long before the plan-selection block at the bottom of this
+   script. A `let` there would still be in its temporal dead zone at that
+   point and throw a ReferenceError that aborts the rest of the script. */
+let selectedTier = "pro"; // Pro (Recommended) is the default pre-selected plan
 
 async function api(p, o={}) {
   let r;
@@ -4618,12 +4711,26 @@ async function sendChat() {
  $("#chatSend").onclick = sendChat;
  $("#chatInput").onkeydown = e => { if(e.key === "Enter") sendChat(); };
 
-let selectedTier = "pro";
+// Pro is the default selection — setPlanSelection("pro") at the bottom of
+// this script applies it to the boxes on both surfaces.
 // P0.2: weekly is the only purchasable period right now (monthly is gated
 // off server-side and greyed out in the UI). Hardcode the client to always
 // request a weekly checkout; if monthly is re-enabled later this is the
 // single place to make it selectable again.
 const selectedPeriod = "week";
+// Round-20b: the pay button always NAMES the plan + price that will actually
+// be charged, so a misclick can never silently bill the wrong tier. Re-applied
+// on every selection change AND on every language switch (hook in applyLanguage).
+function updateCheckoutLabel(){
+    const dict = translations[currentLang] || translations.en;
+    const name = selectedTier === "plus" ? "Plus" : "Pro";
+    const price = selectedTier === "plus" ? "39 EGP" : "59 EGP";
+    const txt = dict.proceed_payment + " — " + name + " (" + price + " / " + dict.week + ")";
+    const a = $("#checkoutLabel"), m = $("#checkoutLabelModal");
+    if (a) a.textContent = txt;
+    if (m) m.textContent = txt;
+}
+window.updateCheckoutLabel = updateCheckoutLabel;
 // Round-17: opening the upgrade modal re-applies the (possibly API-refreshed)
 // model names to the modal boxes. If /api/usage hasn't answered yet the HTML
 // fallbacks ("GPT-OSS-120B Model", matching the backend defaults) remain.
@@ -4637,27 +4744,39 @@ function closeUpgradeModal(){
 }
  $("#btnCloseUpgrade").onclick = closeUpgradeModal;
 
-function wireUpgradeBoxes(boxIds) {
-    boxIds.forEach(id => {
-        const box = document.getElementById(id);
-        if (!box) return;
-        box.onclick = () => {
-            // Round-19: clear INLINE styles only ("" falls back to the
-            // .plan-box class styling — the Pro box keeps its accent border
-            // and tint instead of being flattened to transparent).
-            boxIds.forEach(bid => {
-                const b = document.getElementById(bid);
-                if (!b) return;
-                b.style.border = "";
-                b.style.background = "";
-            });
-            box.style.border = "1px solid var(--accent)";
-            box.style.background = "rgba(99,102,241,0.1)";
-            selectedTier = box.id.includes("plus") ? "plus" : "pro";
-        };
-    });
+// Round-20b: radio-style plan selection, shared by the profile plan grid AND
+// the upgrade modal. Previously each click only cleared/added INLINE styles
+// while .plan-pro kept a permanent accent border from its CSS class — so
+// clicking Plus left BOTH plans looking selected, and the profile grid and
+// modal could even disagree. setPlanSelection() is the single source of
+// truth: EXACTLY ONE box per surface carries .plan-sel at any moment, on
+// both surfaces simultaneously.
+const PLAN_BOXES = [
+    {tier: "plus", ids: ["plusBox", "plusBoxModal"]},
+    {tier: "pro",  ids: ["proBox",  "proBoxModal"]}
+];
+function setPlanSelection(tier){
+    selectedTier = tier;
+    PLAN_BOXES.forEach(({tier: t, ids}) => ids.forEach(id => {
+        const b = document.getElementById(id);
+        if (!b) return;
+        const on = t === tier;
+        b.classList.toggle("plan-sel", on);
+        b.setAttribute("aria-pressed", String(on));
+    }));
+    updateCheckoutLabel();
 }
-wireUpgradeBoxes(["plusBox", "proBox", "plusBoxModal", "proBoxModal"]);
+PLAN_BOXES.forEach(({tier, ids}) => ids.forEach(id => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.addEventListener("click", () => setPlanSelection(tier));
+    // Keyboard parity with role="button": Enter / Space select the plan too.
+    b.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPlanSelection(tier); }
+    });
+}));
+// Pro (Recommended) starts pre-selected on BOTH surfaces.
+setPlanSelection("pro");
 
 const genLoaderEl = $("#genLoader");
 function showGenLoader(source) {
@@ -4736,6 +4855,273 @@ function hideGenLoader() { if (genLoaderEl) genLoaderEl.hidden = true; }
   }, { passive: true });
 })();
 
+/* ============ Round-21: Paymob Pixel (Embedded Checkout) ============
+   The backend /api/payment/checkout now returns one of three modes:
+     - "pixel":    {public_key, client_secret, merchant_order_id, ...}
+                   -> we load the official paymob-pixel SDK on demand and it
+                      renders the card form INSIDE #paymobPixelContainer with
+                      our branding (customStyle), no redirect at all.
+     - "iframe":   {checkout_url, payment_token, iframe_id, ...}
+                   -> fallback: the classic hosted Paymob iframe embedded in
+                      the same modal (works with a payment_token backend).
+     - "simulated":{checkout_url:"/?upgraded=true"} (local dev only).
+   Completion is CONFIRMED SERVER-SIDE: /api/payment/verify asks Paymob's
+   transaction-inquiry API and only then activates the plan. The SDK's
+   browser-side afterPaymentComplete just triggers that check. */
+const PAYMOB_PIXEL_SDK_URL = "https://cdn.jsdelivr.net/npm/paymob-pixel@latest/main.js";
+let _paymobSdkPromise = null;
+
+// Dynamically load the Paymob Pixel SDK exactly once. It is an ES module that
+// registers window.Pixel (no named export), so we inject <script type=module>
+// and poll for the global (module scripts can't be awaited directly).
+function loadPaymobPixelSDK(){
+    if (window.Pixel) return Promise.resolve(window.Pixel);
+    if (_paymobSdkPromise) return _paymobSdkPromise;
+    const p = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.type = "module";
+        script.src = PAYMOB_PIXEL_SDK_URL;
+        script.async = true;
+        const started = Date.now();
+        const poll = () => {
+            if (window.Pixel) { resolve(window.Pixel); return; }
+            if (Date.now() - started > 15000) { reject(new Error("timeout")); return; }
+            setTimeout(poll, 120);
+        };
+        script.addEventListener("load", poll);
+        script.addEventListener("error", () => reject(new Error("network")));
+        document.head.appendChild(script);
+        poll();
+    });
+    _paymobSdkPromise = p;
+    // A failed load must be retryable — forget the promise so the next call
+    // injects a fresh <script>.
+    p.catch(() => { if (_paymobSdkPromise === p) _paymobSdkPromise = null; });
+    return p;
+}
+
+// Brand-mapped Paymob customStyle: fonts, border-radius, focus/accent color
+// (Color_Primary), input backgrounds, labels, placeholders, error color —
+// resolved live from the app's CSS variables so light/dark themes both work.
+// Arabic gets full RTL direction + translated form labels/buttons.
+function pixelCustomStyle(lang){
+    const cs = getComputedStyle(document.documentElement);
+    const v = (n, fb) => (cs.getPropertyValue(n) || "").trim() || fb;
+    const dark = document.documentElement.dataset.theme !== "light";
+    const ink = v("--ink", dark ? "#f8fafc" : "#0f172a");
+    const muted = v("--muted", dark ? "#94a3b8" : "#64748b");
+    const accent = v("--accent", "#6366f1");
+    const style = {
+        Direction: lang === "ar" ? "rtl" : "ltr",
+        Font_Family: "'Inter','Outfit',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif",
+        Font_Size_Label: "13",
+        Font_Size_Input_Fields: "14.5",
+        Font_Size_Payment_Button: "15",
+        Font_Weight_Label: 600,
+        Font_Weight_Input_Fields: 500,
+        Font_Weight_Payment_Button: 700,
+        Color_Container: "transparent",
+        Color_Border_Input_Fields: dark ? "rgba(255,255,255,0.16)" : "rgba(15,23,42,0.12)",
+        Color_Border_Payment_Button: accent,
+        Radius_Border: "12",
+        Color_Disabled: dark ? "rgba(255,255,255,0.22)" : "#cbd5e1",
+        Color_Error: "#fb7185",
+        Color_Primary: accent, // drives the focus/accent color inside the form
+        Color_Input_Fields: dark ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.035)",
+        Text_Color_For_Label: ink,
+        Text_Color_For_Payment_Button: "#ffffff",
+        Text_Color_For_Input_Fields: ink,
+        Color_For_Text_Placeholder: muted,
+        Width_of_Container: "100%",
+        Vertical_Padding: "13",
+        Vertical_Spacing_between_components: "10",
+        Container_Padding: "0"
+    };
+    if (lang === "ar") {
+        // Translations follow the keys documented in the official SDK.
+        style.Label_Text = {
+            cardLabel: "بيانات البطاقة",
+            savedCardsLabel: "البطاقات المحفوظة",
+            saveCardConsentLabel: "حفظ البطاقة",
+            cardEndingLabel: "تنتهي بـ"
+        };
+        style.Placeholder_Text = {
+            holderName: "الاسم على البطاقة",
+            cardNumber: "رقم البطاقة",
+            expiryDate: "شهر / سنة",
+            securityCode: "الرمز الأمني (CVV)"
+        };
+        style.Error_Text = {
+            cardNumber: { required: "مطلوب رقم البطاقة", invalid: "رقم البطاقة غير صحيح" },
+            expiryDate: { required: "مطلوب تاريخ انتهاء الصلاحية", invalid: "تاريخ انتهاء الصلاحية غير صحيح" },
+            securityCode: "مطلوب الرمز الأمني (CVV)",
+            holderName: "مطلوب اسم حامل البطاقة"
+        };
+        style.Button_Text = {
+            viewSavedCardsBtn: "عرض البطاقات المحفوظة",
+            addNewCardBtn: "إضافة بطاقة جديدة",
+            payBtn: "ادفع"
+        };
+    }
+    return style;
+}
+
+let _payCtx = null; // active checkout context: {mode, r, btnId}
+
+function openPaymentModal(){ $("#paymentModal").style.display = "flex"; }
+function closePaymentModal(){
+    const m = $("#paymentModal");
+    if (!m || m.style.display === "none") return;
+    m.style.display = "none";
+    hidePayStatus();
+    // Drop any half-initialized Pixel form so the next checkout starts clean.
+    const old = $("#paymobPixelContainer");
+    if (old) { const fresh = old.cloneNode(false); old.replaceWith(fresh); }
+    $("#paymobIframe").src = "about:blank";
+}
+
+function showPayStatus(kind, message){
+    const el = $("#payStatus");
+    if (!el) return;
+    const dict = translations[currentLang] || translations.en;
+    const body = $("#payBody");
+    el.hidden = false;
+    if (body) body.hidden = true;
+    if (kind === "loading") {
+        el.innerHTML = '<div class="spinner" role="status" aria-label="loading"></div><div class="pay-t">' + esc(dict.pay_preparing) + '</div>';
+    } else if (kind === "confirming") {
+        el.innerHTML = '<div class="spinner" role="status" aria-label="loading"></div><div class="pay-t">' + esc(message || dict.pay_confirming) + '</div>';
+    } else if (kind === "success") {
+        el.innerHTML = '<div class="pay-ic ok">✓</div><div class="pay-t">' + esc(dict.pay_success_title) + '</div><div class="pay-s">' + esc(dict.pay_success_sub) + '</div>';
+    } else if (kind === "failed") {
+        el.innerHTML = '<div class="pay-ic bad">✕</div><div class="pay-t">' + esc(dict.pay_failed_title) + '</div><div class="pay-s">' + esc(dict.pay_failed_sub) + '</div>' +
+            '<button class="btn auth-btn" id="payRetryBtn" style="min-width:180px;justify-content:center">' + esc(dict.pay_retry) + '</button>';
+        const retry = $("#payRetryBtn");
+        if (retry) retry.onclick = () => {
+            const btnId = _payCtx && _payCtx.btnId;
+            closePaymentModal();
+            if (btnId) processCheckout(btnId);
+        };
+    } else if (kind === "cancelled") {
+        el.innerHTML = '<div class="pay-ic bad">⊘</div><div class="pay-s">' + esc(dict.pay_cancelled) + '</div>';
+    } else { // error
+        el.innerHTML = '<div class="pay-ic bad">✕</div><div class="pay-t">' + esc(dict.pay_error_sdk) + '</div><div class="pay-s">' + esc(message || "") + '</div>';
+    }
+}
+function hidePayStatus(){
+    const el = $("#payStatus");
+    if (el) { el.hidden = true; el.innerHTML = ""; }
+    const body = $("#payBody");
+    if (body) body.hidden = false;
+}
+
+function paySummaryText(){
+    const dict = translations[currentLang] || translations.en;
+    const plan = selectedTier === "plus" ? "Plus" : "Pro";
+    const price = selectedTier === "plus" ? "39 EGP" : "59 EGP";
+    return plan + " · " + price + " / " + dict.week;
+}
+
+// The SDK response shape varies across SDK versions — accept any of the
+// documented/observed success signals before trusting the payment.
+function _paymobSuccess(res){
+    if (!res || typeof res !== "object") return false;
+    const d = (res.data && typeof res.data === "object") ? res.data : res;
+    const objs = [res, d, d.transaction, d.payment, d.intention];
+    for (const o of objs) {
+        if (o && typeof o === "object") {
+            if (o.success === true || o.succeeded === true) return true;
+            if (typeof o.status === "string" && /^(success|succeeded|approved|captured|authorized)$/i.test(o.status.trim())) return true;
+        }
+    }
+    return false;
+}
+
+// Ask the backend to confirm + activate (it talks to Paymob directly).
+// Retries a couple of times while the transaction is still pending.
+async function confirmPaymentActivation(attempt){
+    if (!_payCtx || !_payCtx.r || !_payCtx.r.merchant_order_id) return false;
+    try {
+        const v = await api("/api/payment/verify", {method: "POST", body: {merchant_order_id: _payCtx.r.merchant_order_id}});
+        if (v.status === "succeeded") {
+            showPayStatus("success");
+            setTimeout(() => {
+                closePaymentModal();
+                if (typeof loadProfile === "function") loadProfile();
+                toast("🎉 " + (translations[currentLang] || translations.en).pay_success_title);
+            }, 1900);
+            return true;
+        }
+        if (v.status === "failed") { showPayStatus("failed"); return true; }
+        if (attempt < 2) { await new Promise(t => setTimeout(t, 2500)); return confirmPaymentActivation(attempt + 1); }
+        // Still pending after retries — the webhook will activate it shortly.
+        const dict = translations[currentLang] || translations.en;
+        showPayStatus("confirming", dict.pay_confirming_slow);
+        return true;
+    } catch (e) {
+        if (attempt < 1) { await new Promise(t => setTimeout(t, 2500)); return confirmPaymentActivation(attempt + 1); }
+        const dict = translations[currentLang] || translations.en;
+        showPayStatus("confirming", dict.pay_confirming_slow);
+        return true;
+    }
+}
+
+async function onPaymobPaymentResult(res){
+    if (_paymobSuccess(res)) {
+        showPayStatus("confirming");
+        await confirmPaymentActivation(0);
+    } else {
+        showPayStatus("failed");
+    }
+}
+
+async function openPaymobPixelCheckout(r, btnId){
+    _payCtx = {mode: "pixel", r, btnId};
+    $("#paySummary").textContent = paySummaryText();
+    $("#paymobIframeWrap").hidden = true;
+    $("#paymobIframe").src = "about:blank";
+    // Fresh container node each time so the SDK can never collide with a
+    // previous instance's shadow DOM.
+    const old = $("#paymobPixelContainer");
+    const fresh = old.cloneNode(false);
+    fresh.hidden = false;
+    old.replaceWith(fresh);
+    openPaymentModal();
+    showPayStatus("loading");
+    try {
+        const Pixel = await loadPaymobPixelSDK();
+        hidePayStatus();
+        new Pixel({
+            publicKey: r.public_key,
+            clientSecret: r.client_secret,
+            paymentMethods: ["card"],
+            elementId: "paymobPixelContainer",
+            showSaveCard: false,
+            disablePay: false,
+            cardValidationChanged: function(){ /* the SDK drives its own UI */ },
+            beforePaymentComplete: async function(){ return true; },
+            afterPaymentComplete: async function(res){ await onPaymobPaymentResult(res); },
+            onPaymentCancel: async function(){ showPayStatus("cancelled"); },
+            customStyle: pixelCustomStyle(currentLang)
+        });
+    } catch (e) {
+        showPayStatus("error");
+    }
+}
+
+function openPaymobIframeCheckout(r){
+    _payCtx = {mode: "iframe", r};
+    $("#paySummary").textContent = paySummaryText();
+    const wrap = $("#paymobIframeWrap");
+    wrap.hidden = false;
+    const container = $("#paymobPixelContainer");
+    if (container) container.hidden = true;
+    $("#paymobIframe").src = r.checkout_url ||
+        ("https://accept.paymob.com/api/acceptance/iframes/" + r.iframe_id + "?payment_token=" + r.payment_token);
+    hidePayStatus();
+    openPaymentModal();
+}
+
 async function processCheckout(btnId) {
     const btn = document.getElementById(btnId);
     if (!btn) return;
@@ -4743,8 +5129,15 @@ async function processCheckout(btnId) {
     btn.disabled = true;
     try {
         const r = await api("/api/payment/checkout", {method: "POST", body: {tier: selectedTier, period: selectedPeriod}});
-        if (r.checkout_url) {
+        if (r && r.mode === "pixel" && r.client_secret) {
+            await openPaymobPixelCheckout(r, btnId);
+        } else if (r && r.mode === "iframe" && (r.checkout_url || r.payment_token)) {
+            openPaymobIframeCheckout(r);
+        } else if (r && r.checkout_url) {
+            // Simulated/local-dev path: same redirect the app used before.
             window.location.href = r.checkout_url;
+        } else {
+            toast("⚠ " + ((translations[currentLang] || translations.en).pay_unexpected || "Unexpected payment response."));
         }
     } catch (e) {
         toast("⚠ " + e.message);
@@ -4754,6 +5147,17 @@ async function processCheckout(btnId) {
 }
  $("#btnCheckout").onclick = () => processCheckout("btnCheckout");
  $("#btnCheckoutModal").onclick = () => processCheckout("btnCheckoutModal");
+ $("#payCloseBtn").onclick = closePaymentModal;
+ $("#btnPayCheckAgain").onclick = () => {
+     showPayStatus("confirming");
+     confirmPaymentActivation(0);
+ };
+ // Escape closes the payment modal.
+ document.addEventListener("keydown", e => {
+     if (e.key !== "Escape") return;
+     const m = $("#paymentModal");
+     if (m && m.style.display !== "none") closePaymentModal();
+ });
 </script>
 </body>
 </html>

@@ -13,6 +13,7 @@ El-Peak is a full-stack AI study companion and Progressive Web App built with Fa
 - AI coach with 7-day revision plans
 - AI tutor chat
 - Free / Plus / Pro tiers
+- **Paymob Pixel embedded checkout (Round 21)**: card form renders in-app (no redirect) with full branding + Arabic RTL; automatic hosted-iframe fallback; server-verified activation
 - Paymob checkout and webhook upgrades
 - Google OAuth
 - PWA support
@@ -63,6 +64,31 @@ No new variables are **required** — `GROQ_MODEL_QWEN` defaults to
 `qwen/qwen3.6-27b` in code. Keep `DATABASE_URL`, `SECRET_KEY`, `GROQ_API_KEY`,
 `REDIS_URL`, Paymob keys as they already are on Railway. Optional model
 overrides are documented in `.env.example`.
+
+**Round-21 optional:** set `PAYMOB_PUBLIC_KEY` (Dashboard → Settings →
+Account Info, looks like `egy_pk_live_...`) to switch checkout from the
+hosted-iframe redirect to **Paymob Pixel (Embedded Checkout)** — the card
+form renders inside the app, branded, EN+AR, and payment completion is
+confirmed server-side via `/api/payment/verify` (Paymob transaction inquiry
+by `merchant_order_id`). Without it, or if the Intention API errors, the
+checkout modal automatically embeds the classic hosted iframe
+(`iframes/{iframe_id}?payment_token=...`) instead — same flow as before.
+
+### Post-deploy smoke test — Pixel checkout (after setting PAYMOB_PUBLIC_KEY)
+
+1. Profile → Upgrade Plan → pick a plan → **Proceed to Payment**: a Secure
+   Checkout modal must open IN-PAGE (no redirect) with the plan/price pill
+   and the card form styled to match the app (indigo accent, 12px radius).
+2. Pay with a Paymob **test card** → the modal must flip to “Payment received
+   — activating your plan…” then “Payment successful!” and close; the
+   Profile tier badge should show the new tier within a few seconds.
+3. Railway logs: one `POST /v1/intention/` per checkout (Pixel path), then
+   `Pixel verify upgraded user <id> to <tier> (week)` after payment — or
+   `Paymob Intention failed ... falling back to the hosted-iframe checkout`
+   if your account isn't enabled for Intentions (then the hosted iframe
+   still appears in the same modal — that is the designed fallback).
+4. Arabic UI: the card form must render RTL with Arabic labels/placeholders
+   (بيانات البطاقة / رقم البطاقة / ادفع).
 
 ### Post-deploy smoke test (2 minutes, first live run of routing)
 
