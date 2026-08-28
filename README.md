@@ -6,7 +6,7 @@ El-Peak is a full-stack AI study companion and Progressive Web App built with Fa
 
 - Static Egyptian curriculum quiz banks
 - AI-generated quizzes using Groq
-- **Language-aware model routing (Round 19)**: Free EN→GPT-OSS-20B / AR→Qwen3.6-27B fast; Plus EN→GPT-OSS-120B / AR→Qwen deep-thinking; Pro→Qwen deep-thinking for all languages
+- **Compound + Qwen3.8 model architecture (Round 22)**: GPT-OSS dropped entirely. Free EN→`groq/compound-mini` (70K TPM) / AR→`qwen3.6-27b` (fast, brevity-capped); Plus→`qwen3.8-27b` at LOW reasoning effort (2M TPD); Pro EN→`groq/compound` (deep multi-step) / AR→`qwen3.8-27b` at HIGH effort (native xhigh). Strict JSON mode (`response_format: json_object`) on every quiz/plan call + a client-side AI request queue (≥2.5s spacing) with visible queue states
 - PDF-to-quiz conversion with OCR fallback
 - Mastery tracking and analytics
 - Urgency-weighted scheduler
@@ -90,20 +90,30 @@ checkout modal automatically embeds the classic hosted iframe
 4. Arabic UI: the card form must render RTL with Arabic labels/placeholders
    (بيانات البطاقة / رقم البطاقة / ادفع).
 
-### Post-deploy smoke test (2 minutes, first live run of routing)
+### Post-deploy smoke test (2 minutes, first live run of the Round-22 routing)
 
 1. Hard-refresh the site — you should see the new boot/loading screen with the
    "AI can make mistakes" note (Arabic if your app language is Arabic).
 2. Generate an **English** quiz on a free account → Railway logs should show
-   `model='openai/gpt-oss-20b'`.
-3. Generate an **Arabic** quiz on a Plus/Pro account → logs should show
-   `model='qwen/qwen3.6-27b'` with `reasoning_effort='default'` +
-   `reasoning_format='hidden'`, and the quiz JSON must still parse.
-4. Open Profile → the plan boxes must list exact perks (questions/PDF quotas,
-   per-language models) and the "Current Plan" ribbon on your tier.
-5. If Arabic quizzes ever fall back or fail JSON parsing, check Railway logs
-   for a 429/model-not-found from Groq and verify `qwen/qwen3.6-27b` is
-   available on your API key.
+   `model='groq/compound-mini'`, and the outbound payload must include
+   `response_format={'type': 'json_object'}`.
+3. Generate an **Arabic** quiz on a Plus account → logs should show
+   `model='qwen/qwen3.8-27b'` with `reasoning_effort='low'` +
+   `reasoning_format='hidden'`; on a Pro account `reasoning_effort='high'`
+   (the model's native xhigh). The quiz JSON must still parse and be in Arabic
+   script. A **free** Arabic quiz runs on `qwen/qwen3.6-27b` with
+   `reasoning_effort='none'` and short explanations (brevity-capped).
+4. Open Profile → plan boxes must list the new per-language models
+   (Compound-Mini/Qwen3.6-27B · Qwen3.8-27B · Compound/Qwen3.8-27B with the
+   Deep-Thinking pills on Pro only) and the "Current Plan" ribbon on your tier.
+5. Fire two AI actions within a second (e.g. ask the tutor, then generate a
+   quiz): the second one shows an "in the AI queue" state and starts ≥2.5s
+   after the first — no 429s.
+6. If a model 400s on an optional param, logs show `retrying once with a
+   minimal payload` and the call still succeeds (self-healing). If quizzes
+   ever fail JSON parsing, check Railway logs for a 429/model-not-found from
+   Groq and verify `groq/compound-mini`, `groq/compound`, `qwen/qwen3.6-27b`
+   and `qwen/qwen3.8-27b` are all available on your API key.
 
 ## Local Development
 

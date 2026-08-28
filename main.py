@@ -114,43 +114,46 @@ else:
     logger.warning("ALLOWED_ORIGINS unset; using wildcard (development only).")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-# Round-13 (re-verified live against https://console.groq.com/docs/models and
-# /docs/deprecations): the current Production text models are
-#   - openai/gpt-oss-120b  (~500 tps, $0.15/$0.60 per 1M, 131K ctx, 65K max out)
-#   - openai/gpt-oss-20b   (~1000 tps, $0.075/$0.30 per 1M, 131K ctx, 65K max out)
-#   - qwen/qwen3.6-27b     (~500 tps, $0.60/$3.00 per 1M, 131K ctx, 16K max out)
-# Groq announced llama-3.1-8b-instant + llama-3.3-70b-versatile deprecation on
-# 2026-06-17 with shutdown 2026-08-16 — Groq's own recommended replacements are
-# gpt-oss-20b (for the 8b) and gpt-oss-120b / qwen3.6-27b (for the 70b). The
-# legacy Llama ids are therefore REMOVED from the fallback chains (a dead id
-# in the chain guarantees a second failure on top of the first). qwen3.6-27b is
-# added as a CROSS-FAMILY tertiary fallback so a single OpenAI-weight-specific
-# Groq outage is less likely to take down the whole chain.
-#
-# Round-19 (Option 3 — language routing, user-approved): most El-Peak users are
-# Arabic students who need Arabic grammar + math. Research (console.groq.com
-# docs/model pages, ArabicMMLU/ALUE/ILMAAM evals, Artificial Analysis index)
-# shows qwen3.6-27b is far stronger than gpt-oss-20b on Arabic (~+10-14 pts
-# ArabicMMLU, ALUE >80%, 201 languages w/ RTL + dialect training) and stronger
-# than BOTH gpt-oss models on math/reasoning (AA Intelligence 38 vs 24 vs 15).
-# gpt-oss stays the cheap+fast English engine. Tier map (see ROUTE_MODELS):
-#   free: en -> gpt-oss-20b          ar -> qwen3.6-27b NON-thinking (fast)
-#   plus: en -> gpt-oss-120b         ar -> qwen3.6-27b THINKING (deep)
-#   pro:  all -> qwen3.6-27b THINKING (deep) — honestly differentiates Pro
-#   gate -> gpt-oss-20b   (cheap 4-token yes/no classification, unchanged)
-#   default GROQ_MODEL -> gpt-oss-120b (best for general quality-critical calls)
+# Round-22 (user-directed architecture, verified against console.groq.com/docs
+# /compound/systems, /docs/reasoning, /docs/structured-outputs): the GPT-OSS
+# models are DROPPED ENTIRELY — gpt-oss-120b's tiny 8K TPM / 200K TPD pool
+# cannot survive a live site, so every route now runs on the compound systems
+# + the qwen3 family:
+#   - groq/compound-mini  (free EN: agentic, 1 tool call, 70K TPM, 3x lower
+#                          latency — handles hundreds of quick EN quizzes)
+#   - groq/compound       (pro EN: up to 10 server-side tool calls, deep
+#                          multi-step reasoning, 70K TPM)
+#   - qwen/qwen3.6-27b    (free AR: best Arabic we can use on the free plan —
+#                          but a RISKY 8K TPM / 200K TPD pool, so free-AR
+#                          prompts force brevity and capped output budgets)
+#   - qwen/qwen3.8-27b    (plus BOTH langs + pro AR: 2M TPD ceiling; supports
+#                          reasoning_effort none|low|medium|high, where per
+#                          Groq's docs "high selects the model's native xhigh
+#                          mode")
+# Tier map (see ROUTE_MODELS) — per tier x language:
+#   free: en -> groq/compound-mini            ar -> qwen3.6-27b effort=none
+#   plus: en -> qwen3.8-27b   effort=low      ar -> qwen3.8-27b effort=low
+#   pro:  en -> groq/compound (deep agentic)  ar -> qwen3.8-27b effort=high(=xhigh)
+#   gate -> qwen3.6-27b (12-token yes/no classification — compound's tool
+#          calls would be wasted latency on a verdict, qwen3.6-none is instant)
+#   default GROQ_MODEL -> qwen3.8-27b (the 2M-TPD daily driver)
 # Every per-tier model is env-overridable so model/pricing changes ship without
 # a code edit. Bonus: Groq rate limits are PER MODEL, so splitting traffic
-# across gpt-oss + qwen roughly doubles the org-level RPM/RPD budget.
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-GROQ_MODEL_FREE = os.getenv("GROQ_MODEL_FREE", "openai/gpt-oss-20b")
-GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-120b")
-GROQ_MODEL_PRO = os.getenv("GROQ_MODEL_PRO", "openai/gpt-oss-120b")
+# across compound + qwen3.6 + qwen3.8 roughly triples the org-level budget.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+GROQ_MODEL_FREE = os.getenv("GROQ_MODEL_FREE", "groq/compound-mini")
+GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "qwen/qwen3.8-27b")
+GROQ_MODEL_PRO = os.getenv("GROQ_MODEL_PRO", "groq/compound")
 GROQ_MODEL_QWEN = os.getenv("GROQ_MODEL_QWEN", "qwen/qwen3.6-27b")
+# Round-22: per-tier reasoning_effort for the qwen3.8 daily driver. Plus runs
+# "low" (quality edge without token waste); Pro-AR runs "high" (== the model's
+# native xhigh mode per Groq's reasoning docs). Env-tunable without a deploy.
+GROQ_EFFORT_PLUS = os.getenv("GROQ_EFFORT_PLUS", "low")
+GROQ_EFFORT_PRO = os.getenv("GROQ_EFFORT_PRO", "high")
 # Cheap/fast model used by the topic-validation gate (one short call per cache
-# miss). Must stay on the smallest current model + max_tokens=4 so it never
-# doubles Groq load meaningfully.
-GROQ_MODEL_GATE = os.getenv("GROQ_MODEL_GATE", "openai/gpt-oss-20b")
+# miss). Must stay on a non-agentic model + max_tokens=12 so it never doubles
+# Groq load meaningfully (compound systems would burn a tool call on a yes/no).
+GROQ_MODEL_GATE = os.getenv("GROQ_MODEL_GATE", "qwen/qwen3.6-27b")
 # P1.2: cap on simultaneous outbound Groq calls. Groq's free tier is 30 RPM /
 # 1000 RPD per model at the ORGANIZATION level, so a burst of concurrent users
 # can blow the budget before per-user throttling reacts. This semaphore bounds
@@ -250,38 +253,42 @@ TIER_LIMITS = {
         "max_ai_questions_per_request": 5
     }
 }
-# Round-19 (Option 3): language-routed model selection. The routing language
-# is the OUTPUT language of the call (Arabic account OR Arabic-script input ->
-# "ar"), detected per-request by is_arabic() below — a cheap codepoint ratio
-# check, NOT an extra AI call.
+# Round-19 (Option 3) + Round-22 (compound/qwen3.8 architecture): language-
+# routed model selection with a PER-ROUTE reasoning_effort. The routing
+# language is the OUTPUT language of the call (Arabic account OR Arabic-script
+# input -> "ar"), detected per-request by is_arabic() below — a cheap codepoint
+# ratio check, NOT an extra AI call.
+#   "thinking" gates the max-token headroom + reasoning_format=hidden;
+#   "effort" is the explicit reasoning_effort sent to qwen3.8 models
+#   (None = let groq_chat derive it from the thinking flag / model family).
 ROUTE_MODELS = {
     "free": {
-        "en": {"model": GROQ_MODEL_FREE, "thinking": False},
-        "ar": {"model": GROQ_MODEL_QWEN, "thinking": False},
+        "en": {"model": GROQ_MODEL_FREE, "thinking": False, "effort": None},
+        "ar": {"model": GROQ_MODEL_QWEN, "thinking": False, "effort": "none"},
     },
     "plus": {
-        "en": {"model": GROQ_MODEL_PLUS, "thinking": False},
-        "ar": {"model": GROQ_MODEL_QWEN, "thinking": True},
+        "en": {"model": GROQ_MODEL_PLUS, "thinking": False, "effort": GROQ_EFFORT_PLUS},
+        "ar": {"model": GROQ_MODEL_PLUS, "thinking": False, "effort": GROQ_EFFORT_PLUS},
     },
     "pro": {
-        "en": {"model": GROQ_MODEL_QWEN, "thinking": True},
-        "ar": {"model": GROQ_MODEL_QWEN, "thinking": True},
+        "en": {"model": GROQ_MODEL_PRO, "thinking": True, "effort": None},
+        "ar": {"model": GROQ_MODEL_PLUS, "thinking": True, "effort": GROQ_EFFORT_PRO},
     },
 }
-# P1.2 + Round-13 + Round-19: fallback chain acts as our circuit breaker.
-# Primary route first, then cross-family fallbacks so a single-family Groq
-# outage is less likely to take down the whole chain. The dead Llama ids are
-# REMOVED (shutdown 2026-08-16): a dead id in the chain means a failed primary
-# cascades to a guaranteed-dead fallback. Thinking only applies to qwen models
-# (groq_chat derives per-family params), so falling back from qwen-thinking to
-# gpt-oss degrades gracefully to that model's default medium effort.
+# P1.2 + Round-13 + Round-19 + Round-22: fallback chain acts as our circuit
+# breaker. Primary route first, then cross-family fallbacks so a single-family
+# Groq outage is less likely to take down the whole chain. GPT-OSS ids are
+# REMOVED entirely (Round-22): their 8K TPM pools are the reason we moved to
+# compound + qwen3.8. Effort values are sanitized per model family inside
+# groq_chat (qwen3.6 only accepts none|default), so a pro/ar fallback from
+# qwen3.8-effort-high to qwen3.6 degrades to effort=default gracefully.
 ROUTE_FALLBACKS = {
     ("free", "en"): [GROQ_MODEL_FREE, GROQ_MODEL_PLUS, GROQ_MODEL_QWEN],
-    ("free", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_FREE, GROQ_MODEL_PLUS],
+    ("free", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
     ("plus", "en"): [GROQ_MODEL_PLUS, GROQ_MODEL_FREE, GROQ_MODEL_QWEN],
-    ("plus", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
-    ("pro", "en"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
-    ("pro", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
+    ("plus", "ar"): [GROQ_MODEL_PLUS, GROQ_MODEL_QWEN, GROQ_MODEL_FREE],
+    ("pro", "en"): [GROQ_MODEL_PRO, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
+    ("pro", "ar"): [GROQ_MODEL_PLUS, GROQ_MODEL_QWEN, GROQ_MODEL_FREE],
 }
 
 # Round-19: Arabic-script ranges (base, supplement, extended-A, presentation
@@ -983,7 +990,8 @@ async def groq_chat(
     timeout: int = 120,
     thinking: bool = False,
     reasoning_effort: Optional[str] = None,
-    identity: Optional[str] = None
+    identity: Optional[str] = None,
+    json_mode: bool = False
 ) -> str:
     # P0: surface a missing/invalid key as a distinct, actionable error so
     # the failure mode is obvious in logs and to the caller — do NOT mask it
@@ -1018,21 +1026,43 @@ async def groq_chat(
         "temperature": temperature,
         "max_tokens": max_tokens
     }
-    # Round-19 (Option 3): per-family reasoning controls, per Groq's reasoning
+    # Round-22 (user rule 2): STRICT JSON MODE. Every structured-output call
+    # (quiz generation, PDF quizzes, coach plans) sends response_format
+    # {"type": "json_object"} so the model can never waste tokens on "Here is
+    # your quiz:" filler — the reply is a valid JSON object by construction.
+    # Groq requires the word JSON to appear in the messages (our system prompts
+    # all say "STRICT JSON"), and when combined with reasoning the docs
+    # require reasoning_format parsed|hidden — the qwen thinking branch below
+    # already sets "hidden". If a model family rejects the parameter, the
+    # 400-retry below re-issues the call with a minimal payload.
+    if json_mode:
+        payload["response_format"] = {"type": "json_object"}
+    # Round-19 + Round-22: per-family reasoning controls, per Groq's reasoning
     # docs (console.groq.com/docs/reasoning):
     #   qwen3.6-27b  -> reasoning_effort "none" (fast, no thinking tokens) or
-    #                   "default" (deep thinking). Thinking responses use
-    #                   reasoning_format="hidden" so thinking content NEVER
-    #                   reaches message.content — quiz JSON parsing and the
-    #                   tutor chat stay clean by construction.
-    #   gpt-oss-*    -> reasoning_effort low|medium|high; we leave the platform
-    #                   default (medium) unless a caller overrides.
+    #                   "default" (deep thinking). NOTHING ELSE is accepted.
+    #   qwen3.8-27b  -> none | default | low | medium | high, where "high"
+    #                   selects the model's NATIVE xhigh mode.
+    #   gpt-oss-*    -> low|medium|high (kept for env-overridden deployments).
+    #   compound-*   -> agentic systems that manage their own multi-step
+    #                   reasoning internally; NO reasoning params are sent.
+    # Thinking responses use reasoning_format="hidden" so thinking content
+    # NEVER reaches message.content — quiz JSON parsing and the tutor chat
+    # stay clean by construction (also REQUIRED by Groq when JSON mode is on).
     # Qwen non-thinking sampling follows Groq's model-card best practice
     # (temp .7 / top_p .8 / presence_penalty 1.5); thinking uses top_p .95.
     # Thinking tokens count toward the completion budget, so deep-thinking
     # calls get headroom above the caller's content cap (16K = qwen max out).
     if "qwen" in model_to_use:
         effort = reasoning_effort or ("default" if thinking else "none")
+        # Normalize an operator's "xhigh" override: Groq's reasoning_effort enum
+        # tops out at "high" — which per the docs selects qwen3.8's native xhigh.
+        if effort == "xhigh":
+            effort = "high"
+        # Sanitize for the model generation: qwen3.6 ONLY accepts none|default.
+        # A fallback that lands a low/medium/high effort on qwen3.6 would 400.
+        if "3.8" not in model_to_use and effort not in ("none", "default"):
+            effort = "default" if effort in ("low", "medium", "high") else "none"
         payload["reasoning_effort"] = effort
         if effort != "none":
             payload["reasoning_format"] = "hidden"
@@ -1054,6 +1084,26 @@ async def groq_chat(
     sem = get_groq_semaphore()
     async with sem:
         r = await client.post(GROQ_URL, headers=headers, json=payload, timeout=timeout)
+    # Round-22: a 400 on a model that rejects one of the OPTIONAL params we
+    # send (response_format on some systems, reasoning_effort off-model, …)
+    # is retried ONCE with a bare-bones payload — the three universal params
+    # (model/messages/temperature/max_tokens) are accepted everywhere. This
+    # keeps a new Groq model generation from hard-breaking a whole tier.
+    _optional_keys = ("response_format", "reasoning_effort", "reasoning_format",
+                      "top_p", "presence_penalty")
+    if r.status_code == 400 and any(k in payload for k in _optional_keys):
+        minimal = {
+            "model": model_to_use,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        logger.warning(
+            "Groq 400 on %s with optional params (%s); retrying once with a minimal payload.",
+            model_to_use, ", ".join(k for k in _optional_keys if k in payload)
+        )
+        async with sem:
+            r = await client.post(GROQ_URL, headers=headers, json=minimal, timeout=timeout)
     if r.status_code != 200:
         try:
             err = r.json()
@@ -1080,16 +1130,19 @@ async def groq_chat_with_fallback(
     max_tokens: int = 1200,
     model_override: Optional[str] = None,
     lang: str = "en",
-    identity: Optional[str] = None
+    identity: Optional[str] = None,
+    json_mode: bool = False
 ) -> str:
     tier = (tier or "free").strip().lower()
-    # Round-19 (Option 3): resolve the language-routed primary + thinking flag.
+    # Round-19 (Option 3) + Round-22: resolve the language-routed primary,
+    # thinking flag, and per-route reasoning_effort.
     lang = (lang or "en").strip().lower()
     if lang not in ("en", "ar"):
         lang = "en"
     tier_routes = ROUTE_MODELS.get(tier, ROUTE_MODELS["free"])
     route = tier_routes.get(lang, tier_routes["en"])
     thinking = route["thinking"]
+    route_effort = route.get("effort")
     models = []
     if model_override:
         models.append(model_override)
@@ -1113,7 +1166,9 @@ async def groq_chat_with_fallback(
                     max_tokens=max_tokens,
                     model_override=model,
                     thinking=thinking,
-                    identity=identity
+                    reasoning_effort=route_effort,
+                    identity=identity,
+                    json_mode=json_mode
                 )
             except GroqRateLimitError as e:
                 attempts += 1
@@ -1743,6 +1798,13 @@ async def get_usage(user: Annotated[dict, Depends(get_current_user)]):
             tier_key: {"en": routes["en"]["thinking"], "ar": routes["ar"]["thinking"]}
             for tier_key, routes in ROUTE_MODELS.items()
         },
+        # Round-22: per-route reasoning_effort actually sent to qwen3.8 models
+        # (None = model default / not applicable). Lets the UI explain WHY a
+        # tier is fast (low effort) vs deep (high == native xhigh).
+        "efforts": {
+            tier_key: {"en": routes["en"].get("effort"), "ar": routes["ar"].get("effort")}
+            for tier_key, routes in ROUTE_MODELS.items()
+        },
         "simulated_payments": ALLOW_SIMULATED_PAYMENTS and not _paymob_configured()
     }
 
@@ -2124,6 +2186,16 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
         # anti-Arabizi rule: the model must write Arabic in ARABIC SCRIPT,
         # never Latin transliteration (gpt-oss was producing 'Arabizi' output
         # like 'kayfa halak' instead of 'كيف حالك').
+        # Round-19 (Option 3): route by OUTPUT language — Arabic account OR
+        # Arabic-script topic goes to Qwen (strongest Arabic + math); English
+        # stays on the compound-mini engine. Pro-EN = groq/compound (deep
+        # agentic), Pro-AR = qwen3.8 at effort high (native xhigh).
+        route_lang = "ar" if (language == "ar" or is_arabic(payload.topic)) else "en"
+        # Round-22: free-tier Arabic runs on qwen3.6-27b, whose shared pool is
+        # only 8K TPM / 200K TPD — a single verbose quiz could eat a whole
+        # minute of budget. Force brevity: ≤5 questions (also the structural
+        # app cap) and ONE-sentence explanations, plus a tighter output cap.
+        free_ar_brevity = (tier == "free" and route_lang == "ar")
         topic_is_ar = is_arabic(payload.topic)
         if language == "ar" or topic_is_ar:
             lang_instruction = (
@@ -2137,7 +2209,12 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
                 "DO NOT invent or hallucinate poetry verses. If you do not know the exact verse, ask a general question "
                 "about the poem's theme or author instead. "
                 "Each explanation must state the specific fact that makes its answer correct — never a generic "
-                "template that could fit any question."
+                "template that could fit any question. "
+                + (
+                    "BREVITY (mandatory): at most 5 questions; every explanation is ONE short "
+                    "sentence of at most 15 words; no introductions, no summaries, no extra fields."
+                    if free_ar_brevity else ""
+                )
             )
         else:
             lang_instruction = (
@@ -2164,16 +2241,16 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
             }
         ]
         max_tokens = max(400, num_questions * 250)
-        # Round-19 (Option 3): route by OUTPUT language — Arabic account OR
-        # Arabic-script topic goes to Qwen (strongest Arabic + math); English
-        # topics stay on the fast/cheap GPT-OSS engine. Pro = Qwen deep-thinking.
-        route_lang = "ar" if (language == "ar" or is_arabic(payload.topic)) else "en"
+        # Round-22: cap the free-AR output budget (qwen3.6's 8K TPM pool).
+        if free_ar_brevity:
+            max_tokens = min(max_tokens, 1100)
         raw = await groq_chat_with_fallback(
             messages=messages,
             tier=tier,
             temperature=0.7,
             max_tokens=max_tokens,
-            lang=route_lang
+            lang=route_lang,
+            json_mode=True  # Round-22 rule 2: strict JSON mode on quizzes
         )
         # Round-20: ARABIZI GUARD. If an Arabic quiz comes back written in
         # Latin letters (gpt-oss's favorite failure mode), retry ONCE with an
@@ -2197,7 +2274,8 @@ async def quiz_ai(payload: AIQuizIn, user: Annotated[dict, Depends(get_current_u
                 tier=tier,
                 temperature=0.7,
                 max_tokens=max_tokens,
-                lang=route_lang
+                lang=route_lang,
+                json_mode=True
             )
             if is_arabic(retry_raw, 0.08):
                 raw = retry_raw
@@ -2500,7 +2578,8 @@ async def coach(
             temperature=0.6,
             max_tokens=1200,
             lang=language,  # Round-19: coach output language == account language
-            identity="El-Peak's AI study coach"  # Round-19b: never claim ChatGPT
+            identity="El-Peak's AI study coach",  # Round-19b: never claim ChatGPT
+            json_mode=True  # Round-22 rule 2: strict JSON mode on coach plans
         )
         data = extract_json(raw)
         if not isinstance(data, dict):
@@ -2621,6 +2700,11 @@ async def ask_tutor(payload: AskIn, user: Annotated[dict, Depends(get_current_us
                 "Explain concepts clearly. Use markdown for formatting. "
                 "Keep answers concise but thorough. "
                 f"{language_instruction}"
+                # Round-22: free-AR tutor runs on qwen3.6-27b (8K TPM pool) —
+                # keep replies SHORT so one chat can't blow the minute budget.
+                + (" Keep the answer SHORT: at most ~120 words."
+                   if effective_tier_from_user(user) == "free" and
+                      (language == "ar" or is_arabic(payload.question)) else "")
             )
         },
         *sanitized_history,

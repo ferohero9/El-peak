@@ -758,6 +758,10 @@ ul.perks.perks-sm{gap:8px;font-size:11.5px}
 .msg.ai{align-self:flex-start;background:var(--glass);border:1px solid var(--glass-border);border-bottom-left-radius:4px}
 .msg.loading span{display:inline-block;width:5px;height:5px;background:var(--muted);border-radius:50%;margin:0 2px;animation:bounce 1s infinite}
 .msg.loading span:nth-child(2){animation-delay:.2s} .msg.loading span:nth-child(3){animation-delay:.4s}
+/* Round-22: AI-queue hint shown next to the chat loading dots while this
+   request waits behind another AI call (see aiEnqueue). */
+.msg.loading em.q-hint{font-style:normal;font-size:11px;color:var(--muted);margin-inline-start:10px;letter-spacing:0}
+[dir="rtl"] .msg.loading em.q-hint{letter-spacing:0}
 @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 .chat-input{padding:14px;border-top:1px solid var(--glass-border);display:flex;gap:10px}
 .chat-input input{flex:1;border:1px solid var(--glass-border);background:var(--glass);padding:12px 16px;border-radius:12px;font-size:13px;transition:border-color .25s var(--smooth)}
@@ -1418,7 +1422,7 @@ html[data-lowend="true"] #tip {
     <section class="view" id="view-quiz">
       <div class="view-header">
         <div class="text-block"><div class="kicker" data-i18n="quiz_engine">Quiz Engine</div><h1 class="big" data-i18n="expedition">Expedition</h1></div>
-        <span class="badge ai" id="quizModelBadge">⚡ Groq AI</span>
+        <span class="badge ai" id="quizModelBadge">⚡ Groq · Compound-Mini</span>
       </div>
       <div class="card" id="setupCard">
         <div class="src-seg">
@@ -1570,7 +1574,7 @@ html[data-lowend="true"] #tip {
             <ul class="perks">
               <li data-i18n="perk_free_1">30 AI quiz questions / month</li>
               <li data-i18n="perk_free_2">3 PDF uploads / month (up to 20 pages)</li>
-              <li class="model-line"><span class="ml-label" data-i18n="lang_en_label">English</span><span class="ml-val"><b id="freeModelName">GPT-OSS-20B</b></span></li>
+              <li class="model-line"><span class="ml-label" data-i18n="lang_en_label">English</span><span class="ml-val"><b id="freeModelName">Compound-Mini</b></span></li>
               <li class="model-line"><span class="ml-label" data-i18n="lang_ar_label">العربية</span><span class="ml-val"><b id="freeModelAr">Qwen3.6-27B</b></span></li>
               <li data-i18n="perk_free_3">AI tutor, coach, scheduler &amp; achievements</li>
             </ul>
@@ -1583,8 +1587,8 @@ html[data-lowend="true"] #tip {
             <ul class="perks">
               <li data-i18n="perk_plus_1">120 AI questions / month (4× Free)</li>
               <li data-i18n="perk_plus_2">15 PDF uploads / month (40 pages, 15 MB)</li>
-              <li class="model-line"><span class="ml-label" data-i18n="lang_en_label">English</span><span class="ml-val"><b id="plusModelName">GPT-OSS-120B</b></span></li>
-              <li class="model-line"><span class="ml-label" data-i18n="lang_ar_label">العربية</span><span class="ml-val"><b id="plusModelAr">Qwen3.6-27B</b><span class="dt-tag" id="plusModelArDt" data-i18n="deep_thinking_tag">Deep Thinking</span></span></li>
+              <li class="model-line"><span class="ml-label" data-i18n="lang_en_label">English</span><span class="ml-val"><b id="plusModelName">Qwen3.8-27B</b></span></li>
+              <li class="model-line"><span class="ml-label" data-i18n="lang_ar_label">العربية</span><span class="ml-val"><b id="plusModelAr">Qwen3.8-27B</b></span></li>
               <li data-i18n="perk_plus_3">Everything in Free</li>
             </ul>
             <div class="monthly-disabled"><s>99 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
@@ -1598,7 +1602,8 @@ html[data-lowend="true"] #tip {
             <ul class="perks">
               <li data-i18n="perk_pro_1">350 AI questions / month</li>
               <li data-i18n="perk_pro_2">45 PDF uploads / month (60 pages, 15 MB)</li>
-              <li class="model-line"><span class="ml-label" data-i18n="lang_all_label">All languages</span><span class="ml-val"><b id="proModelName">Qwen3.6-27B</b><span class="dt-tag" id="proModelDt" data-i18n="deep_thinking_tag">Deep Thinking</span></span></li>
+              <li class="model-line"><span class="ml-label" data-i18n="lang_en_label">English</span><span class="ml-val"><b id="proModelName">Compound</b><span class="dt-tag" id="proModelDt" data-i18n="deep_thinking_tag">Deep Thinking</span></span></li>
+              <li class="model-line"><span class="ml-label" data-i18n="lang_ar_label">العربية</span><span class="ml-val"><b id="proModelAr">Qwen3.8-27B</b><span class="dt-tag" id="proModelArDt" data-i18n="deep_thinking_tag">Deep Thinking</span></span></li>
               <li data-i18n="perk_pro_3">Everything in Plus</li>
             </ul>
             <div class="monthly-disabled"><s>199 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
@@ -1730,8 +1735,8 @@ html[data-lowend="true"] #tip {
         <ul class="perks perks-sm">
           <li data-i18n="perk_plus_1">120 AI questions / month (4× Free)</li>
           <li data-i18n="perk_plus_2">15 PDF uploads / month (40 pages, 15 MB)</li>
-          <li class="model-line"><span class="ml-label" data-i18n="lang_en_label">English</span><span class="ml-val"><b id="plusModelNameModal">GPT-OSS-120B</b></span></li>
-          <li class="model-line"><span class="ml-label" data-i18n="lang_ar_label">العربية</span><span class="ml-val"><b id="plusModelArModal">Qwen3.6-27B</b><span class="dt-tag" id="plusModelArDtModal" data-i18n="deep_thinking_tag">Deep Thinking</span></span></li>
+          <li class="model-line"><span class="ml-label" data-i18n="lang_en_label">English</span><span class="ml-val"><b id="plusModelNameModal">Qwen3.8-27B</b></span></li>
+          <li class="model-line"><span class="ml-label" data-i18n="lang_ar_label">العربية</span><span class="ml-val"><b id="plusModelArModal">Qwen3.8-27B</b></span></li>
         </ul>
         <div class="monthly-disabled"><s>99 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
       </div>
@@ -1743,7 +1748,8 @@ html[data-lowend="true"] #tip {
         <ul class="perks perks-sm">
           <li data-i18n="perk_pro_1">350 AI questions / month</li>
           <li data-i18n="perk_pro_2">45 PDF uploads / month (60 pages, 15 MB)</li>
-          <li class="model-line"><span class="ml-label" data-i18n="lang_all_label">All languages</span><span class="ml-val"><b id="proModelNameModal">Qwen3.6-27B</b><span class="dt-tag" id="proModelDtModal" data-i18n="deep_thinking_tag">Deep Thinking</span></span></li>
+          <li class="model-line"><span class="ml-label" data-i18n="lang_en_label">English</span><span class="ml-val"><b id="proModelNameModal">Compound</b><span class="dt-tag" id="proModelDtModal" data-i18n="deep_thinking_tag">Deep Thinking</span></span></li>
+          <li class="model-line"><span class="ml-label" data-i18n="lang_ar_label">العربية</span><span class="ml-val"><b id="proModelArModal">Qwen3.8-27B</b><span class="dt-tag" id="proModelArDtModal" data-i18n="deep_thinking_tag">Deep Thinking</span></span></li>
           <li data-i18n="perk_pro_3">Everything in Plus</li>
         </ul>
         <div class="monthly-disabled"><s>199 EGP / <span data-i18n="month">month</span></s> <span class="coming-soon-tag" data-i18n="coming_soon">Coming Soon</span></div>
@@ -1868,6 +1874,7 @@ const translations = {
     ask_q: "Ask a question...", home: "Home", plan: "Plan", limit_reached: "Limit Reached", limit_sub: "You've used all your free credits for this month. Upgrade to keep your ascent going!",
     maybe_later: "Maybe Later", days: "days",
     gen_ai: "The AI is charting fresh questions…", gen_pdf: "Reading your PDF & mapping the ascent…",
+    queue_wait: "In the AI queue — spacing requests a few seconds apart to keep everyone fast…", queue_pos: "You're #{n} in the AI queue — keeping requests a few seconds apart…",
     coach_focus: "Focus subjects (optional)",
     user_type: "User Type", general: "General", school: "School Student", grade_level: "Grade Level",
     g1_6: "Primary (1-6)", g7_9: "Preparatory (7-9)", g10_12: "Secondary (10-12)",
@@ -1968,6 +1975,7 @@ const translations = {
     ask_q: "اطرح سؤالاً...", home: "الرئيسية", plan: "الخطة", limit_reached: "تم الوصول للحد", limit_sub: "لقد استخدمت كل أرصتك المجانية لهذا الشهر. قم بالترقية لمواصلة صعودك!",
     maybe_later: "ربما لاحقاً", days: "أيام",
     gen_ai: "الذكاء الاصطناعي يكتب أسئلة جديدة…", gen_pdf: "نقرأ ملف الـ PDF ونرسم خطة الصعود…",
+    queue_wait: "في قائمة انتظار الذكاء الاصطناعي — نُباعد الطلبات بضع ثوانٍ لتبقى السرعة عالية…", queue_pos: "أنت في المركز #{n} من قائمة الانتظار — نُباعد الطلبات بضع ثوانٍ للحفاظ على السرعة…",
     coach_focus: "مواضيع التركيز (اختياري)",
     user_type: "نوع المستخدم", general: "عام", school: "طالب مدرسة", grade_level: "المرحلة الدراسية",
     g1_6: "ابتدائية (1-6)", g7_9: "إعدادية (7-9)", g10_12: "ثانوية (10-12)",
@@ -2335,6 +2343,44 @@ async function api(p, o={}) {
       throw new Error(m);
   }
   return r.json();
+}
+
+/* === Round-22 (user rule 3): user-side AI request queue =====================
+   Groq's free developer plan is ~30 RPM / TPM-capped per model at the
+   ORGANIZATION level, so two AI actions fired within the same second (a quiz
+   while the tutor is answering, a coach plan during a PDF job…) can collide
+   with a 429 before the server-side cooldown reacts. Every outbound AI call
+   goes through aiEnqueue(), which guarantees >=2.5s between consecutive AI
+   requests STARTING from this client. The existing loading spinners stay up
+   the whole time, so the spacing reads as normal work; when a request is
+   queued behind another one, onQueued(position) lets the caller surface a
+   "you're #N in the AI queue" state. */
+const AI_QUEUE_GAP_MS = 2500;
+let __aiQueueTail = Promise.resolve();
+let __aiQueueNextAt = 0;   // earliest allowed start time for the next request
+let __aiQueueDepth = 0;    // requests currently queued or running
+function aiEnqueue(makeRequest, onQueued){
+  const position = ++__aiQueueDepth;
+  if (position > 1 && typeof onQueued === "function") {
+    try { onQueued(position); } catch(e){}
+  }
+  const run = __aiQueueTail.then(async () => {
+    const waitMs = __aiQueueNextAt - Date.now();
+    if (waitMs > 0) await new Promise(res => setTimeout(res, waitMs));
+    __aiQueueNextAt = Date.now() + AI_QUEUE_GAP_MS;
+    return await makeRequest();
+  });
+  // Keep the chain alive whether the request succeeds or fails; never let one
+  // rejection poison the queue for every later AI action.
+  __aiQueueTail = run.then(() => {}, () => {});
+  const settle = () => { __aiQueueDepth = Math.max(0, __aiQueueDepth - 1); };
+  run.then(settle, settle);
+  return run;
+}
+function queueText(position){
+  const dict = translations[currentLang] || translations.en;
+  if (position > 1 && dict.queue_pos) return dict.queue_pos.replace("{n}", position);
+  return dict.queue_wait || "";
 }
 
 function showApp() {
@@ -2745,31 +2791,35 @@ function updateDifficultyButtons(grade) {
     if (window.segRefresh) window.segRefresh();
 }
 
-/* === Round-17 + Round-19: REAL model names in the subscription UI ===
+/* === Round-17 + Round-19 + Round-22: REAL model names in the subscription UI ===
    Round-17 replaced the misleading "Upgraded/Premium AI Model" labels with the
-   live per-tier ids. Round-19 (Option 3) upgrades the table to PER-LANGUAGE
-   routing: {tier: {en: id, ar: id}} + deep_thinking flags, mirroring the
-   backend's ROUTE_MODELS (English -> fast GPT-OSS, Arabic -> Qwen, Pro ->
-   Qwen deep-thinking everywhere). prettyModel() strips the vendor prefix and
-   pretty-cases ("openai/gpt-oss-120b" -> "GPT-OSS-120B", "qwen/qwen3.6-27b"
-   -> "Qwen3.6-27B"). Fallbacks mirror the backend defaults so the boxes
-   render correctly before /api/usage answers (or offline in the static demo);
-   the old flat {tier: "id"} shape is still accepted. */
+   live per-tier ids. Round-19 added per-language routing. Round-22 moves the
+   whole table to the compound + qwen3.8 architecture (GPT-OSS dropped):
+     free: en compound-mini (70K TPM agentic) / ar qwen3.6 (fast, no thinking)
+     plus: qwen3.8 both langs at LOW reasoning effort (2M TPD daily driver)
+     pro:  en groq/compound (deep agentic) / ar qwen3.8 at HIGH effort
+   prettyModel() strips the vendor prefix and pretty-cases
+   ("groq/compound-mini" -> "Compound-Mini", "qwen/qwen3.8-27b" ->
+   "Qwen3.8-27B"). Fallbacks mirror the backend defaults so the boxes render
+   correctly before /api/usage answers (or offline in the static demo); the old
+   flat {tier: "id"} shape is still accepted. */
 let tierModels = {
-  free: {en: "openai/gpt-oss-20b",  ar: "qwen/qwen3.6-27b"},
-  plus: {en: "openai/gpt-oss-120b", ar: "qwen/qwen3.6-27b"},
-  pro:  {en: "qwen/qwen3.6-27b",    ar: "qwen/qwen3.6-27b"}
+  free: {en: "groq/compound-mini", ar: "qwen/qwen3.6-27b"},
+  plus: {en: "qwen/qwen3.8-27b",   ar: "qwen/qwen3.8-27b"},
+  pro:  {en: "groq/compound",      ar: "qwen/qwen3.8-27b"}
 };
 let tierThinking = {
   free: {en: false, ar: false},
-  plus: {en: false, ar: true},
+  plus: {en: false, ar: false},
   pro:  {en: true,  ar: true}
 };
 function prettyModel(id){
   const s = String(id||"").split("/").pop().trim();
   if (!s) return "AI";
-  if (/^qwen/i.test(s)) return "Qwen" + s.slice(4).toUpperCase(); // Qwen3.6-27B
-  return s.toUpperCase();                                           // GPT-OSS-120B
+  if (/^compound-mini/i.test(s)) return "Compound-Mini";      // groq/compound-mini
+  if (/^compound$/i.test(s))     return "Compound";            // groq/compound
+  if (/^qwen/i.test(s)) return "Qwen" + s.slice(4).toUpperCase(); // Qwen3.8-27B
+  return s.toUpperCase();
 }
 function tKey(k){
   return (translations[currentLang] && translations[currentLang][k]) ||
@@ -2815,16 +2865,19 @@ function applyTierModels(usage){
     }
   } catch(e){ /* keep fallbacks */ }
   const setTxt = (sel, txt) => { const el=$(sel); if (el) el.textContent = txt; };
-  // Plan-compare boxes (profile) — one line per language.
+  // Plan-compare boxes (profile) — one line per language. Round-22: Pro is now
+  // PER-LANGUAGE too (EN compound / AR qwen3.8), matching the backend table.
   setModel("#freeModelName", null, "free", "en");
   setModel("#freeModelAr",   null, "free", "ar");
   setModel("#plusModelName", null, "plus", "en");
-  setModel("#plusModelAr",   "#plusModelArDt", "plus", "ar");
-  setModel("#proModelName",  "#proModelDt", "pro", "en"); // Pro: one model, all languages
+  setModel("#plusModelAr",   null, "plus", "ar");
+  setModel("#proModelName",  "#proModelDt",   "pro", "en");
+  setModel("#proModelAr",    "#proModelArDt", "pro", "ar");
   // Upgrade-modal boxes.
   setModel("#plusModelNameModal", null, "plus", "en");
-  setModel("#plusModelArModal",   "#plusModelArDtModal", "plus", "ar");
-  setModel("#proModelNameModal",  "#proModelDtModal", "pro", "en");
+  setModel("#plusModelArModal",   null, "plus", "ar");
+  setModel("#proModelNameModal",  "#proModelDtModal",   "pro", "en");
+  setModel("#proModelArModal",    "#proModelArDtModal", "pro", "ar");
   // "Current Plan" ribbon on the right box.
   if (usage && usage.tier) lastKnownTier = usage.tier;
   const tier = lastKnownTier;
@@ -4431,7 +4484,13 @@ $("#beginBtn").onclick = async () => {
             if (!t) throw new Error("Type a topic first");
             let n = parseInt(lenAiSlider.value) || 4;
             n = Math.max(1, Math.min(5, n));
-            quiz = await api("/api/quiz/ai", {method: "POST", body: {topic: t, num_questions: n, difficulty: segVal("diffSeg","d")}});
+            // Round-22: every AI POST goes through the client-side queue —
+            // >=2.5s between AI request starts keeps the shared Groq budget
+            // clear of self-inflicted 429s; queued requests show their spot.
+            quiz = await aiEnqueue(
+                () => { showGenLoader(src); return api("/api/quiz/ai", {method: "POST", body: {topic: t, num_questions: n, difficulty: segVal("diffSeg","d")}}); },
+                pos => showGenQueue(pos)
+            );
         } else {
       if (!pdfFile) throw new Error("Choose a PDF first");
       const fd = new FormData();
@@ -4441,7 +4500,11 @@ $("#beginBtn").onclick = async () => {
       fd.append("num_questions", "0"); // <--- ADD THIS LINE
       
       btn.innerHTML = `<span class="spin"></span> Reading PDF & Generating...`;
-      const jobStart = await api("/api/quiz/pdf", {method: "POST", body: fd});
+      // Round-22: queue the enqueue POST too (it launches the Groq job).
+      const jobStart = await aiEnqueue(
+          () => api("/api/quiz/pdf", {method: "POST", body: fd}),
+          pos => showGenQueue(pos)
+      );
       quiz = await pollPdfJob(jobStart.job_id);
     }
         
@@ -4662,7 +4725,8 @@ async function loadCoachSubjects(){
   try{
     const picked=$$("#coachSubjects .sug.on").map(b=>b.dataset.topic);
     const qs=picked.map(t=>"subjects="+encodeURIComponent(t)).join("&");
-    const d=await api("/api/coach"+(qs?"?"+qs:""));
+    // Round-22: coach plan generation goes through the AI queue too.
+    const d=await aiEnqueue(() => api("/api/coach"+(qs?"?"+qs:"")));
     $("#coachBadge").innerHTML=d.ai?'<span class="badge ai">⚡ GENERATED BY AI</span>':'<span class="badge static">RULE-BASED FALLBACK · OFFLINE</span>';
     $("#coachOut").innerHTML=`<div class="card" style="margin-bottom:24px"><h2 class="sec">${d.headline||""}</h2><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:16px">${(d.focus||[]).map(f=>`<div style="background:var(--glass);padding:16px;border-radius:16px;border:1px solid var(--glass-border)"><div style="font-weight:700;font-size:14px;margin-bottom:6px">◈ ${f.topic}</div><p class="sub" style="margin:0 0 8px;font-size:13px">${f.why}</p><p style="font-size:12px;font-weight:600;color:var(--mint)">🎯 ${f.drill}</p></div>`).join("")}</div></div><div class="grid dash-grid"><div class="card"><h2 class="sec">7-Day Plan</h2><div class="plan">${(d.plan||[]).map(p=>`<div class="day"><div class="dname">${p.day.toUpperCase()}</div><div class="dtask">${p.task}</div></div>`).join("")}</div></div><div class="card"><h2 class="sec">Coach Tips</h2>${(d.tips||[]).map(t=>`<div class="tipbox">${t}</div>`).join("")}<div class="quote">“${d.motivation||""}”</div></div></div>`;
   }catch(e){toast("⚠ "+e.message)}
@@ -4698,7 +4762,17 @@ async function sendChat() {
   $("#chatBody").scrollTop = $("#chatBody").scrollHeight;
   $("#chatSend").disabled = true;
   try {
-    const r = await api("/api/ask", {method: "POST", body:{question: text, history: chatHistory.slice(-6)}});
+    // Round-22: tutor asks go through the AI queue (>=2.5s between AI request
+    // starts). While queued behind another AI action, a small hint with the
+    // queue position appears next to the loading dots.
+    const r = await aiEnqueue(
+      () => {
+        const dots = loadingDiv.querySelector("em.q-hint");
+        if (dots) dots.remove();
+        return api("/api/ask", {method: "POST", body:{question: text, history: chatHistory.slice(-6)}});
+      },
+      pos => { loadingDiv.insertAdjacentHTML("beforeend", `<em class="q-hint">${queueText(pos)}</em>`); }
+    );
     loadingDiv.remove();
     addMsg("ai", r.reply);
     chatHistory.push({role: "assistant", content: r.reply});
@@ -4733,7 +4807,7 @@ function updateCheckoutLabel(){
 window.updateCheckoutLabel = updateCheckoutLabel;
 // Round-17: opening the upgrade modal re-applies the (possibly API-refreshed)
 // model names to the modal boxes. If /api/usage hasn't answered yet the HTML
-// fallbacks ("GPT-OSS-120B Model", matching the backend defaults) remain.
+// fallbacks ("Qwen3.8-27B" / "Compound", matching the backend defaults) remain.
 function showUpgradeModal() { applyTierModels(null); $("#upgradeModal").style.display = "flex"; }
 function closeUpgradeModal(){
     const m = $("#upgradeModal");
@@ -4785,6 +4859,15 @@ function showGenLoader(source) {
   const txt = (translations[currentLang] && translations[currentLang][key]) || translations.en[key];
   const span = genLoaderEl.querySelector(".gen-text");
   if (span) { span.setAttribute("data-i18n", key); span.textContent = txt; }
+  genLoaderEl.hidden = false;
+}
+/* Round-22: swap the loader copy to the AI-queue state while this request
+   waits behind another one (see aiEnqueue). Restored by showGenLoader() when
+   the request actually starts. */
+function showGenQueue(position){
+  if (!genLoaderEl || reducedMotion) return;
+  const span = genLoaderEl.querySelector(".gen-text");
+  if (span) { span.removeAttribute("data-i18n"); span.textContent = queueText(position); }
   genLoaderEl.hidden = false;
 }
 function hideGenLoader() { if (genLoaderEl) genLoaderEl.hidden = true; }

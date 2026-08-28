@@ -42,42 +42,45 @@ import database as db
 logger = logging.getLogger("el-peak.worker")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-# Round-13 (re-verified live against console.groq.com/docs/models + /deprecations):
-# current Production text models are openai/gpt-oss-120b, openai/gpt-oss-20b,
-# qwen/qwen3.6-27b. Groq announced llama-3.1-8b-instant + llama-3.3-70b-versatile
-# deprecation on 2026-06-17 (shutdown 2026-08-16) — those ids are REMOVED from
-# the fallback chain. qwen3.6-27b added as cross-family tertiary fallback.
-# Round-19 (Option 3, mirrors main.py — KEEP IN SYNC): language-routed tiers:
-#   free: en -> gpt-oss-20b      ar -> qwen3.6-27b non-thinking
-#   plus: en -> gpt-oss-120b     ar -> qwen3.6-27b thinking
-#   pro:  all -> qwen3.6-27b thinking
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-GROQ_MODEL_FREE = os.getenv("GROQ_MODEL_FREE", "openai/gpt-oss-20b")
-GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "openai/gpt-oss-120b")
+# Round-22 (mirrors main.py — KEEP IN SYNC): GPT-OSS dropped entirely; routes
+# now run on the compound systems + qwen3 family:
+#   free: en -> groq/compound-mini   ar -> qwen3.6-27b effort=none (+brevity)
+#   plus: en -> qwen3.8-27b low      ar -> qwen3.8-27b low
+#   pro:  en -> groq/compound        ar -> qwen3.8-27b high (== native xhigh)
+# Verified against console.groq.com/docs/compound/systems + /docs/reasoning:
+# qwen3.6 accepts only none|default; qwen3.8 adds low|medium|high; compound
+# systems take no reasoning params at all.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+GROQ_MODEL_FREE = os.getenv("GROQ_MODEL_FREE", "groq/compound-mini")
+GROQ_MODEL_PLUS = os.getenv("GROQ_MODEL_PLUS", "qwen/qwen3.8-27b")
+GROQ_MODEL_PRO = os.getenv("GROQ_MODEL_PRO", "groq/compound")
 GROQ_MODEL_QWEN = os.getenv("GROQ_MODEL_QWEN", "qwen/qwen3.6-27b")
+GROQ_EFFORT_PLUS = os.getenv("GROQ_EFFORT_PLUS", "low")
+GROQ_EFFORT_PRO = os.getenv("GROQ_EFFORT_PRO", "high")
 
-# Round-19 (Option 3): language-routed model selection (mirrors main.py).
+# Round-19 + Round-22 (Option 3, mirrors main.py): language-routed model
+# selection with per-route reasoning_effort.
 ROUTE_MODELS = {
     "free": {
-        "en": {"model": GROQ_MODEL_FREE, "thinking": False},
-        "ar": {"model": GROQ_MODEL_QWEN, "thinking": False},
+        "en": {"model": GROQ_MODEL_FREE, "thinking": False, "effort": None},
+        "ar": {"model": GROQ_MODEL_QWEN, "thinking": False, "effort": "none"},
     },
     "plus": {
-        "en": {"model": GROQ_MODEL_PLUS, "thinking": False},
-        "ar": {"model": GROQ_MODEL_QWEN, "thinking": True},
+        "en": {"model": GROQ_MODEL_PLUS, "thinking": False, "effort": GROQ_EFFORT_PLUS},
+        "ar": {"model": GROQ_MODEL_PLUS, "thinking": False, "effort": GROQ_EFFORT_PLUS},
     },
     "pro": {
-        "en": {"model": GROQ_MODEL_QWEN, "thinking": True},
-        "ar": {"model": GROQ_MODEL_QWEN, "thinking": True},
+        "en": {"model": GROQ_MODEL_PRO, "thinking": True, "effort": None},
+        "ar": {"model": GROQ_MODEL_PLUS, "thinking": True, "effort": GROQ_EFFORT_PRO},
     },
 }
 ROUTE_FALLBACKS = {
     ("free", "en"): [GROQ_MODEL_FREE, GROQ_MODEL_PLUS, GROQ_MODEL_QWEN],
-    ("free", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_FREE, GROQ_MODEL_PLUS],
+    ("free", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
     ("plus", "en"): [GROQ_MODEL_PLUS, GROQ_MODEL_FREE, GROQ_MODEL_QWEN],
-    ("plus", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
-    ("pro", "en"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
-    ("pro", "ar"): [GROQ_MODEL_QWEN, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
+    ("plus", "ar"): [GROQ_MODEL_PLUS, GROQ_MODEL_QWEN, GROQ_MODEL_FREE],
+    ("pro", "en"): [GROQ_MODEL_PRO, GROQ_MODEL_PLUS, GROQ_MODEL_FREE],
+    ("pro", "ar"): [GROQ_MODEL_PLUS, GROQ_MODEL_QWEN, GROQ_MODEL_FREE],
 }
 
 # Round-19: Arabic-script detection (mirrors main.py is_arabic).
@@ -140,7 +143,8 @@ async def groq_chat(
     timeout: int = 60,
     thinking: bool = False,
     reasoning_effort: str = None,
-    identity: str = None  # KEEP-IN-SYNC with main.py (unused in the PDF pipeline)
+    identity: str = None,  # KEEP-IN-SYNC with main.py (unused in the PDF pipeline)
+    json_mode: bool = False
 ) -> str:
     key = os.getenv("GROQ_API_KEY")
     if not key:
@@ -167,13 +171,23 @@ async def groq_chat(
         "temperature": temperature,
         "max_tokens": max_tokens
     }
-    # Round-19 (Option 3, mirrors main.py): per-family reasoning controls.
-    # qwen -> reasoning_effort none|default; thinking uses reasoning_format
-# "hidden" so thinking content never pollutes message.content (PDF quiz JSON
-    # stays parseable). gpt-oss -> low|medium|high (platform default if unset).
+    # Round-22 (mirrors main.py): strict JSON mode on structured outputs.
+    if json_mode:
+        payload["response_format"] = {"type": "json_object"}
+    # Round-19 + Round-22 (Option 3, mirrors main.py): per-family reasoning
+    # controls. qwen -> none|default (3.6) / none|default|low|medium|high (3.8);
+    # thinking uses reasoning_format "hidden" so thinking content never
+    # pollutes message.content (PDF quiz JSON stays parseable — and Groq
+    # REQUIRES parsed|hidden when JSON mode is on). compound systems take no
+    # reasoning params. gpt-oss -> low|medium|high (env-override legacy).
     model_to_use = payload["model"]
     if "qwen" in model_to_use:
         effort = reasoning_effort or ("default" if thinking else "none")
+        if effort == "xhigh":
+            effort = "high"
+        # qwen3.6 ONLY accepts none|default — sanitize cross-family fallbacks.
+        if "3.8" not in model_to_use and effort not in ("none", "default"):
+            effort = "default" if effort in ("low", "medium", "high") else "none"
         payload["reasoning_effort"] = effort
         if effort != "none":
             payload["reasoning_format"] = "hidden"
@@ -189,6 +203,23 @@ async def groq_chat(
         "Content-Type": "application/json"
     }
     r = await client.post(GROQ_URL, headers=headers, json=payload, timeout=timeout)
+    # Round-22 (mirrors main.py): a 400 from a model that rejects an optional
+    # param (response_format / reasoning_*) is retried once with a minimal
+    # payload so a new Groq model generation can't hard-break PDF quizzes.
+    _optional_keys = ("response_format", "reasoning_effort", "reasoning_format",
+                      "top_p", "presence_penalty")
+    if r.status_code == 400 and any(k in payload for k in _optional_keys):
+        minimal = {
+            "model": model_to_use,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        logger.warning(
+            "Groq 400 on %s with optional params; retrying once with a minimal payload.",
+            model_to_use
+        )
+        r = await client.post(GROQ_URL, headers=headers, json=minimal, timeout=timeout)
     if r.status_code != 200:
         try:
             err = r.json()
@@ -206,16 +237,19 @@ async def groq_chat_with_fallback(
     tier: str,
     temperature: float = 0.6,
     max_tokens: int = 1200,
-    lang: str = "en"
+    lang: str = "en",
+    json_mode: bool = False
 ) -> str:
     tier = (tier or "free").strip().lower()
-    # Round-19 (Option 3): resolve the language-routed primary + thinking flag.
+    # Round-19 + Round-22 (Option 3): resolve language-routed primary,
+    # thinking flag, and per-route reasoning_effort.
     lang = (lang or "en").strip().lower()
     if lang not in ("en", "ar"):
         lang = "en"
     tier_routes = ROUTE_MODELS.get(tier, ROUTE_MODELS["free"])
     route = tier_routes.get(lang, tier_routes["en"])
     thinking = route["thinking"]
+    route_effort = route.get("effort")
     models = [route["model"]]
     models.extend(ROUTE_FALLBACKS.get((tier, lang), [GROQ_MODEL]))
     models = _unique_models(models)
@@ -228,7 +262,9 @@ async def groq_chat_with_fallback(
                 temperature=temperature,
                 max_tokens=max_tokens,
                 model_override=model,
-                thinking=thinking
+                thinking=thinking,
+                reasoning_effort=route_effort,
+                json_mode=json_mode
             )
         except Exception as e:
             last_error = e
@@ -417,6 +453,13 @@ async def process_pdf_quiz(
     # (Arabic PDF -> Arabic quiz) plus a hard anti-Arabizi rule — the model
     # must write Arabic in ARABIC SCRIPT, never Latin transliteration.
     doc_is_ar = is_arabic(excerpt[:2000]) or is_arabic(label)
+    # Round-22 (mirrors main.py): free-tier Arabic runs on qwen3.6-27b with its
+    # tight 8K TPM / 200K TPD pool — force brevity on free-AR PDF quizzes too.
+    route_lang = "ar" if (
+        (language or "en").strip().lower() == "ar"
+        or doc_is_ar
+    ) else "en"
+    free_ar_brevity = (tier == "free" and route_lang == "ar")
     if (language or "en").strip().lower() == "ar" or doc_is_ar:
         lang_instruction = (
             "P1: Generate the questions, options, and explanations STRICTLY in Arabic "
@@ -426,7 +469,12 @@ async def process_pdf_quiz(
             "(no Arabizi / Franco-Arab — write 'كتاب' never 'kitab' or 'ktb'). Latin "
             "characters are allowed ONLY for proper nouns, math symbols, chemical "
             "formulas, and code. "
-            "CRITICAL: If the document involves Arabic poetry, literature, or history, you MUST be strictly factual."
+            "CRITICAL: If the document involves Arabic poetry, literature, or history, you MUST be strictly factual. "
+            + (
+                "BREVITY (mandatory): at most 5 questions; every explanation is ONE short "
+                "sentence of at most 15 words; keep each context quote under 120 characters."
+                if free_ar_brevity else ""
+            )
         )
     else:
         lang_instruction = "Generate in English."
@@ -462,20 +510,18 @@ async def process_pdf_quiz(
 
     client = ctx["http"]
     try:
-        # Round-19 (Option 3): route by OUTPUT language. Arabic account OR
-        # Arabic-script document/label -> Qwen (best Arabic + math); English
-        # docs stay on the fast GPT-OSS engine. Pro = Qwen deep-thinking.
-        route_lang = "ar" if (
-            (language or "en").strip().lower() == "ar"
-            or doc_is_ar
-        ) else "en"
+        # Round-19 + Round-22 (Option 3): route by OUTPUT language. Arabic
+        # account OR Arabic-script document/label -> Qwen; English docs stay
+        # on the compound-mini engine. Pro-EN = groq/compound, Pro-AR =
+        # qwen3.8 at effort high (native xhigh).
         raw = await groq_chat_with_fallback(
             client,
             messages=messages,
             tier=tier,
             temperature=0.6,
-            max_tokens=1600,
-            lang=route_lang
+            max_tokens=(1100 if free_ar_brevity else 1600),
+            lang=route_lang,
+            json_mode=True  # Round-22 rule 2: strict JSON mode on PDF quizzes
         )
         # Round-20: ARABIZI GUARD (mirrors main.py) — if an Arabic quiz comes
         # back in Latin letters, retry ONCE with an escalated instruction.
@@ -497,8 +543,9 @@ async def process_pdf_quiz(
                 }],
                 tier=tier,
                 temperature=0.6,
-                max_tokens=1600,
-                lang=route_lang
+                max_tokens=(1100 if free_ar_brevity else 1600),
+                lang=route_lang,
+                json_mode=True
             )
             if is_arabic(retry_raw, 0.08):
                 raw = retry_raw
