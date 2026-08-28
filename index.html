@@ -16,17 +16,16 @@
 :root, [data-theme="dark"] {
   color-scheme: dark;
   --bg:#0a0a16; --ink:#f8fafc; --muted:#94a3b8;
-  /* Round-23: glass fill bumped back up (0.04 read as "plain transparency").
-     With the saturate() in --glass-bf below, cards refract the colorful
-     aurora behind them — the "liquid glass" look is back. */
+  /* Round-23: glass fill bumped back up (0.04 read as "plain transparency"). */
   --glass:rgba(255,255,255,0.055); --glass-strong:rgba(255,255,255,0.095); --glass-border:rgba(255,255,255,0.11);
   --glass-popover:rgba(22,22,38,0.88);
   --accent:#6366f1; --accent-glow:rgba(99,102,241,0.4); --accent-text:#ffffff;
-  /* Round-24: LIQUID GLASS kept, but desaturated to a comfortable level —
-     Round-23's saturate(180%) made every glass surface burn. 145% still
-     refracts the aurora colors behind it without eye strain. Low-end
-     devices override --blur (14px), never 0. */
-  --glass-bf: blur(var(--blur)) saturate(145%) brightness(1.04);
+  /* Round-25: PURE BLUR GLASS. Users reported that saturate() in the
+     backdrop-filter chain made the colors behind glass surfaces (navbar,
+     cards) look "super saturated". The glass is now blur ONLY — no
+     saturate(), no brightness(). Low-end devices override --blur (14px),
+     never 0. */
+  --glass-bf: blur(var(--blur));
   /* Round-16: static radial gradient stops for the body background. Always
      visible (even when .aurora is display:none on low-end devices) so the
      page never reads as "blank". Round-23 doubled the stops (16/13/10 →
@@ -56,7 +55,7 @@
   --bg:#eef2f7; --ink:#0f172a; --muted:#64748b;
   --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.75); --glass-border:rgba(15,23,42,0.07);
   --glass-popover:rgba(255,255,255,0.9);
-  --glass-bf: blur(var(--blur)) saturate(125%);
+  --glass-bf: blur(var(--blur)); /* Round-25: pure blur, no saturate */
   --accent:#4f46e5; --accent-glow:rgba(79,70,229,0.25); --accent-text:#ffffff;
   /* Round-16: light-theme gradient stops — visible against the light gray
      base (#eef2f7) but gentle. Round-23 went 32/26/21 (burning); Round-24
@@ -605,7 +604,7 @@ ul.perks.perks-sm{gap:8px;font-size:11.5px}
    was beating the UA's [hidden]{display:none}, so in iframe mode an EMPTY
    440px container stayed visible above the Paymob form and pushed it way
    down the modal (the user's "payment page is so down" bug). (b) The legacy
-   iframe now sits on an ELEVATED GLASS PANE (blur + saturate + rim + accent
+   iframe now sits on an ELEVATED GLASS PANE (blur + rim + accent
    glow) so Paymob's white page reads as a floating layer of the app instead
    of a foreign white box. */
 [hidden]{display:none !important}
@@ -1787,7 +1786,7 @@ html[data-lowend="true"] #tip {
   <footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
 </div>
 
-<div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);align-items:center;justify-content:center;padding:24px">
+<div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);align-items:center;justify-content:center;padding:24px">
   <div class="auth-card" style="max-width:580px">
     <div class="auth-logo" data-i18n="limit_reached">Limit Reached</div>
     <div class="auth-sub" data-i18n="limit_sub">You've used all your free credits for this month. Upgrade to keep your ascent going!</div>
@@ -1830,7 +1829,7 @@ html[data-lowend="true"] #tip {
      no redirect to a hosted page. When the backend can't create an Intention
      the same modal embeds the classic hosted iframe (payment_token + iframe_id)
      instead. Completion is confirmed SERVER-side via /api/payment/verify. -->
-<div id="paymentModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+<div id="paymentModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="payTitle">
   <div class="auth-card pay-card">
     <button type="button" class="demo-close" id="payCloseBtn" data-i18n-title="demo_close" aria-label="Close" title="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
@@ -1863,7 +1862,7 @@ html[data-lowend="true"] #tip {
   </div>
 </div>
 
-<div id="demoQuizModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="demoQuizTitle">
+<div id="demoQuizModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="demoQuizTitle">
   <div class="auth-card" style="max-width:480px;align-items:stretch">
     <button type="button" class="demo-close" id="demoCloseBtn" data-i18n-title="demo_close" aria-label="Close" title="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
