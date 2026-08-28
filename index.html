@@ -6,7 +6,7 @@
 <title>El-Peak · Study Companion</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 18 L7 4 L10 12 L13 6 L18 18'/%3E%3C/svg%3E">
 <link rel="manifest" href="/el-peak-manifest.json">
-<meta name="theme-color" content="#070710">
+<meta name="theme-color" content="#0a0a16">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -15,24 +15,34 @@
 <style>
 :root, [data-theme="dark"] {
   color-scheme: dark;
-  --bg:#070710; --ink:#f8fafc; --muted:#94a3b8;
-  --glass:rgba(255,255,255,0.04); --glass-strong:rgba(255,255,255,0.08); --glass-border:rgba(255,255,255,0.08);
-  --glass-popover:rgba(20,20,30,0.85);
+  --bg:#0a0a16; --ink:#f8fafc; --muted:#94a3b8;
+  /* Round-23: glass fill bumped back up (0.04 read as "plain transparency").
+     With the saturate() in --glass-bf below, cards refract the colorful
+     aurora behind them — the "liquid glass" look is back. */
+  --glass:rgba(255,255,255,0.055); --glass-strong:rgba(255,255,255,0.095); --glass-border:rgba(255,255,255,0.11);
+  --glass-popover:rgba(22,22,38,0.88);
   --accent:#6366f1; --accent-glow:rgba(99,102,241,0.4); --accent-text:#ffffff;
+  /* Round-23: LIQUID GLASS — every glass surface now goes through --glass-bf,
+     which adds saturate(180%) (+ a whisper of brightness) on top of the blur.
+     Blur alone = frosted; blur + saturate = light bending through colored
+     glass. Low-end devices override --blur (14px), never 0. */
+  --glass-bf: blur(var(--blur)) saturate(180%) brightness(1.07);
   /* Round-16: static radial gradient stops for the body background. Always
      visible (even when .aurora is display:none on low-end devices) so the
-     page never reads as "blank". color-mix in srgb keeps the gradient
+     page never reads as "blank". Round-23: percentages roughly DOUBLED
+     (16/13/10 → 30/24/19) — the user found the old washes invisible and the
+     site read as a flat dark void. color-mix in srgb keeps the gradient
      theme-aware (indigo in dark, indigo+purple in light). */
-  --bg-grad-1:color-mix(in srgb, var(--accent) 16%, transparent);
-  --bg-grad-2:color-mix(in srgb, #a855f7 13%, transparent);
-  --bg-grad-3:color-mix(in srgb, #22d3ee 10%, transparent);
+  --bg-grad-1:color-mix(in srgb, var(--accent) 30%, transparent);
+  --bg-grad-2:color-mix(in srgb, #a855f7 24%, transparent);
+  --bg-grad-3:color-mix(in srgb, #22d3ee 19%, transparent);
   --mint:#34d399; --coral:#fb7185; --amber:#fbbf24; --sky:#38bdf8;
   --r:24px; --blur:40px;
   --disp:'Outfit',sans-serif; --body:'Inter',sans-serif;
   --shadow-sm:0 4px 12px rgba(0,0,0,0.1);
   --shadow-hover:0 16px 40px rgba(0,0,0,0.3);
-  --glass-rim: inset 0 1px 0 rgba(255,255,255,0.07);
-  --glass-rim-strong: inset 0 1px 0 rgba(255,255,255,0.13);
+  --glass-rim: inset 0 1px 0 rgba(255,255,255,0.1);
+  --glass-rim-strong: inset 0 1px 0 rgba(255,255,255,0.17);
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --smooth: cubic-bezier(0.16, 1, 0.3, 1);
   --t-fast: .18s; --t-med: .32s; --t-slow: .5s;
@@ -44,14 +54,16 @@
 [data-theme="light"] {
   color-scheme: light;
   --bg:#eef2f7; --ink:#0f172a; --muted:#64748b;
-  --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.75); --glass-border:rgba(15,23,42,0.05);
+  --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.75); --glass-border:rgba(15,23,42,0.07);
   --glass-popover:rgba(255,255,255,0.9);
+  --glass-bf: blur(var(--blur)) saturate(160%);
   --accent:#4f46e5; --accent-glow:rgba(79,70,229,0.25); --accent-text:#ffffff;
   /* Round-16: light-theme gradient stops — bumped opacity so the washes are
-     visible against the light gray base (#eef2f7). */
-  --bg-grad-1:color-mix(in srgb, var(--accent) 22%, transparent);
-  --bg-grad-2:color-mix(in srgb, #a855f7 18%, transparent);
-  --bg-grad-3:color-mix(in srgb, #22d3ee 14%, transparent);
+     visible against the light gray base (#eef2f7). Round-23: bumped further
+     (22/18/14 → 32/26/21) to match the dark theme's vibrancy. */
+  --bg-grad-1:color-mix(in srgb, var(--accent) 32%, transparent);
+  --bg-grad-2:color-mix(in srgb, #a855f7 26%, transparent);
+  --bg-grad-3:color-mix(in srgb, #22d3ee 21%, transparent);
   --shadow-sm:0 4px 12px rgba(79,70,229,0.05);
   --shadow-hover:0 16px 40px rgba(79,70,229,0.1);
   --glass-rim: inset 0 1px 0 rgba(255,255,255,0.7);
@@ -62,7 +74,10 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
 .lenis.lenis-stopped { overflow: hidden; }
-.lenis.lenis-smooth iframe { pointer-events: none; }
+/* Round-23: `iframe` normally gets pointer-events:none while Lenis smooth-
+   scrolls (iframes swallow wheel events) — but #paymobIframe MUST stay
+   interactive: the user types their card inside it. Excluded explicitly. */
+.lenis.lenis-smooth iframe:not(#paymobIframe) { pointer-events: none; }
 
 /* Round-16: body now carries a STATIC 3-stop radial gradient (indigo top-left,
    purple bottom-right, cyan top-right). Always visible — even when .aurora is
@@ -78,11 +93,14 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--glass-strong);border-radius:10px}
 .aurora{position:fixed;inset:-120px 0;z-index:0;overflow:hidden;pointer-events:none;will-change:transform}
-.blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.4;animation:float 25s var(--smooth) infinite}
-[data-theme="light"] .blob{opacity:0.15}
+.blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.5;animation:float 25s var(--smooth) infinite}
+[data-theme="light"] .blob{opacity:0.2}
 .blob.b1{width:600px;height:600px;background:#6366f1;top:-200px;left:-100px}
 .blob.b2{width:500px;height:500px;background:#22d3ee;bottom:-150px;right:-50px;animation-delay:-8s}
 .blob.b3{width:450px;height:450px;background:#a855f7;top:30%;right:20%;animation-delay:-16s}
+/* Round-23: 4th blob (pink/magenta) — one more color family in the sky so
+   the page reads "colorful" instead of dark-indigo-only. */
+.blob.b4{width:380px;height:380px;background:#f472b6;bottom:18%;left:12%;animation-delay:-12s}
 @keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.1)}}
 
 /* Round-11 layout: authView is now flex-column so the auth-card stacks ABOVE a
@@ -95,7 +113,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
    (features + conn-status + how-works) is in .auth-extras below the card,
    scrollable but no longer competing for attention with the form. */
 #authView{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 24px 32px;gap:14px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;touch-action:pan-y}
-.auth-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:32px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--glass-rim),var(--shadow-hover);padding:40px 40px 44px;width:100%;max-width:380px;animation:authIn .6s var(--spring);display:flex;flex-direction:column;align-items:center;position:relative;flex-shrink:0}
+.auth-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:32px;backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);box-shadow:var(--glass-rim),var(--shadow-hover);padding:40px 40px 44px;width:100%;max-width:380px;animation:authIn .6s var(--spring);display:flex;flex-direction:column;align-items:center;position:relative;flex-shrink:0}
 /* Round-11 — secondary panel below the card for marketing/explainer content.
    Visually distinct from the card (no glass blur, lighter background) so the
    card remains the primary focus. Constrained to the same max-width so the
@@ -219,11 +237,11 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
    space for absolute toggles that no longer exist). RTL flips naturally
    via flex-end (no manual right:auto/left override needed). */
 .auth-quick-settings{width:100%;display:flex;align-items:center;justify-content:flex-end;gap:16px;margin-bottom:14px;z-index:3;flex-shrink:0}
-.auth-lang-toggle{display:flex;gap:4px;padding:5px;background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
+.auth-lang-toggle{display:flex;gap:4px;padding:5px;background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf)}
 .auth-lang-btn{padding:7px 14px;border-radius:100px;font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--muted);transition:color .25s var(--smooth),background .25s var(--smooth),box-shadow .25s var(--smooth);min-width:42px;line-height:1}
 .auth-lang-btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-text);box-shadow:0 2px 10px var(--accent-glow)}
 .auth-lang-btn:not([aria-pressed="true"]):hover{color:var(--ink);background:color-mix(in srgb,var(--accent) 12%,transparent)}
-.auth-theme-btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));color:var(--muted);transition:color .25s var(--smooth),background .25s var(--smooth),transform .25s var(--smooth)}
+.auth-theme-btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);color:var(--muted);transition:color .25s var(--smooth),background .25s var(--smooth),transform .25s var(--smooth)}
 .auth-theme-btn:hover{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);transform:rotate(15deg) scale(1.08)}
 .auth-theme-btn:active{transform:rotate(0) scale(.94)}
 .auth-theme-btn svg{width:15px;height:15px}
@@ -250,7 +268,7 @@ html[data-lowend="true"] .auth-features{animation:none}
    the card; now in .auth-extras the parent gap handles spacing, so margin-top
    is 0. The auth-extras version uses align-self:center so it sits as a small
    centered chip rather than stretching edge-to-edge. */
-.conn-status{display:inline-flex;align-self:center;align-items:center;gap:7px;margin-top:0;padding:6px 14px;border-radius:100px;background:var(--glass);border:1px solid var(--glass-border);font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--muted);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));transition:color .3s var(--smooth),border-color .3s var(--smooth);cursor:default}
+.conn-status{display:inline-flex;align-self:center;align-items:center;gap:7px;margin-top:0;padding:6px 14px;border-radius:100px;background:var(--glass);border:1px solid var(--glass-border);font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--muted);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);transition:color .3s var(--smooth),border-color .3s var(--smooth);cursor:default}
 .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s var(--smooth),box-shadow .3s var(--smooth);position:relative}
 .conn-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:1px solid currentColor;opacity:0;animation:connPing 1.8s var(--ease-wobble) infinite}
 .conn-status[data-state="online"]{color:#10b981;border-color:color-mix(in srgb,#10b981 30%,transparent)}
@@ -334,7 +352,7 @@ html[data-lowend="true"] .how-works,html[data-lowend="true"] .how-step,html[data
 .auth-form .field input:focus,.auth-form .field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
 .auth-btn{width:100%;margin-top:20px;justify-content:center}
 
-nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:blur(var(--blur));background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--glass-rim),var(--shadow-sm);width:calc(100% - 48px);max-width:1100px;height:60px}
+nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--glass-rim),var(--shadow-sm);width:calc(100% - 48px);max-width:1100px;height:60px}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;padding-left:8px}
 .logo svg{width:20px;height:20px}
 .navlinks{position:relative;display:flex;align-items:center;gap:4px;background:var(--glass-strong);padding:4px;border-radius:100px;border:1px solid var(--glass-border)}
@@ -386,7 +404,7 @@ h1.big{font-family:var(--disp);font-weight:700;font-size:clamp(36px,5vw,56px);le
 h2.sec{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:20px;letter-spacing:-0.02em}
 .sub{color:var(--muted);font-size:14px;max-width:560px;line-height:1.6;margin-top:14px}
 .grid{display:grid;gap:20px}
-.card{background:var(--glass);border:1px solid var(--glass-border);border-radius:24px;backdrop-filter:blur(var(--blur));padding:28px;box-shadow:var(--glass-rim),var(--shadow-sm);transition:transform .3s var(--ease-wobble), box-shadow .35s var(--smooth);position:relative}
+.card{background:var(--glass);border:1px solid var(--glass-border);border-radius:24px;backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);padding:28px;box-shadow:var(--glass-rim),var(--shadow-sm);transition:transform .3s var(--ease-wobble), box-shadow .35s var(--smooth);position:relative}
 .card::before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(155deg,rgba(255,255,255,0.045),transparent 42%);pointer-events:none}
 .card:hover{transform:translateY(-4px) scale(1.005);box-shadow:var(--glass-rim-strong),var(--shadow-hover)}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;background:var(--accent);color:var(--accent-text);font-weight:600;font-size:13px;box-shadow:0 8px 20px var(--accent-glow);transition:transform .22s var(--ease-wobble);position:relative;overflow:hidden}
@@ -426,7 +444,7 @@ h2.sec{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:20px
 .select-trigger:hover{border-color:var(--glass-strong)}
 .select-trigger .arrow{width:16px;height:16px;transition:transform .3s var(--spring);opacity:0.7}
 .custom-select.open .select-trigger .arrow{transform:rotate(180deg)}
-.select-menu{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:16px;padding:8px;backdrop-filter:blur(var(--blur));box-shadow:var(--glass-rim),var(--shadow-hover);opacity:0;transform:translateY(-10px) scale(0.95);pointer-events:none;transition:all .3s var(--spring);max-height:200px;overflow-y:auto;z-index:20}
+.select-menu{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:16px;padding:8px;backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);box-shadow:var(--glass-rim),var(--shadow-hover);opacity:0;transform:translateY(-10px) scale(0.95);pointer-events:none;transition:all .3s var(--spring);max-height:200px;overflow-y:auto;z-index:20}
 .custom-select.open .select-menu{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
 .select-option{padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:transform var(--t-tap) var(--smooth),background .2s}
 .select-option:hover{background:var(--glass-strong);transform:translateX(3px)}
@@ -442,7 +460,7 @@ input[type="range"].custom-range::-webkit-slider-thumb{-webkit-appearance:none;a
 input[type="range"].custom-range:active::-webkit-slider-thumb{transform:scale(1.3)}
 input[type="range"].custom-range::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);cursor:pointer;border:none;transition:transform .15s var(--ease-wobble)}
 input[type="range"].custom-range:active::-moz-range-thumb{transform:scale(1.3)}
-.ringwrap{display:flex;align-items:center;gap:20px;padding:16px 28px;background:var(--glass);border:1px solid var(--glass-border);border-radius:24px;backdrop-filter:blur(var(--blur));box-shadow:var(--glass-rim)}
+.ringwrap{display:flex;align-items:center;gap:20px;padding:16px 28px;background:var(--glass);border:1px solid var(--glass-border);border-radius:24px;backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);box-shadow:var(--glass-rim)}
 .ring-svg{width:70px;height:70px;transform:rotate(-90deg)}
 .ring-bg{stroke:var(--glass-border);fill:none;stroke-width:6}
 .ring-arc{stroke:var(--accent);fill:none;stroke-width:6;stroke-linecap:round;filter:drop-shadow(0 0 8px var(--accent-glow));transition:stroke-dashoffset 1.5s var(--smooth)}
@@ -582,17 +600,38 @@ ul.perks.perks-sm{gap:8px;font-size:11.5px}
 .modal-free-note{font-size:11.5px;color:var(--muted);margin:-6px 0 16px;line-height:1.5}
 /* Round-21: Paymob Pixel (Embedded Checkout) modal — custom-styled container
    where the Pixel SDK mounts its card form, plus the legacy iframe fallback
-   and the loading/success/failure status states. */
-.pay-card{max-width:460px;align-items:stretch;padding:34px 28px 26px;max-height:calc(100vh - 48px);overflow-y:auto;overscroll-behavior:contain}
-.pay-summary{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--ink);background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:12px;padding:9px 14px;text-align:center;margin-bottom:8px}
-.pay-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--muted);margin-bottom:16px}
+   and the loading/success/failure status states.
+   Round-23: (a) GLOBAL [hidden] fix — .paymob-pixel-container's display:flex
+   was beating the UA's [hidden]{display:none}, so in iframe mode an EMPTY
+   440px container stayed visible above the Paymob form and pushed it way
+   down the modal (the user's "payment page is so down" bug). (b) The legacy
+   iframe now sits on an ELEVATED GLASS PANE (blur + saturate + rim + accent
+   glow) so Paymob's white page reads as a floating layer of the app instead
+   of a foreign white box. */
+[hidden]{display:none !important}
+.pay-card{max-width:460px;align-items:stretch;padding:30px 26px 24px;max-height:calc(100vh - 48px);overflow-y:auto;overscroll-behavior:contain}
+.pay-summary{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--ink);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 16%,var(--glass-strong)),color-mix(in srgb,#a855f7 12%,var(--glass-strong)));border:1px solid var(--glass-border);border-radius:12px;padding:9px 14px;text-align:center;margin-bottom:8px}
+.pay-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--muted);margin-bottom:14px}
 .pay-secure svg{width:12px;height:12px;flex-shrink:0}
 /* The Pixel container: min-height keeps the modal from jumping while the SDK
    boots; centered content so the loading state sits mid-form. */
 .paymob-pixel-container{min-height:440px;display:flex;flex-direction:column;justify-content:center}
-/* Legacy hosted-iframe fallback: the Paymob page is served inside OUR modal. */
-#paymobIframeWrap iframe{width:100%;min-height:540px;border:0;border-radius:16px;background:var(--glass);display:block}
+/* Round-23: live "listening" indicator — tells the user activation is
+   AUTOMATIC while the auto-verifier polls the backend in the background. */
+.pay-auto{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0 2px;font-size:11px;font-weight:600;color:var(--muted);animation:riseIn .4s var(--smooth)}
+.pay-auto .pay-auto-dot{width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 6px rgba(52,211,153,.8);animation:payPulse 1.8s var(--smooth) infinite;flex-shrink:0}
+@keyframes payPulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.55)}70%{box-shadow:0 0 0 9px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+html[data-lowend="true"] .pay-auto .pay-auto-dot{animation:none}
+/* Legacy hosted-iframe fallback: the Paymob page is served inside OUR modal,
+   elevated on a frosted-glass pane (the user asked for the white Paymob page
+   to be "blurry like the rest of the ui or elevated as another layer" — the
+   pane is exactly that layer; Paymob's inner page can't be styled, so we
+   frame it in glass instead). */
+#paymobIframeWrap{position:relative;border-radius:22px;padding:10px;background:linear-gradient(150deg,rgba(255,255,255,0.1),rgba(255,255,255,0.03) 55%);border:1px solid rgba(255,255,255,0.14);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);box-shadow:var(--glass-rim),0 24px 60px rgba(0,0,0,0.45),0 0 46px color-mix(in srgb,var(--accent) 16%,transparent)}
+[data-theme="light"] #paymobIframeWrap{background:linear-gradient(150deg,rgba(255,255,255,0.75),rgba(255,255,255,0.4) 55%);border-color:rgba(15,23,42,0.09);box-shadow:var(--glass-rim),0 24px 60px rgba(79,70,229,0.14),0 0 46px color-mix(in srgb,var(--accent) 10%,transparent)}
+#paymobIframeWrap iframe{width:100%;min-height:540px;border:0;border-radius:14px;background:#fff;display:block;box-shadow:0 2px 10px rgba(0,0,0,0.18)}
 .pay-iframe-note{font-size:11px;color:var(--muted);line-height:1.55;text-align:center;margin:12px 0}
+html[data-lowend="true"] #paymobIframeWrap{box-shadow:0 1px 3px rgba(0,0,0,0.14)}
 #payStatus{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:440px;text-align:center;padding:16px}
 #payStatus .pay-ic{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;animation:popIn .5s var(--spring)}
 #payStatus .pay-ic.ok{background:rgba(52,211,153,0.12);color:var(--mint);border:1.5px solid rgba(52,211,153,0.4)}
@@ -705,7 +744,7 @@ ul.perks.perks-sm{gap:8px;font-size:11.5px}
 .sug.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
 #coachSubjectsWrap{animation:riseIn .35s var(--smooth)}
 #taskDue{cursor:pointer}
-.dp-pop{position:fixed;z-index:320;width:304px;max-height:min(calc(100vh - 160px), 480px);overflow-y:auto;background:var(--glass-popover);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid var(--glass-border);border-radius:20px;box-shadow:var(--glass-rim),var(--shadow-hover);padding:16px;animation:modalIn .32s var(--ease-wobble)}
+.dp-pop{position:fixed;z-index:320;width:304px;max-height:min(calc(100vh - 160px), 480px);overflow-y:auto;background:var(--glass-popover);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);border:1px solid var(--glass-border);border-radius:20px;box-shadow:var(--glass-rim),var(--shadow-hover);padding:16px;animation:modalIn .32s var(--ease-wobble)}
 .dp-pop[hidden]{display:none}
 .dp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .dp-title{font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:-0.01em}
@@ -744,7 +783,7 @@ ul.perks.perks-sm{gap:8px;font-size:11.5px}
 .chat-fab:hover{transform:scale(1.1) rotate(5deg)}
 .chat-fab.open{transform:rotate(135deg) scale(1.05)}
 .chat-fab:active{transform:scale(.92);transition-duration:var(--t-tap)}
-.chat-win{position:fixed;bottom:100px;right:30px;width:380px;max-width:calc(100vw - 48px);height:550px;max-height:calc(100vh - 140px);background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:24px;box-shadow:var(--glass-rim),0 20px 60px rgba(0,0,0,0.3);z-index:100;display:flex;flex-direction:column;overflow:hidden;transform:scale(0.8) translateY(40px);opacity:0;pointer-events:none;transition:all .4s var(--spring);backdrop-filter:blur(var(--blur))}
+.chat-win{position:fixed;bottom:100px;right:30px;width:380px;max-width:calc(100vw - 48px);height:550px;max-height:calc(100vh - 140px);background:var(--glass-popover);border:1px solid var(--glass-border);border-radius:24px;box-shadow:var(--glass-rim),0 20px 60px rgba(0,0,0,0.3);z-index:100;display:flex;flex-direction:column;overflow:hidden;transform:scale(0.8) translateY(40px);opacity:0;pointer-events:none;transition:all .4s var(--spring);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf)}
 .chat-win.open{transform:scale(1) translateY(0);opacity:1;pointer-events:auto}
 .chat-head{padding:18px 24px;border-bottom:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center}
 .chat-head .ttl{font-family:var(--disp);font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
@@ -771,7 +810,7 @@ ul.perks.perks-sm{gap:8px;font-size:11.5px}
 .chat-input button:active{transform:scale(.92)}
 .chat-input button:disabled{opacity:.6}
 #toasts{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center}
-.toast{background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));color:var(--ink);padding:12px 24px;border-radius:100px;font-weight:500;font-size:13px;box-shadow:var(--glass-rim),0 10px 30px rgba(0,0,0,0.2);animation:toastIn .32s var(--ease-wobble),toastOut .3s var(--smooth) 2.8s forwards}
+.toast{background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);color:var(--ink);padding:12px 24px;border-radius:100px;font-weight:500;font-size:13px;box-shadow:var(--glass-rim),0 10px 30px rgba(0,0,0,0.2);animation:toastIn .32s var(--ease-wobble),toastOut .3s var(--smooth) 2.8s forwards}
 @keyframes toastOut{to{opacity:0;transform:translateY(10px) scale(.94)}}
 @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(0.9)}to{opacity:1;transform:none}}
 
@@ -1038,8 +1077,8 @@ html[dir="rtl"] .demo-drill:hover{transform:translateX(-2px)}
 .demo-drill-txt{flex:1;min-width:0;line-height:1.4}
 @media(prefers-reduced-motion:reduce){.demo-drills,.demo-drill{animation:none}}
 
-#tip{position:fixed;z-index:98;background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:blur(var(--blur));font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s}
-.mobilenav{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;background:var(--glass);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid var(--glass-border);border-radius:100px;padding:6px;gap:4px;box-shadow:var(--glass-rim),var(--shadow-sm)}
+#tip{position:fixed;z-index:98;background:var(--glass-popover);border:1px solid var(--glass-border);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s}
+.mobilenav{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;background:var(--glass);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);border:1px solid var(--glass-border);border-radius:100px;padding:6px;gap:4px;box-shadow:var(--glass-rim),var(--shadow-sm)}
 .mobilenav a{padding:8px 12px;border-radius:100px;text-decoration:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase;transition:transform var(--t-tap) var(--smooth),background .3s,color .3s;white-space:nowrap;position:relative;z-index:1}
 @media(max-width:400px){.mobilenav{gap:2px}.mobilenav a{font-size:9.5px;padding:8px 8px}}
 .mobilenav a:active{transform:scale(.92)}
@@ -1130,14 +1169,26 @@ html[data-theme="light"] body::after{opacity:.02}
    (a user preference) — this is a hardware-capability check. When the JS
    probe (navigator.hardwareConcurrency / deviceMemory + a brief RAF jank
    probe) classifies the device as low-end, it sets data-lowend="true" on
-   <html>. We then: kill the most expensive effects (backdrop-filter blur,
-   aurora + blob animation, heavy box-shadows) while KEEPING basic opacity/
-   transform transitions so the app feels lean, not broken. Detection FAILS
-   OPEN: if the detection APIs are unsupported the attribute is never set, so
-   capable browsers that simply lack the API keep the full experience. */
-html[data-lowend="true"] { --blur: 0px; }
-html[data-lowend="true"] .aurora,
-html[data-lowend="true"] .blob { display: none; animation: none; }
+   <html>.
+   Round-23 REBALANCE — the old rules nuked the experience (blur→0 killed all
+   glass; display:none on .aurora killed all color) and the detection fired
+   on ordinary 4-core laptops, which is exactly what the user reported: "the
+   website is so dark" + "the liquid glass is gone, it's just transparency".
+   Now low-end devices KEEP the color (static gradient aurora — zero GPU cost)
+   and KEEP a lighter glass (14px blur instead of 0). Only the animated blur
+   + heavy shadows are trimmed. Detection FAILS OPEN: if the detection APIs
+   are unsupported the attribute is never set. */
+html[data-lowend="true"] { --blur: 14px; }
+/* Colorful STATIC aurora for low-end: the blobs become pure radial-gradients
+   (no filter:blur, no animation) — visually near-identical when static and
+   free to composite. Never display:none again — that's what made the site
+   read as a dark void. */
+html[data-lowend="true"] .aurora { display: block; }
+html[data-lowend="true"] .blob { animation: none; filter: none; opacity: .5; }
+html[data-lowend="true"] .blob.b1 { background: radial-gradient(circle, rgba(99,102,241,.5) 0%, rgba(99,102,241,.16) 45%, transparent 72%); }
+html[data-lowend="true"] .blob.b2 { background: radial-gradient(circle, rgba(34,211,238,.45) 0%, rgba(34,211,238,.14) 45%, transparent 72%); }
+html[data-lowend="true"] .blob.b3 { background: radial-gradient(circle, rgba(168,85,247,.45) 0%, rgba(168,85,247,.14) 45%, transparent 72%); }
+html[data-lowend="true"] .blob.b4 { background: radial-gradient(circle, rgba(244,114,182,.4) 0%, rgba(244,114,182,.12) 45%, transparent 72%); }
 html[data-lowend="true"] body::after { opacity: .012; }
 /* trim heavy multi-layer box-shadows to a single light one for depth */
 html[data-lowend="true"] .card,
@@ -1184,7 +1235,7 @@ html[data-lowend="true"] #tip {
 </script>
 
 <div class="aurora">
-  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
 </div>
 
 <div id="authView" style="display:none" data-lenis-prevent>
@@ -1722,7 +1773,7 @@ html[data-lowend="true"] #tip {
   <footer>EL-PEAK ▲ · STUDY COMPASS · AI BY GROQ</footer>
 </div>
 
-<div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px">
+<div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);align-items:center;justify-content:center;padding:24px">
   <div class="auth-card" style="max-width:580px">
     <div class="auth-logo" data-i18n="limit_reached">Limit Reached</div>
     <div class="auth-sub" data-i18n="limit_sub">You've used all your free credits for this month. Upgrade to keep your ascent going!</div>
@@ -1765,7 +1816,7 @@ html[data-lowend="true"] #tip {
      no redirect to a hosted page. When the backend can't create an Intention
      the same modal embeds the classic hosted iframe (payment_token + iframe_id)
      instead. Completion is confirmed SERVER-side via /api/payment/verify. -->
-<div id="paymentModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+<div id="paymentModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="payTitle">
   <div class="auth-card pay-card">
     <button type="button" class="demo-close" id="payCloseBtn" data-i18n-title="demo_close" aria-label="Close" title="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
@@ -1783,14 +1834,22 @@ html[data-lowend="true"] #tip {
       <!-- Legacy fallback: the classic hosted iframe (payment_token). -->
       <div id="paymobIframeWrap" hidden>
         <iframe id="paymobIframe" title="Paymob secure payment form"></iframe>
+        <!-- Round-23: live auto-verify indicator — the app polls the backend
+             while this modal is open, so the plan activates by itself the
+             moment Paymob confirms. The manual button stays ONLY as a
+             fallback; the user never has to press it. -->
+        <div class="pay-auto" id="payAutoIndicator">
+          <span class="pay-auto-dot" aria-hidden="true"></span>
+          <span data-i18n="pay_auto_wait">Waiting for your payment — activates automatically</span>
+        </div>
         <p class="pay-iframe-note" data-i18n="pay_iframe_note">Enter your card details in the secure Paymob form above. Your plan activates automatically the moment the payment is confirmed.</p>
-        <button class="btn outline" id="btnPayCheckAgain" style="width:100%;justify-content:center"><span data-i18n="pay_check_again">I've Completed the Payment</span></button>
+        <button class="btn outline" id="btnPayCheckAgain" style="width:100%;justify-content:center"><span data-i18n="pay_check_again">Check payment status</span></button>
       </div>
     </div>
   </div>
 </div>
 
-<div id="demoQuizModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="demoQuizTitle">
+<div id="demoQuizModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(7,7,18,0.62);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-labelledby="demoQuizTitle">
   <div class="auth-card" style="max-width:480px;align-items:stretch">
     <button type="button" class="demo-close" id="demoCloseBtn" data-i18n-title="demo_close" aria-label="Close" title="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
@@ -1867,7 +1926,8 @@ const translations = {
     pay_retry: "Try Again", pay_cancelled: "Payment cancelled — no charge was made.",
     pay_error_sdk: "Couldn't load the secure payment form.", pay_unexpected: "Unexpected payment response.",
     pay_iframe_note: "Enter your card details in the secure Paymob form above. Your plan activates automatically the moment the payment is confirmed.",
-    pay_check_again: "I've Completed the Payment", pay_plan_week: "week",
+    pay_auto_wait: "Waiting for your payment — activates automatically",
+    pay_check_again: "Check payment status", pay_plan_week: "week",
     preferences: "Preferences", settings_sub: "Manage your account details, change your password, and set your preferred language.", account_info: "Account Information",
     email: "Email", username: "Username", language: "Language", save_changes: "Save Changes", security: "Security", current_pass: "Current Password", new_pass: "New Password",
     update_password: "Update Password", tutor: "El-Peak Tutor", powered_groq: "Powered by Groq · Online", tutor_welcome: "Hey! I'm your AI tutor. Ask me anything about your studies.",
@@ -1968,7 +2028,8 @@ const translations = {
     pay_retry: "حاول مرة أخرى", pay_cancelled: "تم إلغاء الدفع — لم يتم أي خصم.",
     pay_error_sdk: "تعذر تحميل نموذج الدفع الآمن.", pay_unexpected: "استجابة دفع غير متوقعة.",
     pay_iframe_note: "أدخل بيانات بطاقتك في نموذج Paymob الآمن أعلاه. تُفعَّل خطتك تلقائياً لحظة تأكيد الدفع.",
-    pay_check_again: "لقد أتممت الدفع", pay_plan_week: "أسبوع",
+    pay_auto_wait: "في انتظار دفعتك — سيتم التفعيل تلقائياً",
+    pay_check_again: "تحقق من حالة الدفع", pay_plan_week: "أسبوع",
     preferences: "التفضيلات", settings_sub: "إدارة تفاصيل حسابك، وتغيير كلمة المرور، وضبط لغتك المفضلة.", account_info: "معلومات الحساب",
     email: "البريد الإلكتروني", username: "اسم المستخدم", language: "اللغة", save_changes: "حفظ التغييرات", security: "الأمان", current_pass: "كلمة المرور الحالية", new_pass: "كلمة مرور جديدة",
     update_password: "تحديث كلمة المرور", tutor: "مدرس El-Peak", powered_groq: "مدعوم من Groq · متصل", tutor_welcome: "مرحباً! أنا مدرسك الذكي. اسألني أي شيء عن دراستك.",
@@ -2123,10 +2184,16 @@ function applyLowEnd() {
   // Static signals (synchronous, instant, no delay on load).
   const cores = typeof nav.hardwareConcurrency === "number" ? nav.hardwareConcurrency : 0;
   const mem = typeof nav.deviceMemory === "number" ? nav.deviceMemory : 0;
-  // Heuristic: <=4 logical cores OR <=2GB RAM is a strong low-end signal.
-  // Both APIs are absent on Firefox/Safari — in that case (cores===0 &&
-  // mem===0) we DON'T classify from static alone; the RAF probe below decides.
-  const staticSignals = (cores > 0 && cores <= 4) || (mem > 0 && mem <= 2);
+  // Round-23 REBALANCE: the old heuristic (<=4 cores OR <=2GB RAM) classified
+  // ordinary 4-core laptops — a huge slice of the user base — as "low-end",
+  // which switched the site into the degraded mode: no aurora color, no glass
+  // blur ("the website is so dark", "the liquid glass is gone"). A 4-core /
+  // 4GB machine composites backdrop-filter just fine. Now only genuinely
+  // weak hardware (<=2 cores OR <=1GB RAM) is classified statically; everyone
+  // else gets the full experience unless the live jank probe below proves
+  // otherwise. Both APIs are absent on Firefox/Safari — in that case the RAF
+  // probe decides (fail-open: never degrade an unknown device).
+  const staticSignals = (cores > 0 && cores <= 2) || (mem > 0 && mem <= 1);
   const apiSupported = cores > 0 || mem > 0;
   if (apiSupported && staticSignals) {
     lowEndDevice = true;
@@ -2137,30 +2204,31 @@ function applyLowEnd() {
     // rendering the full experience indefinitely.
     applyLowEnd();
   }
-  // Brief RAF jank probe (~9 frames, ~150ms at 60fps). Catches devices the
+  // Brief RAF jank probe (~12 frames, ~200ms at 60fps). Catches devices the
   // static signals miss (e.g. an 8-core phone thermally throttled, or a
-  // desktop under heavy load). If sustained frame interval > ~33ms (<30fps),
-  // classify as low-end. Cheap: ~150ms, runs once, never blocks initial paint
-  // (the static decision above is already applied). If RAF is unsupported or
-  // throttled to never, we keep the static decision (fail-open: never degrade
-  // a capable device without evidence, but a statically-detected low-end
-  // device is already handled above).
+  // desktop under heavy load). Round-23: the probe now starts ~1.5s AFTER
+  // load — the first moments of page life are full of font/style/script
+  // parsing that produces >33ms frames even on capable hardware, which
+  // false-positived real users into the degraded mode. Threshold is also
+  // stricter now: sustained frame interval > ~40ms (<25fps), not >33ms.
+  // If RAF is unsupported or throttled to never, we keep the static decision.
   if (typeof requestAnimationFrame === "function") {
     let frames = 0, last = performance.now(), sum = 0, started = false;
     const step = (t) => {
       if (!started) { started = true; last = t; requestAnimationFrame(step); return; }
       sum += (t - last); last = t; frames++;
-      if (frames >= 9) {
+      if (frames >= 12) {
         const avg = sum / frames;
-        if (avg > 33) { lowEndDevice = true; }
+        if (avg > 40) { lowEndDevice = true; }
         applyLowEnd();
         return;
       }
       requestAnimationFrame(step);
     };
-    // Run the probe after the first paint so it doesn't delay initial render.
-    // Wrapped in try/catch so a RAF failure can never throw into page init.
-    try { requestAnimationFrame(() => requestAnimationFrame(step)); } catch (e) {}
+    // Run the probe after the page has settled so load-time jank doesn't
+    // pollute the measurement. Wrapped in try/catch so a RAF failure can
+    // never throw into page init.
+    try { setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(step)), 1500); } catch (e) {}
   }
 })();
 let lenis = null;
@@ -2192,7 +2260,7 @@ function initLenis() {
   // (The HTML also carries the attribute directly; this JS line is belt+suspenders
   // for the case where Lenis re-inits or the attribute gets dropped by a future
   // edit. Touch scroll on phones already worked via touch-action:pan-y on #authView.)
-  $$("#authView, .chat-body, .select-menu, .heat").forEach(el => el.setAttribute("data-lenis-prevent", ""));
+  $$("#authView, .chat-body, .select-menu, .heat, .pay-card, #paymobIframeWrap").forEach(el => el.setAttribute("data-lenis-prevent", ""));
 
   return instance;
 }
@@ -5051,16 +5119,71 @@ function pixelCustomStyle(lang){
 
 let _payCtx = null; // active checkout context: {mode, r, btnId}
 
-function openPaymentModal(){ $("#paymentModal").style.display = "flex"; }
+function openPaymentModal(){
+    const m = $("#paymentModal");
+    m.style.display = "flex";
+    // Round-23: always reopen scrolled to the TOP — the modal reuses one
+    // scrollable card, and a previous session could leave it mid-scroll so
+    // the freshly opened payment form looked "pushed way down".
+    const cardEl = m.querySelector(".pay-card");
+    if (cardEl) cardEl.scrollTop = 0;
+}
 function closePaymentModal(){
     const m = $("#paymentModal");
     if (!m || m.style.display === "none") return;
     m.style.display = "none";
+    stopPayAutoVerify();
     hidePayStatus();
     // Drop any half-initialized Pixel form so the next checkout starts clean.
     const old = $("#paymobPixelContainer");
     if (old) { const fresh = old.cloneNode(false); old.replaceWith(fresh); }
     $("#paymobIframe").src = "about:blank";
+}
+
+/* ============ Round-23: AUTOMATIC payment activation (iframe mode) ============
+   The user should never have to press "I've completed the payment": while the
+   hosted-iframe modal is open we silently poll /api/payment/verify. Pacing:
+   first check after 8s (typing a card takes a while), then every 5s for the
+   first ~2 minutes, then every 15s, capped at 20 minutes. Every iframe load
+   event after the first (Paymob redirects inside the iframe on completion)
+   triggers an immediate check. Terminal states (succeeded/failed) stop the
+   loop; closing the modal stops it too. The server stays the single source
+   of truth for activation — the poll only asks. */
+let _payAutoTimer = null;
+let _payAutoTicks = 0;
+let _payIframeLoads = 0;
+const PAY_AUTO_MAX_TICKS = 110; // 24×5s + rest×15s ≈ 20 minutes
+
+function stopPayAutoVerify(){
+    if (_payAutoTimer) { clearTimeout(_payAutoTimer); _payAutoTimer = null; }
+    _payAutoTicks = 0;
+    const ind = $("#payAutoIndicator");
+    if (ind) ind.hidden = true;
+}
+
+function schedulePayAutoVerify(delay){
+    if (_payAutoTimer) clearTimeout(_payAutoTimer);
+    if (!_payCtx || _payCtx.mode !== "iframe" || !_payCtx.r || !_payCtx.r.merchant_order_id) return;
+    if (_payAutoTicks >= PAY_AUTO_MAX_TICKS) return; // give up quietly; manual button still works
+    _payAutoTimer = setTimeout(async () => {
+        if (!_payCtx || _payCtx.mode !== "iframe") return; // modal closed or switched modes
+        const m = $("#paymentModal");
+        if (!m || m.style.display === "none") return; // modal closed — stop polling
+        _payAutoTicks++;
+        const done = await confirmPaymentActivation(0, {silent: true});
+        if (done) return; // terminal — confirmPaymentActivation already showed the UI
+        // Pace: ticks 1..24 every 5s (≈2 min), then every 15s.
+        schedulePayAutoVerify(_payAutoTicks <= 24 ? 5000 : 15000);
+    }, delay);
+}
+
+// Show the pulsing "activates automatically" badge and start the poll loop.
+function startPayAutoVerify(){
+    stopPayAutoVerify();
+    _payIframeLoads = 0;
+    const ind = $("#payAutoIndicator");
+    if (ind) ind.hidden = false;
+    schedulePayAutoVerify(8000);
 }
 
 function showPayStatus(kind, message){
@@ -5122,11 +5245,16 @@ function _paymobSuccess(res){
 
 // Ask the backend to confirm + activate (it talks to Paymob directly).
 // Retries a couple of times while the transaction is still pending.
-async function confirmPaymentActivation(attempt){
+// Round-23: opts.silent powers the auto-verifier — a silent check NEVER
+// touches the UI while the payment is still pending (the card form must
+// stay on screen), it only reacts to terminal outcomes (success/failed).
+async function confirmPaymentActivation(attempt, opts){
+    const silent = !!(opts && opts.silent);
     if (!_payCtx || !_payCtx.r || !_payCtx.r.merchant_order_id) return false;
     try {
         const v = await api("/api/payment/verify", {method: "POST", body: {merchant_order_id: _payCtx.r.merchant_order_id}});
         if (v.status === "succeeded") {
+            stopPayAutoVerify();
             showPayStatus("success");
             setTimeout(() => {
                 closePaymentModal();
@@ -5135,14 +5263,24 @@ async function confirmPaymentActivation(attempt){
             }, 1900);
             return true;
         }
-        if (v.status === "failed") { showPayStatus("failed"); return true; }
-        if (attempt < 2) { await new Promise(t => setTimeout(t, 2500)); return confirmPaymentActivation(attempt + 1); }
+        if (v.status === "failed") {
+            stopPayAutoVerify();
+            showPayStatus("failed");
+            return true;
+        }
+        // Still pending.
+        if (silent) return false; // keep the card form on screen; the poll loop reschedules
+        if (attempt < 2) { await new Promise(t => setTimeout(t, 2500)); return confirmPaymentActivation(attempt + 1, opts); }
         // Still pending after retries — the webhook will activate it shortly.
         const dict = translations[currentLang] || translations.en;
         showPayStatus("confirming", dict.pay_confirming_slow);
+        // Round-23: even from a manual check, keep auto-polling so the plan
+        // still flips to active (and the UI celebrates) without another click.
+        if (_payCtx && _payCtx.mode === "iframe") schedulePayAutoVerify(6000);
         return true;
     } catch (e) {
-        if (attempt < 1) { await new Promise(t => setTimeout(t, 2500)); return confirmPaymentActivation(attempt + 1); }
+        if (silent) return false; // transient network error — next poll will retry
+        if (attempt < 1) { await new Promise(t => setTimeout(t, 2500)); return confirmPaymentActivation(attempt + 1, opts); }
         const dict = translations[currentLang] || translations.en;
         showPayStatus("confirming", dict.pay_confirming_slow);
         return true;
@@ -5160,6 +5298,7 @@ async function onPaymobPaymentResult(res){
 
 async function openPaymobPixelCheckout(r, btnId){
     _payCtx = {mode: "pixel", r, btnId};
+    stopPayAutoVerify(); // never poll while the Pixel SDK drives its own callbacks
     $("#paySummary").textContent = paySummaryText();
     $("#paymobIframeWrap").hidden = true;
     $("#paymobIframe").src = "about:blank";
@@ -5203,6 +5342,10 @@ function openPaymobIframeCheckout(r){
         ("https://accept.paymob.com/api/acceptance/iframes/" + r.iframe_id + "?payment_token=" + r.payment_token);
     hidePayStatus();
     openPaymentModal();
+    // Round-23: AUTO-ACTIVATION — poll the backend while the iframe is open.
+    // The user pays inside Paymob's form and the plan flips to active by
+    // itself; no "I've completed the payment" press required.
+    startPayAutoVerify();
 }
 
 async function processCheckout(btnId) {
@@ -5231,10 +5374,20 @@ async function processCheckout(btnId) {
  $("#btnCheckout").onclick = () => processCheckout("btnCheckout");
  $("#btnCheckoutModal").onclick = () => processCheckout("btnCheckoutModal");
  $("#payCloseBtn").onclick = closePaymentModal;
+ // Manual fallback (optional since Round-23 — the auto-verifier polls by
+ // itself; this button just asks for an immediate, UI-visible check).
  $("#btnPayCheckAgain").onclick = () => {
      showPayStatus("confirming");
      confirmPaymentActivation(0);
  };
+ // Round-23: every iframe navigation AFTER the first load is Paymob moving
+ // inside the iframe (3DS callback, success/failure redirect…) — ask the
+ // backend for an immediate verdict instead of waiting for the next tick.
+ $("#paymobIframe").addEventListener("load", () => {
+     if (!_payCtx || _payCtx.mode !== "iframe") return;
+     _payIframeLoads++;
+     if (_payIframeLoads > 1) schedulePayAutoVerify(900);
+ });
  // Escape closes the payment modal.
  document.addEventListener("keydown", e => {
      if (e.key !== "Escape") return;

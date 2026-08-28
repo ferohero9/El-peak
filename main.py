@@ -1509,18 +1509,18 @@ async def manifest():
         "scope": "/",
         "display": "standalone",
         "orientation": "portrait-primary",
-        "background_color": "#070710",
-        "theme_color": "#070710",
+        "background_color": "#0a0a16",
+        "theme_color": "#0a0a16",
         "categories": ["education", "productivity"],
         "icons": [
             {
-                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23070710'/%3E%3Cpath d='M96 400 L208 112 L264 272 L320 176 L416 400' fill='none' stroke='%236366f1' stroke-width='28' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%230a0a16'/%3E%3Cpath d='M96 400 L208 112 L264 272 L320 176 L416 400' fill='none' stroke='%236366f1' stroke-width='28' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
                 "sizes": "any",
                 "type": "image/svg+xml",
                 "purpose": "any"
             },
             {
-                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23070710'/%3E%3Cpath d='M96 400 L208 112 L264 272 L320 176 L416 400' fill='none' stroke='%236366f1' stroke-width='28' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%230a0a16'/%3E%3Cpath d='M96 400 L208 112 L264 272 L320 176 L416 400' fill='none' stroke='%236366f1' stroke-width='28' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
                 "sizes": "512x512",
                 "type": "image/svg+xml",
                 "purpose": "maskable"

@@ -14,6 +14,8 @@ El-Peak is a full-stack AI study companion and Progressive Web App built with Fa
 - AI tutor chat
 - Free / Plus / Pro tiers
 - **Paymob Pixel embedded checkout (Round 21)**: card form renders in-app (no redirect) with full branding + Arabic RTL; automatic hosted-iframe fallback; server-verified activation
+- **Automatic payment activation (Round 23)**: the payment modal silently polls `/api/payment/verify` while it is open (8s first check, then every 5s for ~2min, then every 15s, 20min cap; immediate re-check on any iframe navigation), so the plan flips to active — success UI, auto-close, toast — with ZERO button presses. The manual button remains as an optional fallback ("Check payment status")
+- **Liquid-glass UI (Round 23)**: all glass surfaces run `backdrop-filter: blur() saturate(180%)` (new `--glass-bf` variable); background gradient stops roughly doubled for a colorful sky + a 4th pink aurora blob; low-end devices keep a 14px glass blur and a static (GPU-free) colorful aurora instead of losing the whole experience; low-end detection no longer misclassifies ordinary 4-core laptops
 - Paymob checkout and webhook upgrades
 - Google OAuth
 - PWA support
