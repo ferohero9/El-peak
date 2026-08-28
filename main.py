@@ -612,6 +612,29 @@ def _as_bool(value: Any) -> bool:
         return value
     return str(value).strip().lower() in ("1", "true", "yes", "y")
 
+def _txn_evidence(t: dict) -> bool:
+    """Round-24: True when an inquiry object describes a REAL transaction
+    (transaction_id / positive amount / non-empty data payload) versus a bare
+    inquiry acknowledgement like {"success": true, "transaction_id": null}.
+
+    Why this exists: some Paymob accounts answer transaction_inquiry with a
+    top-level "success" flag that merely means the INQUIRY request was
+    understood. Trusting it made /api/payment/verify report "succeeded" for
+    orders that were never paid. Now a payment only counts as succeeded when
+    Paymob returns a real transaction object that says it succeeded."""
+    txn_id = t.get("transaction_id")
+    if txn_id is not None:
+        s = str(txn_id).strip().lower()
+        if s not in ("", "0", "none", "null"):
+            return True
+    try:
+        if int(t.get("amount_cents") or 0) > 0:
+            return True
+    except (TypeError, ValueError):
+        pass
+    data = t.get("data")
+    return isinstance(data, dict) and bool(data)
+
 def _hmac_value(value: Any) -> str:
     if value is None:
         return ""
@@ -2078,9 +2101,13 @@ async def verify_payment(payload: PaymentVerifyIn, user: Annotated[dict, Depends
     # accept a list of transactions (older Paymob deployments did that).
     txns = data if isinstance(data, list) else [data]
     txns = [t for t in txns if isinstance(t, dict)]
-    if not txns:
-        return {"status": "pending", "reason": "no_transaction_yet"}
-    succeeded = next((t for t in txns if _as_bool(t.get("success"))), None)
+    # Round-24: evidence-based verdicts. A response with NO real transaction
+    # (bare acknowledgement, empty list, "success":false with no transaction
+    # payload) means NOTHING WAS PAID — report it as an explicit no-payment
+    # pending, never as success and never as failure.
+    if not txns or not any(_txn_evidence(t) for t in txns):
+        return {"status": "pending", "reason": "no_payment"}
+    succeeded = next((t for t in txns if _as_bool(t.get("success")) and _txn_evidence(t)), None)
     if succeeded is not None:
         upgraded = await db.finalize_payment(
             user_id=parsed["user_id"],
@@ -2094,8 +2121,10 @@ async def verify_payment(payload: PaymentVerifyIn, user: Annotated[dict, Depends
             logger.info("Pixel verify upgraded user %s to %s (%s)", parsed["user_id"], tier, period)
         return {"status": "succeeded", "upgraded": upgraded, "tier": tier, "period": period}
     if any(_as_bool(t.get("pending")) for t in txns):
-        return {"status": "pending", "reason": "transaction_pending"}
-    return {"status": "failed"}
+        return {"status": "pending", "reason": "processing"}
+    # Real transactions exist, none succeeded, none pending -> a genuine
+    # failed/declined attempt (transaction evidence present).
+    return {"status": "failed", "reason": "transaction_failed"}
 
 # -----------------------------
 # DASHBOARD ROUTES

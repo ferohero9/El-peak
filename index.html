@@ -22,20 +22,20 @@
   --glass:rgba(255,255,255,0.055); --glass-strong:rgba(255,255,255,0.095); --glass-border:rgba(255,255,255,0.11);
   --glass-popover:rgba(22,22,38,0.88);
   --accent:#6366f1; --accent-glow:rgba(99,102,241,0.4); --accent-text:#ffffff;
-  /* Round-23: LIQUID GLASS — every glass surface now goes through --glass-bf,
-     which adds saturate(180%) (+ a whisper of brightness) on top of the blur.
-     Blur alone = frosted; blur + saturate = light bending through colored
-     glass. Low-end devices override --blur (14px), never 0. */
-  --glass-bf: blur(var(--blur)) saturate(180%) brightness(1.07);
+  /* Round-24: LIQUID GLASS kept, but desaturated to a comfortable level —
+     Round-23's saturate(180%) made every glass surface burn. 145% still
+     refracts the aurora colors behind it without eye strain. Low-end
+     devices override --blur (14px), never 0. */
+  --glass-bf: blur(var(--blur)) saturate(145%) brightness(1.04);
   /* Round-16: static radial gradient stops for the body background. Always
      visible (even when .aurora is display:none on low-end devices) so the
-     page never reads as "blank". Round-23: percentages roughly DOUBLED
-     (16/13/10 → 30/24/19) — the user found the old washes invisible and the
-     site read as a flat dark void. color-mix in srgb keeps the gradient
-     theme-aware (indigo in dark, indigo+purple in light). */
-  --bg-grad-1:color-mix(in srgb, var(--accent) 30%, transparent);
-  --bg-grad-2:color-mix(in srgb, #a855f7 24%, transparent);
-  --bg-grad-3:color-mix(in srgb, #22d3ee 19%, transparent);
+     page never reads as "blank". Round-23 doubled the stops (16/13/10 →
+     30/24/19) which was TOO much; Round-24 settles at 20/16/12 — clearly
+     more colorful than the old flat-dark look, ~35% gentler than R23.
+     color-mix in srgb keeps the gradient theme-aware. */
+  --bg-grad-1:color-mix(in srgb, var(--accent) 20%, transparent);
+  --bg-grad-2:color-mix(in srgb, #a855f7 16%, transparent);
+  --bg-grad-3:color-mix(in srgb, #22d3ee 12%, transparent);
   --mint:#34d399; --coral:#fb7185; --amber:#fbbf24; --sky:#38bdf8;
   --r:24px; --blur:40px;
   --disp:'Outfit',sans-serif; --body:'Inter',sans-serif;
@@ -56,14 +56,14 @@
   --bg:#eef2f7; --ink:#0f172a; --muted:#64748b;
   --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.75); --glass-border:rgba(15,23,42,0.07);
   --glass-popover:rgba(255,255,255,0.9);
-  --glass-bf: blur(var(--blur)) saturate(160%);
+  --glass-bf: blur(var(--blur)) saturate(125%);
   --accent:#4f46e5; --accent-glow:rgba(79,70,229,0.25); --accent-text:#ffffff;
-  /* Round-16: light-theme gradient stops — bumped opacity so the washes are
-     visible against the light gray base (#eef2f7). Round-23: bumped further
-     (22/18/14 → 32/26/21) to match the dark theme's vibrancy. */
-  --bg-grad-1:color-mix(in srgb, var(--accent) 32%, transparent);
-  --bg-grad-2:color-mix(in srgb, #a855f7 26%, transparent);
-  --bg-grad-3:color-mix(in srgb, #22d3ee 21%, transparent);
+  /* Round-16: light-theme gradient stops — visible against the light gray
+     base (#eef2f7) but gentle. Round-23 went 32/26/21 (burning); Round-24
+     settles at 24/19/15. */
+  --bg-grad-1:color-mix(in srgb, var(--accent) 24%, transparent);
+  --bg-grad-2:color-mix(in srgb, #a855f7 19%, transparent);
+  --bg-grad-3:color-mix(in srgb, #22d3ee 15%, transparent);
   --shadow-sm:0 4px 12px rgba(79,70,229,0.05);
   --shadow-hover:0 16px 40px rgba(79,70,229,0.1);
   --glass-rim: inset 0 1px 0 rgba(255,255,255,0.7);
@@ -93,8 +93,8 @@ input,select{font-family:inherit;outline:none;background:none;color:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--glass-strong);border-radius:10px}
 .aurora{position:fixed;inset:-120px 0;z-index:0;overflow:hidden;pointer-events:none;will-change:transform}
-.blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.5;animation:float 25s var(--smooth) infinite}
-[data-theme="light"] .blob{opacity:0.2}
+.blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.38;animation:float 25s var(--smooth) infinite}
+[data-theme="light"] .blob{opacity:0.16}
 .blob.b1{width:600px;height:600px;background:#6366f1;top:-200px;left:-100px}
 .blob.b2{width:500px;height:500px;background:#22d3ee;bottom:-150px;right:-50px;animation-delay:-8s}
 .blob.b3{width:450px;height:450px;background:#a855f7;top:30%;right:20%;animation-delay:-16s}
@@ -417,7 +417,7 @@ h2.sec{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:20px
 .btn.loading .spin{display:inline-block}
 .btn.loading:not(.outline){animation:breathe 1.8s ease-in-out infinite}
 .btn.loading::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,0.16) 50%,transparent 70%);transform:translateX(-110%);animation:sheen 1.6s var(--smooth) infinite;pointer-events:none}
-@keyframes breathe{0%,100%{box-shadow:0 8px 20px var(--accent-glow)}50%{box-shadow:0 10px 34px color-mix(in srgb,var(--accent) 65%,transparent)}}
+@keyframes breathe{0%,100%{box-shadow:0 8px 20px var(--accent-glow)}50%{box-shadow:0 10px 34px color-mix(in srgb,var(--accent) 42%,transparent)}}
 @keyframes sheen{to{transform:translateX(110%)}}
 @media(hover:hover){
   .btn::after{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,0.22),transparent 60%);opacity:0;transition:opacity var(--t-med) var(--smooth);pointer-events:none}
@@ -610,7 +610,7 @@ ul.perks.perks-sm{gap:8px;font-size:11.5px}
    of a foreign white box. */
 [hidden]{display:none !important}
 .pay-card{max-width:460px;align-items:stretch;padding:30px 26px 24px;max-height:calc(100vh - 48px);overflow-y:auto;overscroll-behavior:contain}
-.pay-summary{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--ink);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 16%,var(--glass-strong)),color-mix(in srgb,#a855f7 12%,var(--glass-strong)));border:1px solid var(--glass-border);border-radius:12px;padding:9px 14px;text-align:center;margin-bottom:8px}
+.pay-summary{font-family:var(--disp);font-weight:700;font-size:14.5px;color:var(--ink);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 11%,var(--glass-strong)),color-mix(in srgb,#a855f7 8%,var(--glass-strong)));border:1px solid var(--glass-border);border-radius:12px;padding:9px 14px;text-align:center;margin-bottom:8px}
 .pay-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--muted);margin-bottom:14px}
 .pay-secure svg{width:12px;height:12px;flex-shrink:0}
 /* The Pixel container: min-height keeps the modal from jumping while the SDK
@@ -627,8 +627,8 @@ html[data-lowend="true"] .pay-auto .pay-auto-dot{animation:none}
    to be "blurry like the rest of the ui or elevated as another layer" — the
    pane is exactly that layer; Paymob's inner page can't be styled, so we
    frame it in glass instead). */
-#paymobIframeWrap{position:relative;border-radius:22px;padding:10px;background:linear-gradient(150deg,rgba(255,255,255,0.1),rgba(255,255,255,0.03) 55%);border:1px solid rgba(255,255,255,0.14);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);box-shadow:var(--glass-rim),0 24px 60px rgba(0,0,0,0.45),0 0 46px color-mix(in srgb,var(--accent) 16%,transparent)}
-[data-theme="light"] #paymobIframeWrap{background:linear-gradient(150deg,rgba(255,255,255,0.75),rgba(255,255,255,0.4) 55%);border-color:rgba(15,23,42,0.09);box-shadow:var(--glass-rim),0 24px 60px rgba(79,70,229,0.14),0 0 46px color-mix(in srgb,var(--accent) 10%,transparent)}
+#paymobIframeWrap{position:relative;border-radius:22px;padding:10px;background:linear-gradient(150deg,rgba(255,255,255,0.1),rgba(255,255,255,0.03) 55%);border:1px solid rgba(255,255,255,0.14);backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);box-shadow:var(--glass-rim),0 24px 60px rgba(0,0,0,0.4),0 0 46px color-mix(in srgb,var(--accent) 11%,transparent)}
+[data-theme="light"] #paymobIframeWrap{background:linear-gradient(150deg,rgba(255,255,255,0.75),rgba(255,255,255,0.4) 55%);border-color:rgba(15,23,42,0.09);box-shadow:var(--glass-rim),0 24px 60px rgba(79,70,229,0.1),0 0 46px color-mix(in srgb,var(--accent) 8%,transparent)}
 #paymobIframeWrap iframe{width:100%;min-height:540px;border:0;border-radius:14px;background:#fff;display:block;box-shadow:0 2px 10px rgba(0,0,0,0.18)}
 .pay-iframe-note{font-size:11px;color:var(--muted);line-height:1.55;text-align:center;margin:12px 0}
 html[data-lowend="true"] #paymobIframeWrap{box-shadow:0 1px 3px rgba(0,0,0,0.14)}
@@ -639,6 +639,20 @@ html[data-lowend="true"] #paymobIframeWrap{box-shadow:0 1px 3px rgba(0,0,0,0.14)
 #payStatus .pay-t{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--ink);animation:riseIn .4s var(--smooth)}
 #payStatus .pay-s{font-size:12px;color:var(--muted);line-height:1.6;max-width:320px;animation:riseIn .4s var(--smooth) .05s backwards}
 #payStatus .spinner{width:38px;height:38px;border:3px solid var(--glass-strong);border-top-color:var(--accent);border-radius:50%;animation:spin 0.9s linear infinite}
+/* Round-24: INLINE notice states ("checking"/"none_yet"/"processing"/
+   "checkerr") — compact amber-tinted notices that sit ABOVE the card form
+   WITHOUT hiding it, so the user can still complete their payment. The old
+   full-takeover states (loading/confirming/success/failed…) keep the
+   440px min-height. This is what makes the manual "Check payment status"
+   button honest: unpaid -> "No payment received yet" instead of the old
+   misleading "Payment received — activating your plan…". */
+#payStatus.inline{min-height:0;gap:7px;padding:11px 14px;margin-bottom:12px;border-radius:12px;background:color-mix(in srgb,var(--amber) 7%,var(--glass));border:1px solid color-mix(in srgb,var(--amber) 24%,transparent)}
+#payStatus.inline.err{background:color-mix(in srgb,var(--coral) 7%,var(--glass));border-color:color-mix(in srgb,var(--coral) 26%,transparent)}
+#payStatus.inline .spinner{width:22px;height:22px;border-width:2.5px}
+#payStatus.inline .pay-ic{width:30px;height:30px;font-size:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;animation:popIn .4s var(--spring);background:rgba(251,191,36,0.12);color:var(--amber);border:1.5px solid rgba(251,191,36,0.4)}
+#payStatus.inline.err .pay-ic{background:rgba(251,113,133,0.12);color:var(--coral);border-color:rgba(251,113,133,0.4)}
+#payStatus.inline .pay-t{font-size:12.5px}
+#payStatus.inline .pay-s{font-size:10.5px;max-width:100%;line-height:1.55}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:880px){.plan-compare{grid-template-columns:1fr}}
 .qbar{height:4px;border-radius:99px;background:var(--glass-strong);overflow:hidden;margin-bottom:28px}
@@ -1184,11 +1198,11 @@ html[data-lowend="true"] { --blur: 14px; }
    free to composite. Never display:none again — that's what made the site
    read as a dark void. */
 html[data-lowend="true"] .aurora { display: block; }
-html[data-lowend="true"] .blob { animation: none; filter: none; opacity: .5; }
-html[data-lowend="true"] .blob.b1 { background: radial-gradient(circle, rgba(99,102,241,.5) 0%, rgba(99,102,241,.16) 45%, transparent 72%); }
-html[data-lowend="true"] .blob.b2 { background: radial-gradient(circle, rgba(34,211,238,.45) 0%, rgba(34,211,238,.14) 45%, transparent 72%); }
-html[data-lowend="true"] .blob.b3 { background: radial-gradient(circle, rgba(168,85,247,.45) 0%, rgba(168,85,247,.14) 45%, transparent 72%); }
-html[data-lowend="true"] .blob.b4 { background: radial-gradient(circle, rgba(244,114,182,.4) 0%, rgba(244,114,182,.12) 45%, transparent 72%); }
+html[data-lowend="true"] .blob { animation: none; filter: none; opacity: .38; }
+html[data-lowend="true"] .blob.b1 { background: radial-gradient(circle, rgba(99,102,241,.32) 0%, rgba(99,102,241,.1) 45%, transparent 72%); }
+html[data-lowend="true"] .blob.b2 { background: radial-gradient(circle, rgba(34,211,238,.28) 0%, rgba(34,211,238,.09) 45%, transparent 72%); }
+html[data-lowend="true"] .blob.b3 { background: radial-gradient(circle, rgba(168,85,247,.28) 0%, rgba(168,85,247,.09) 45%, transparent 72%); }
+html[data-lowend="true"] .blob.b4 { background: radial-gradient(circle, rgba(244,114,182,.25) 0%, rgba(244,114,182,.08) 45%, transparent 72%); }
 html[data-lowend="true"] body::after { opacity: .012; }
 /* trim heavy multi-layer box-shadows to a single light one for depth */
 html[data-lowend="true"] .card,
@@ -1921,6 +1935,10 @@ const translations = {
     secure_checkout: "Secure Checkout", secured_by_paymob: "Payments processed securely by Paymob",
     pay_preparing: "Preparing the secure card form…", pay_confirming: "Payment received — activating your plan…",
     pay_confirming_slow: "Almost there — your plan activates within a minute. You can close this window.",
+    pay_checking: "Checking your payment status…",
+    pay_none_yet: "No payment received yet", pay_none_yet_sub: "Complete your payment in the form below — your plan will activate automatically once it's confirmed.",
+    pay_processing: "Your payment is still processing — give it a few seconds, then check again.",
+    pay_check_err: "Couldn't reach the payment service. Check your connection and try again.",
     pay_success_title: "Payment successful!", pay_success_sub: "Your plan is now active. Time to climb.",
     pay_failed_title: "Payment failed", pay_failed_sub: "No charge was made. Check your card details and try again.",
     pay_retry: "Try Again", pay_cancelled: "Payment cancelled — no charge was made.",
@@ -2023,6 +2041,10 @@ const translations = {
     secure_checkout: "دفع آمن", secured_by_paymob: "مدفوعات آمنة عبر Paymob",
     pay_preparing: "جاري تحضير نموذج البطاقة الآمن…", pay_confirming: "تم استلام الدفع — جاري تنشيط خطتك…",
     pay_confirming_slow: "أوشكنا على الانتهاء — ستُفعَّل خطتك خلال دقيقة. يمكنك إغلاق هذه النافذة.",
+    pay_checking: "جاري التحقق من حالة الدفع…",
+    pay_none_yet: "لم يتم استلام أي دفع بعد", pay_none_yet_sub: "أكمل الدفع في النموذج بالأسفل — ستُفعَّل خطتك تلقائياً بمجرد تأكيد الدفع.",
+    pay_processing: "دفعك قيد المعالجة — انتظر بضع ثوانٍ ثم تحقق مجدداً.",
+    pay_check_err: "تعذّر الوصول إلى خدمة الدفع. تحقق من اتصالك ثم حاول مجدداً.",
     pay_success_title: "تم الدفع بنجاح!", pay_success_sub: "خطتك مفعّلة الآن. حان وقت التسلق.",
     pay_failed_title: "فشل الدفع", pay_failed_sub: "لم يتم أي خصم. تحقق من بيانات بطاقتك وحاول مرة أخرى.",
     pay_retry: "حاول مرة أخرى", pay_cancelled: "تم إلغاء الدفع — لم يتم أي خصم.",
@@ -5191,10 +5213,24 @@ function showPayStatus(kind, message){
     if (!el) return;
     const dict = translations[currentLang] || translations.en;
     const body = $("#payBody");
+    // Round-24: the four INLINE kinds render a compact notice ABOVE the card
+    // form and KEEP the form visible; every other kind is a full takeover
+    // (form hidden). "none_yet" is the honest unpaid verdict.
+    const inline = (kind === "checking" || kind === "none_yet" || kind === "processing" || kind === "checkerr");
     el.hidden = false;
-    if (body) body.hidden = true;
+    el.classList.toggle("inline", inline);
+    el.classList.toggle("err", kind === "checkerr");
+    if (body) body.hidden = !inline;
     if (kind === "loading") {
         el.innerHTML = '<div class="spinner" role="status" aria-label="loading"></div><div class="pay-t">' + esc(dict.pay_preparing) + '</div>';
+    } else if (kind === "checking") {
+        el.innerHTML = '<div class="spinner" role="status" aria-label="loading"></div><div class="pay-t">' + esc(dict.pay_checking) + '</div>';
+    } else if (kind === "processing") {
+        el.innerHTML = '<div class="spinner" role="status" aria-label="loading"></div><div class="pay-t">' + esc(dict.pay_processing) + '</div>';
+    } else if (kind === "none_yet") {
+        el.innerHTML = '<div class="pay-ic">⏳</div><div class="pay-t">' + esc(dict.pay_none_yet) + '</div><div class="pay-s">' + esc(dict.pay_none_yet_sub) + '</div>';
+    } else if (kind === "checkerr") {
+        el.innerHTML = '<div class="pay-ic">⚠</div><div class="pay-t">' + esc(dict.pay_check_err) + '</div>';
     } else if (kind === "confirming") {
         el.innerHTML = '<div class="spinner" role="status" aria-label="loading"></div><div class="pay-t">' + esc(message || dict.pay_confirming) + '</div>';
     } else if (kind === "success") {
@@ -5216,7 +5252,7 @@ function showPayStatus(kind, message){
 }
 function hidePayStatus(){
     const el = $("#payStatus");
-    if (el) { el.hidden = true; el.innerHTML = ""; }
+    if (el) { el.hidden = true; el.innerHTML = ""; el.classList.remove("inline", "err"); }
     const body = $("#payBody");
     if (body) body.hidden = false;
 }
@@ -5244,13 +5280,22 @@ function _paymobSuccess(res){
 }
 
 // Ask the backend to confirm + activate (it talks to Paymob directly).
-// Retries a couple of times while the transaction is still pending.
-// Round-23: opts.silent powers the auto-verifier — a silent check NEVER
-// touches the UI while the payment is still pending (the card form must
-// stay on screen), it only reacts to terminal outcomes (success/failed).
+// Round-24 HONEST VERDICTS — opts:
+//   {silent:true}        auto-verifier poll: never touch the UI while pending
+//   {manual:true}        the user pressed "Check payment status": no retries,
+//                        pending shows the honest "No payment received yet"
+//                        notice with the card form STILL VISIBLE
+//   {expectSuccess:true} the Paymob SDK already reported a successful payment;
+//                        "almost there, activating" copy is accurate here
+// Before Round-24 the manual path showed "Payment received — activating your
+// plan…" the moment the button was pressed and "your plan activates within a
+// minute" when nothing had been paid — which read as a false success.
 async function confirmPaymentActivation(attempt, opts){
     const silent = !!(opts && opts.silent);
+    const manual = !!(opts && opts.manual);
+    const expectSuccess = !!(opts && opts.expectSuccess);
     if (!_payCtx || !_payCtx.r || !_payCtx.r.merchant_order_id) return false;
+    const dict = translations[currentLang] || translations.en;
     try {
         const v = await api("/api/payment/verify", {method: "POST", body: {merchant_order_id: _payCtx.r.merchant_order_id}});
         if (v.status === "succeeded") {
@@ -5268,12 +5313,23 @@ async function confirmPaymentActivation(attempt, opts){
             showPayStatus("failed");
             return true;
         }
-        // Still pending.
+        // Still pending — Round-24: NEVER claim a payment was received.
         if (silent) return false; // keep the card form on screen; the poll loop reschedules
+        if (manual) {
+            // Honest immediate verdict; the card form stays visible so the
+            // user can complete the payment. "processing" = a transaction is
+            // mid-flight; anything else = nothing paid yet.
+            showPayStatus(v.reason === "processing" ? "processing" : "none_yet");
+            if (_payCtx && _payCtx.mode === "iframe") schedulePayAutoVerify(6000);
+            return true;
+        }
         if (attempt < 2) { await new Promise(t => setTimeout(t, 2500)); return confirmPaymentActivation(attempt + 1, opts); }
-        // Still pending after retries — the webhook will activate it shortly.
-        const dict = translations[currentLang] || translations.en;
-        showPayStatus("confirming", dict.pay_confirming_slow);
+        if (expectSuccess) {
+            // The SDK saw a successful payment; the gateway is still settling.
+            showPayStatus("confirming", dict.pay_confirming_slow);
+        } else {
+            showPayStatus("none_yet");
+        }
         // Round-23: even from a manual check, keep auto-polling so the plan
         // still flips to active (and the UI celebrates) without another click.
         if (_payCtx && _payCtx.mode === "iframe") schedulePayAutoVerify(6000);
@@ -5281,8 +5337,10 @@ async function confirmPaymentActivation(attempt, opts){
     } catch (e) {
         if (silent) return false; // transient network error — next poll will retry
         if (attempt < 1) { await new Promise(t => setTimeout(t, 2500)); return confirmPaymentActivation(attempt + 1, opts); }
-        const dict = translations[currentLang] || translations.en;
-        showPayStatus("confirming", dict.pay_confirming_slow);
+        // Round-24: a failed check is an ERROR, not "almost there" — the old
+        // copy made unreachable-payment-service look like a success-in-progress.
+        if (expectSuccess) showPayStatus("confirming", dict.pay_confirming_slow);
+        else showPayStatus("checkerr");
         return true;
     }
 }
@@ -5290,7 +5348,7 @@ async function confirmPaymentActivation(attempt, opts){
 async function onPaymobPaymentResult(res){
     if (_paymobSuccess(res)) {
         showPayStatus("confirming");
-        await confirmPaymentActivation(0);
+        await confirmPaymentActivation(0, {expectSuccess: true});
     } else {
         showPayStatus("failed");
     }
@@ -5376,9 +5434,13 @@ async function processCheckout(btnId) {
  $("#payCloseBtn").onclick = closePaymentModal;
  // Manual fallback (optional since Round-23 — the auto-verifier polls by
  // itself; this button just asks for an immediate, UI-visible check).
+ // Round-24: honest flow — a neutral "Checking…" (form stays visible), then
+ // the backend's verdict. Unpaid shows "No payment received yet", NOT the
+ // old unconditional "Payment received — activating your plan…" banner that
+ // appeared before any verification happened.
  $("#btnPayCheckAgain").onclick = () => {
-     showPayStatus("confirming");
-     confirmPaymentActivation(0);
+     showPayStatus("checking");
+     confirmPaymentActivation(0, {manual: true});
  };
  // Round-23: every iframe navigation AFTER the first load is Paymob moving
  // inside the iframe (3DS callback, success/failure redirect…) — ask the
