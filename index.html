@@ -1218,6 +1218,38 @@ html[data-lowend="true"] #tip {
 }
 /* keep basic transitions (opacity/transform) so cards still respond; only
    the GPU-costly filter/blur layers are removed above. */
+/* ==========================================================================
+   ROUND-26 — user request:
+   (a) tone down the dark-mode background gradients
+   (b) improve the sign-up (auth) screen layout
+   CSS-ONLY override block. No HTML/JS/class-names used by app logic are
+   changed, so nothing functional can break. Delete this block to revert.
+   ========================================================================== */
+
+/* (a) Calmer dark-mode backdrop ------------------------------------------
+   Static body washes were 20/16/12 (Round-24). 13/10/8 keeps the
+   indigo→purple→cyan character but reads much gentler on #0a0a16. */
+[data-theme="dark"] {
+  --bg-grad-1: color-mix(in srgb, var(--accent) 13%, transparent);
+  --bg-grad-2: color-mix(in srgb, #a855f7 10%, transparent);
+  --bg-grad-3: color-mix(in srgb, #22d3ee 8%, transparent);
+}
+
+/* Aurora blobs were 0.38 — soften in dark mode (light keeps its own 0.16). */
+[data-theme="dark"] .blob { opacity: 0.27; }
+/* Low-end devices draw the blobs as static gradients — match the new level. */
+html[data-lowend="true"] .blob { opacity: 0.27; }
+
+/* (b) Sign-up screen layout ------------------------------------------------
+   Widen card + helper panel, and center the group vertically when there is
+   room. Auto-margins collapse to 0 whenever content overflows, so short
+   viewports still scroll from the top (nothing clipped). Scoped to #authView
+   so the upgrade/payment/demo modals keep their own widths. */
+#authView > .auth-card   { max-width: 420px; margin-top: auto; }
+#authView > .auth-extras { max-width: 420px; margin-bottom: auto; }
+
+/* Small typographic polish for a more balanced, less cramped feel. */
+#authView .auth-sub { max-width: 320px; margin-inline: auto; line-height: 1.55; }
 </style>
 </head>
 <body>
