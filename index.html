@@ -334,7 +334,7 @@ html[data-lowend="true"] .how-works,html[data-lowend="true"] .how-step,html[data
 .auth-tab:active{transform:scale(.96)}
 .auth-forms{position:relative;width:100%;transition:height var(--t-slow) var(--spring)}
 .auth-forms.morphing{overflow:hidden}
-.auth-form{display:none;flex-direction:column;gap:24px;width:100%}
+.auth-form{display:none;flex-direction:column;gap:18px;width:100%}
 .auth-form.active{display:flex}
 .auth-form.active>*{animation:fieldIn .45s var(--smooth) backwards}
 .auth-form.active>*:nth-child(2){animation-delay:.04s}
@@ -344,12 +344,18 @@ html[data-lowend="true"] .how-works,html[data-lowend="true"] .how-step,html[data
 #authGradeField,#settingsGradeField{animation:fieldIn .45s var(--smooth)}
 @keyframes fieldIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
 .auth-form.active{position:relative}
-.auth-forms.morphing .auth-form.leaving{display:flex;position:absolute;top:0;left:0;width:100%;flex-direction:column;gap:24px;pointer-events:none;animation:fieldOut .22s var(--smooth) both}
+.auth-forms.morphing .auth-form.leaving{display:flex;position:absolute;top:0;left:0;width:100%;flex-direction:column;gap:18px;pointer-events:none;animation:fieldOut .22s var(--smooth) both}
 @keyframes fieldOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-10px) scale(.98)}}
-.auth-form .field{width:100%}
-.auth-form .field input,.auth-form .field select{width:100%;padding:14px 18px;border-radius:16px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:14px}
-.auth-form .field input:focus,.auth-form .field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
-.auth-btn{width:100%;margin-top:20px;justify-content:center}
+.auth-form .field{width:100%;display:flex;flex-direction:column;gap:6px}
+.auth-form .field label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:0.04em;text-transform:capitalize}
+.field-control{position:relative;width:100%}
+.auth-form .field input,.auth-form .field select{width:100%;padding:13px 16px;border-radius:14px;border:1px solid var(--glass-border);background:var(--glass-strong);font-size:13.5px;color:var(--ink);transition:border-color var(--t-fast) var(--smooth),box-shadow var(--t-fast) var(--smooth),background var(--t-fast) var(--smooth)}
+.auth-form .field input:focus,.auth-form .field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent);outline:none;background:color-mix(in srgb,var(--accent) 4%,var(--glass-strong))}
+.auth-form .field.is-error input{border-color:var(--coral);box-shadow:0 0 0 3px color-mix(in srgb,var(--coral) 20%,transparent);background:color-mix(in srgb,var(--coral) 4%,var(--glass-strong))}
+.auth-form .field.is-valid input{border-color:var(--mint);box-shadow:0 0 0 2px color-mix(in srgb,var(--mint) 20%,transparent)}
+.field-msg{display:none;font-size:11px;font-weight:500;margin-top:2px;line-height:1.3}
+.auth-form .field.is-error .field-msg{display:block;color:var(--coral);animation:fieldIn .22s var(--smooth)}
+.auth-btn{width:100%;margin-top:14px;justify-content:center}
 
 nav{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;backdrop-filter:var(--glass-bf);-webkit-backdrop-filter:var(--glass-bf);background:var(--glass);border:1px solid var(--glass-border);border-radius:100px;box-shadow:var(--glass-rim),var(--shadow-sm);width:calc(100% - 48px);max-width:1100px;height:60px}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-0.02em;padding-left:8px}
@@ -1316,13 +1322,37 @@ html[data-lowend="true"] .blob { opacity: 0.27; }
     </div>
     <div class="auth-forms" id="authForms">
     <div class="auth-form active" id="formLogin">
-      <div class="field"><input type="email" id="loginEmail" placeholder="Email"></div>
-      <div class="field"><input type="password" id="loginPass" placeholder="Password" data-i18n-ph="password"></div>
+      <div class="field" id="fieldLoginEmail">
+        <label for="loginEmail" data-i18n="email">Email</label>
+        <div class="field-control">
+          <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="email" required>
+        </div>
+        <span class="field-msg" id="loginEmailMsg" role="alert"></span>
+      </div>
+      <div class="field" id="fieldLoginPass">
+        <label for="loginPass" data-i18n="password">Password</label>
+        <div class="field-control">
+          <input type="password" id="loginPass" placeholder="Password" data-i18n-ph="password" autocomplete="current-password" required>
+        </div>
+        <span class="field-msg" id="loginPassMsg" role="alert"></span>
+      </div>
       <button class="btn auth-btn" id="btnLogin"><span data-i18n="login">Log In</span> →</button>
     </div>
     <div class="auth-form" id="formSignup">
-      <div class="field"><input type="email" id="signupEmail" placeholder="Email"></div>
-      <div class="field"><input type="password" id="signupPass" placeholder="Create Password (min 6 chars)" data-i18n-ph="create_pass"></div>
+      <div class="field" id="fieldSignupEmail">
+        <label for="signupEmail" data-i18n="email">Email</label>
+        <div class="field-control">
+          <input type="email" id="signupEmail" placeholder="name@example.com" autocomplete="email" required>
+        </div>
+        <span class="field-msg" id="signupEmailMsg" role="alert"></span>
+      </div>
+      <div class="field" id="fieldSignupPass">
+        <label for="signupPass" data-i18n="password">Password</label>
+        <div class="field-control">
+          <input type="password" id="signupPass" placeholder="Create Password (min 6 chars)" data-i18n-ph="create_pass" autocomplete="new-password" required minlength="6">
+        </div>
+        <span class="field-msg" id="signupPassMsg" role="alert"></span>
+      </div>
       
       <div class="field">
         <label data-i18n="user_type">User Type</label>
@@ -1540,7 +1570,7 @@ html[data-lowend="true"] .blob { opacity: 0.27; }
         <div class="panel grid" id="panel-ai">
           <div class="field"><label data-i18n="any_topic">Any topic</label><input id="aiTopic" placeholder="e.g. Photosynthesis, Cold War…" data-i18n-ph="any_topic_ph"></div>
           <div class="field"><label data-i18n="difficulty">Difficulty</label><div class="seg" id="diffSeg"><button data-d="easy" data-i18n="easy">Easy</button><button data-d="mixed" class="on" data-i18n="mixed">Mixed</button><button data-d="hard" data-i18n="hard">Hard</button></div></div>
-          <div class="field"><label data-i18n="length">Length</label><div class="slider-container"><input type="range" min="1" max="5" value="4" class="custom-range" id="lenAiSlider"><div class="slider-val" id="lenAiVal">4</div></div></div>
+          <div class="field"><label data-i18n="length">Length</label><div class="slider-container"><input type="range" min="1" max="7" value="4" class="custom-range" id="lenAiSlider"><div class="slider-val" id="lenAiVal">4</div></div></div>
         </div>
         <div class="panel grid" id="panel-pdf">
           <div class="field"><label data-i18n="your_pdf">Your PDF book / notes</label><div class="drop" id="drop"><span data-i18n="drop_pdf">⬆ Drop PDF here or click to browse</span><br><span id="fileName" style="font-size:11px"></span></div><input type="file" id="fileInput" accept="application/pdf" hidden></div>
@@ -1959,9 +1989,10 @@ const translations = {
     account_usage: "Account & Usage", current_plan: "Current Plan", ai_questions_m: "AI Questions (Monthly)", pdf_uploads_m: "PDF Uploads (Monthly)", recent_activity: "Recent Activity",
     upgrade_plan: "Upgrade Plan", upgrade_sub: "Every perk, side by side — pick the plan that fits your ascent.", month: "month", week: "week", coming_soon: "Coming Soon", proceed_payment: "Proceed to Payment",
     current_plan_tag: "Current Plan", recommended: "Recommended", free_price: "Free", lang_en_label: "English", lang_ar_label: "العربية", lang_all_label: "All languages", deep_thinking_tag: "Deep Thinking",
-    perk_free_1: "30 AI quiz questions / month", perk_free_2: "3 PDF uploads / month (up to 20 pages)", perk_free_3: "AI tutor, coach, scheduler & achievements",
-    perk_plus_1: "120 AI questions / month (4× Free)", perk_plus_2: "15 PDF uploads / month (40 pages, 15 MB)", perk_plus_3: "Everything in Free",
-    perk_pro_1: "350 AI questions / month", perk_pro_2: "45 PDF uploads / month (60 pages, 15 MB)", perk_pro_3: "Everything in Plus",
+    perk_free_1: "30 AI quiz questions / month (up to 7/run)", perk_free_2: "3 PDF uploads / month (up to 20 pages, 10 max output)", perk_free_3: "AI tutor, coach, scheduler & achievements",
+    perk_plus_1: "120 AI questions / month (up to 10/run)", perk_plus_2: "15 PDF uploads / month (40 pages, 20 max output)", perk_plus_3: "Everything in Free",
+    perk_pro_1: "350 AI questions / month (up to 15/run)", perk_pro_2: "45 PDF uploads / month (60 pages, 30 max output)", perk_pro_3: "Everything in Plus",
+    val_email_invalid: "Please enter a valid email address", val_pass_short: "Password must be at least 6 characters", val_required: "This field is required",
     free_reminder: "Free plan keeps: 30 AI questions + 3 PDF uploads every month.",
     secure_checkout: "Secure Checkout", secured_by_paymob: "Payments processed securely by Paymob",
     pay_preparing: "Preparing the secure card form…", pay_confirming: "Payment received — activating your plan…",
@@ -2065,9 +2096,10 @@ const translations = {
     account_usage: "الحساب والاستخدام", current_plan: "الخطة الحالية", ai_questions_m: "أسئلة الذكاء الاصطناعي (شهرياً)", pdf_uploads_m: "رفع PDF (شهرياً)", recent_activity: "النشاط الأخير",
     upgrade_plan: "ترقية الخطة", upgrade_sub: "قارن كل المزايا جنبًا إلى جنب واختر الخطة التي تناسب صعودك.", month: "شهر", week: "أسبوع", coming_soon: "قريباً", proceed_payment: "المتابعة إلى الدفع",
     current_plan_tag: "خطتك الحالية", recommended: "موصى به", free_price: "مجاني", lang_en_label: "الإنجليزية", lang_ar_label: "العربية", lang_all_label: "كل اللغات", deep_thinking_tag: "تفكير عميق",
-    perk_free_1: "30 سؤال ذكاء اصطناعي شهريًا", perk_free_2: "3 ملفات PDF شهريًا (حتى 20 صفحة)", perk_free_3: "مدرّس ذكي ومدرب وجدولة وإنجازات",
-    perk_plus_1: "120 سؤالًا شهريًا (4× المجانية)", perk_plus_2: "15 ملف PDF شهريًا (40 صفحة، 15 MB)", perk_plus_3: "كل مزايا الخطة المجانية",
-    perk_pro_1: "350 سؤالًا شهريًا", perk_pro_2: "45 ملف PDF شهريًا (60 صفحة، 15 MB)", perk_pro_3: "كل مزايا خطة Plus",
+    perk_free_1: "30 سؤال ذكاء اصطناعي شهريًا (حتى 7 لكل اختبار)", perk_free_2: "3 ملفات PDF شهريًا (حتى 20 صفحة، 10 كحد أقصى)", perk_free_3: "مدرّس ذكي ومدرب وجدولة وإنجازات",
+    perk_plus_1: "120 سؤالًا شهريًا (حتى 10 لكل اختبار)", perk_plus_2: "15 ملف PDF شهريًا (40 صفحة، 20 كحد أقصى)", perk_plus_3: "كل مزايا الخطة المجانية",
+    perk_pro_1: "350 سؤالًا شهريًا (حتى 15 لكل اختبار)", perk_pro_2: "45 ملف PDF شهريًا (60 صفحة، 30 كحد أقصى)", perk_pro_3: "كل مزايا خطة Plus",
+    val_email_invalid: "يرجى إدخال بريد إلكتروني صالح", val_pass_short: "يجب أن تحتوي كلمة المرور على 6 أحرف على الأقل", val_required: "هذا الحقل مطلوب",
     free_reminder: "تبقى الخطة المجانية: 30 سؤالًا + 3 ملفات PDF كل شهر.",
     secure_checkout: "دفع آمن", secured_by_paymob: "مدفوعات آمنة عبر Paymob",
     pay_preparing: "جاري تحضير نموذج البطاقة الآمن…", pay_confirming: "تم استلام الدفع — جاري تنشيط خطتك…",
@@ -2616,10 +2648,153 @@ function switchAuthForm(showLogin) {
   armAuthMorphCleanup();
 }
 
- $("#tabLogin").onclick = () => switchAuthForm(true);
- $("#tabSignup").onclick = () => switchAuthForm(false);
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
+}
+
+function setFieldValidation(fieldId, msgId, isValid, errorMsgKey, defaultMsg) {
+  const field = $(fieldId);
+  const msg = $(msgId);
+  if (!field) return;
+  if (isValid === true) {
+    field.classList.remove("is-error");
+    field.classList.add("is-valid");
+    if (msg) msg.textContent = "";
+  } else if (isValid === false) {
+    field.classList.remove("is-valid");
+    field.classList.add("is-error");
+    if (msg) {
+      const localized = (errorMsgKey && tKey(errorMsgKey)) || defaultMsg || "";
+      msg.textContent = localized;
+    }
+  } else {
+    field.classList.remove("is-error", "is-valid");
+    if (msg) msg.textContent = "";
+  }
+}
+
+function validateSignupEmail(showError = true) {
+  const input = $("#signupEmail");
+  if (!input) return true;
+  const val = input.value.trim();
+  if (!val) {
+    if (showError) setFieldValidation("#fieldSignupEmail", "#signupEmailMsg", false, "val_required", "This field is required");
+    else setFieldValidation("#fieldSignupEmail", "#signupEmailMsg", null);
+    return false;
+  }
+  if (!validateEmail(val)) {
+    if (showError) setFieldValidation("#fieldSignupEmail", "#signupEmailMsg", false, "val_email_invalid", "Please enter a valid email address");
+    else setFieldValidation("#fieldSignupEmail", "#signupEmailMsg", null);
+    return false;
+  }
+  setFieldValidation("#fieldSignupEmail", "#signupEmailMsg", true);
+  return true;
+}
+
+function validateSignupPass(showError = true) {
+  const input = $("#signupPass");
+  if (!input) return true;
+  const val = input.value;
+  if (!val) {
+    if (showError) setFieldValidation("#fieldSignupPass", "#signupPassMsg", false, "val_required", "This field is required");
+    else setFieldValidation("#fieldSignupPass", "#signupPassMsg", null);
+    return false;
+  }
+  if (val.length < 6) {
+    if (showError) setFieldValidation("#fieldSignupPass", "#signupPassMsg", false, "val_pass_short", "Password must be at least 6 characters");
+    else setFieldValidation("#fieldSignupPass", "#signupPassMsg", null);
+    return false;
+  }
+  setFieldValidation("#fieldSignupPass", "#signupPassMsg", true);
+  return true;
+}
+
+function validateLoginEmail(showError = true) {
+  const input = $("#loginEmail");
+  if (!input) return true;
+  const val = input.value.trim();
+  if (!val) {
+    if (showError) setFieldValidation("#fieldLoginEmail", "#loginEmailMsg", false, "val_required", "This field is required");
+    else setFieldValidation("#fieldLoginEmail", "#loginEmailMsg", null);
+    return false;
+  }
+  if (!validateEmail(val)) {
+    if (showError) setFieldValidation("#fieldLoginEmail", "#loginEmailMsg", false, "val_email_invalid", "Please enter a valid email address");
+    else setFieldValidation("#fieldLoginEmail", "#loginEmailMsg", null);
+    return false;
+  }
+  setFieldValidation("#fieldLoginEmail", "#loginEmailMsg", true);
+  return true;
+}
+
+function validateLoginPass(showError = true) {
+  const input = $("#loginPass");
+  if (!input) return true;
+  const val = input.value;
+  if (!val) {
+    if (showError) setFieldValidation("#fieldLoginPass", "#loginPassMsg", false, "val_required", "This field is required");
+    else setFieldValidation("#fieldLoginPass", "#loginPassMsg", null);
+    return false;
+  }
+  setFieldValidation("#fieldLoginPass", "#loginPassMsg", true);
+  return true;
+}
+
+const sEmailInput = $("#signupEmail"), sPassInput = $("#signupPass");
+if (sEmailInput) {
+  sEmailInput.addEventListener("blur", () => validateSignupEmail(true));
+  sEmailInput.addEventListener("input", () => {
+    if ($("#fieldSignupEmail")?.classList.contains("is-error") || $("#fieldSignupEmail")?.classList.contains("is-valid")) {
+      validateSignupEmail(true);
+    }
+  });
+}
+if (sPassInput) {
+  sPassInput.addEventListener("blur", () => validateSignupPass(true));
+  sPassInput.addEventListener("input", () => {
+    if ($("#fieldSignupPass")?.classList.contains("is-error") || $("#fieldSignupPass")?.classList.contains("is-valid")) {
+      validateSignupPass(true);
+    }
+  });
+}
+
+const lEmailInput = $("#loginEmail"), lPassInput = $("#loginPass");
+if (lEmailInput) {
+  lEmailInput.addEventListener("blur", () => validateLoginEmail(true));
+  lEmailInput.addEventListener("input", () => {
+    if ($("#fieldLoginEmail")?.classList.contains("is-error") || $("#fieldLoginEmail")?.classList.contains("is-valid")) {
+      validateLoginEmail(true);
+    }
+  });
+}
+if (lPassInput) {
+  lPassInput.addEventListener("blur", () => validateLoginPass(true));
+  lPassInput.addEventListener("input", () => {
+    if ($("#fieldLoginPass")?.classList.contains("is-error") || $("#fieldLoginPass")?.classList.contains("is-valid")) {
+      validateLoginPass(true);
+    }
+  });
+}
+
+ $("#tabLogin").onclick = () => {
+    setFieldValidation("#fieldLoginEmail", "#loginEmailMsg", null);
+    setFieldValidation("#fieldLoginPass", "#loginPassMsg", null);
+    switchAuthForm(true);
+ };
+ $("#tabSignup").onclick = () => {
+    setFieldValidation("#fieldSignupEmail", "#signupEmailMsg", null);
+    setFieldValidation("#fieldSignupPass", "#signupPassMsg", null);
+    switchAuthForm(false);
+ };
 
  $("#btnLogin").onclick = async () => {
+    const emailOk = validateLoginEmail(true);
+    const passOk = validateLoginPass(true);
+    if (!emailOk || !passOk) {
+      if (!emailOk && $("#loginEmail")) $("#loginEmail").focus();
+      else if (!passOk && $("#loginPass")) $("#loginPass").focus();
+      return;
+    }
     const btn = $("#btnLogin"); btn.classList.add("loading"); btn.disabled = true;
     const email = $("#loginEmail").value.trim();
     const password = $("#loginPass").value;
@@ -2637,7 +2812,10 @@ function switchAuthForm(showLogin) {
         token = data.token;
         localStorage.setItem("ep-token", token);
         showApp();
-    } catch (e) { toast("⚠ " + e.message); }
+    } catch (e) {
+      toast("⚠ " + e.message);
+      setFieldValidation("#fieldLoginPass", "#loginPassMsg", false, null, e.message);
+    }
     btn.classList.remove("loading"); btn.disabled = false;
 };
 
@@ -2683,31 +2861,18 @@ wireSelect("authTypeSelect", "authTypeMenu", (val) => {
     const showGrade = val === "school";
     $("#authGradeField").style.display = showGrade ? "block" : "none";
     retargetAuthHeight(fromH);
-    // Round-10 — small-screen UX polish: when the grade field appears (School
-    // Student picked), the auth-card grows by ~80px, which on a short phone
-    // viewport (e.g. iPhone 5 320×568) can push the newly-shown grade field
-    // or the Sign Up button just below the fold. Wait for the height morph
-    // (~320ms) then smoothly center the grade field in view. Only triggers
-    // if the field is actually outside the viewport — no-op on tall screens.
     if (showGrade) {
       setTimeout(() => {
         const authView = document.getElementById("authView");
         const gradeField = document.getElementById("authGradeField");
         const signupBtn = document.getElementById("btnSignup");
         if (!authView || !gradeField || !signupBtn) return;
-        // Only scroll if EITHER the grade field OR the Sign Up button is
-        // outside the viewport. On tall desktops both are already in view
-        // (no-op), on small phones we smooth-scroll so the user can see +
-        // reach the new grade field AND the Sign Up button together.
         const gr = gradeField.getBoundingClientRect();
         const br = signupBtn.getBoundingClientRect();
         const viewportH = window.innerHeight;
         const gradeOut = gr.top < 8 || gr.bottom > viewportH - 8;
         const btnOut = br.top < 8 || br.bottom > viewportH - 8;
         if (gradeOut || btnOut) {
-          // Scroll just enough to bring the SIGN UP button into the lower
-          // half of the viewport — this also keeps the grade field (just
-          // above) visible without overshooting.
           signupBtn.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       }, 340);
@@ -2718,6 +2883,13 @@ wireSelect("authGradeSelect", "authGradeMenu", (val) => {
 });
 
  $("#btnSignup").onclick = async () => {
+    const emailOk = validateSignupEmail(true);
+    const passOk = validateSignupPass(true);
+    if (!emailOk || !passOk) {
+      if (!emailOk && $("#signupEmail")) $("#signupEmail").focus();
+      else if (!passOk && $("#signupPass")) $("#signupPass").focus();
+      return;
+    }
     const btn = $("#btnSignup"); btn.classList.add("loading"); btn.disabled = true;
     const email = $("#signupEmail").value.trim();
     const password = $("#signupPass").value;
@@ -2735,7 +2907,14 @@ wireSelect("authGradeSelect", "authGradeMenu", (val) => {
         token = data.token;
         localStorage.setItem("ep-token", token);
         showApp();
-    } catch (e) { toast("⚠ " + e.message); }
+    } catch (e) {
+      toast("⚠ " + e.message);
+      if (e.message.toLowerCase().includes("email")) {
+        setFieldValidation("#fieldSignupEmail", "#signupEmailMsg", false, null, e.message);
+      } else if (e.message.toLowerCase().includes("password")) {
+        setFieldValidation("#fieldSignupPass", "#signupPassMsg", false, null, e.message);
+      }
+    }
     btn.classList.remove("loading"); btn.disabled = false;
 };
 
@@ -3017,6 +3196,18 @@ function applyTierModels(usage){
     badge.title = "English quizzes: " + (tierModels[myTier].en || "?") +
                   " · العربية: " + (tierModels[myTier].ar || "?") +
                   " — on Groq LPU inference";
+  }
+
+  // Update AI Question limit slider bounds dynamically based on active tier limits
+  const maxAiLimit = (usage && usage.max_ai_questions_per_request) || (tier === "pro" ? 15 : tier === "plus" ? 10 : 7);
+  const lenAiSlider = $("#lenAiSlider");
+  if (lenAiSlider) {
+    lenAiSlider.max = String(maxAiLimit);
+    if (parseInt(lenAiSlider.value, 10) > maxAiLimit) {
+      lenAiSlider.value = String(maxAiLimit);
+      const valEl = $("#lenAiVal");
+      if (valEl) valEl.textContent = String(maxAiLimit);
+    }
   }
 }
 
@@ -4603,8 +4794,9 @@ $("#beginBtn").onclick = async () => {
         } else if (src === "ai") {
             const t = $("#aiTopic").value.trim();
             if (!t) throw new Error("Type a topic first");
+            const maxAllowed = parseInt(lenAiSlider.max, 10) || (lastKnownTier === "pro" ? 15 : lastKnownTier === "plus" ? 10 : 7);
             let n = parseInt(lenAiSlider.value) || 4;
-            n = Math.max(1, Math.min(5, n));
+            n = Math.max(1, Math.min(maxAllowed, n));
             // Round-22: every AI POST goes through the client-side queue —
             // >=2.5s between AI request starts keeps the shared Groq budget
             // clear of self-inflicted 429s; queued requests show their spot.
@@ -5490,4 +5682,4 @@ async function processCheckout(btnId) {
 </script>
 </body>
 </html>
-                                                       
+                                                       
