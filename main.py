@@ -234,7 +234,8 @@ TIER_LIMITS = {
         "pdf_max_mb": 1,
         "pdf_max_pages": 20,
         "pdf_max_ocr_pages": 5,
-        "max_ai_questions_per_request": 5
+        "max_ai_questions_per_request": 7,
+        "pdf_max_questions": 10
     },
     "plus": {
         "ai_questions": 120,
@@ -242,7 +243,8 @@ TIER_LIMITS = {
         "pdf_max_mb": 15,
         "pdf_max_pages": 40,
         "pdf_max_ocr_pages": 10,
-        "max_ai_questions_per_request": 5
+        "max_ai_questions_per_request": 10,
+        "pdf_max_questions": 20
     },
     "pro": {
         "ai_questions": 350,
@@ -250,7 +252,8 @@ TIER_LIMITS = {
         "pdf_max_mb": 15,
         "pdf_max_pages": 60,
         "pdf_max_ocr_pages": 15,
-        "max_ai_questions_per_request": 5
+        "max_ai_questions_per_request": 15,
+        "pdf_max_questions": 30
     }
 }
 # Round-19 (Option 3) + Round-22 (compound/qwen3.8 architecture): language-
@@ -1790,9 +1793,11 @@ async def get_usage(user: Annotated[dict, Depends(get_current_user)]):
         "subscription_expires_at": usage.get("subscription_expires_at"),
         "ai_used": usage.get("ai_questions_used", 0),
         "ai_limit": limits["ai_questions"],
+        "max_ai_questions_per_request": limits["max_ai_questions_per_request"],
         "pdf_used": usage.get("pdf_uploads_used", 0),
         "pdf_limit": limits["pdf_uploads"],
         "pdf_max_mb": limits["pdf_max_mb"],
+        "pdf_max_questions": limits["pdf_max_questions"],
         # Round-12: TIER_PRICES is keyed by (tier, period) TUPLES, which json.dumps
         # refuses to serialize ("keys must be str, int, float, bool or None, not
         # tuple") -> the whole /api/usage endpoint was returning 500 in production.
