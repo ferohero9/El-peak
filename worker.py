@@ -359,14 +359,22 @@ def _ocr_page(page, dpi: int = 130) -> str:
         except Exception:
             return ""
 
-def _extract_pdf_text_sync(data: bytes, max_pages: int, max_ocr_pages: int) -> str:
+PDF_TIER_QUESTION_CAPS = {
+    "free": 10,
+    "plus": 20,
+    "pro": 30
+}
+
+def _extract_pdf_text_sync(data: bytes, max_pages: int, max_ocr_pages: int) -> dict:
     try:
         doc = fitz.open(stream=data, filetype="pdf")
     except Exception as e:
         raise ValueError(f"Could not read that file. Is it a valid PDF? {e}")
     try:
+        total_pages = len(doc)
+        processed_pages = min(total_pages, max_pages)
         text = ""
-        for page in doc[:min(len(doc), max_pages)]:
+        for page in doc[:processed_pages]:
             try:
                 text += page.get_text()
             except Exception:
@@ -374,13 +382,17 @@ def _extract_pdf_text_sync(data: bytes, max_pages: int, max_ocr_pages: int) -> s
         text = re.sub(r"\s+", " ", text).strip()
         if len(text) < 200 and PDF_OCR_ENABLED:
             ocr_text = ""
-            for page in doc[:min(len(doc), max_ocr_pages)]:
+            for page in doc[:min(total_pages, max_ocr_pages)]:
                 try:
                     ocr_text += _ocr_page(page)
                 except Exception:
                     continue
             text = re.sub(r"\s+", " ", ocr_text).strip()
-        return text
+        return {
+            "text": text,
+            "total_pages": total_pages,
+            "processed_pages": processed_pages
+        }
     finally:
         try:
             doc.close()
@@ -421,7 +433,7 @@ async def process_pdf_quiz(
     # CPU-bound work off the event loop
     loop = asyncio.get_running_loop()
     try:
-        text = await loop.run_in_executor(
+        extraction = await loop.run_in_executor(
             None,
             _extract_pdf_text_sync,
             data,
@@ -434,21 +446,35 @@ async def process_pdf_quiz(
         logger.error("PDF extraction crashed for user %s: %s", user_id, e)
         return {"error": "PDF extraction failed."}
 
+    text = extraction.get("text", "")
+    processed_pages = extraction.get("processed_pages", 1)
+
     if len(text) < 200:
         return {
             "error": "Not enough readable text in this PDF. If it is scanned, OCR may need better quality."
         }
 
-    if not num_questions or num_questions <= 0:
-        if len(text) > 6000:
-            num_questions = 5
-        elif len(text) > 2500:
-            num_questions = 4
-        else:
-            num_questions = 3
-    num_questions = min(num_questions, 5)
+    tier = (tier or "free").strip().lower()
+    tier_cap = PDF_TIER_QUESTION_CAPS.get(tier, 10)
 
-    excerpt = text[:12000]
+    if not num_questions or num_questions <= 0:
+        # Dynamic Content Analysis: evaluate text volume, page count, and content density
+        text_len = len(text)
+        if text_len > 18000 or processed_pages >= 12:
+            computed = 25 + min(5, (text_len - 18000) // 4000)
+        elif text_len > 12000 or processed_pages >= 8:
+            computed = 18 + min(6, (text_len - 12000) // 1500)
+        elif text_len > 6000 or processed_pages >= 4:
+            computed = 10 + min(7, (text_len - 6000) // 1000)
+        elif text_len > 2500 or processed_pages >= 2:
+            computed = 6 + min(3, (text_len - 2500) // 1200)
+        else:
+            computed = 4
+        num_questions = max(3, min(computed, tier_cap))
+    else:
+        num_questions = max(1, min(num_questions, tier_cap))
+
+    excerpt = text[:18000]
     # Round-20 (mirrors main.py): output language follows the DOCUMENT's script
     # (Arabic PDF -> Arabic quiz) plus a hard anti-Arabizi rule — the model
     # must write Arabic in ARABIC SCRIPT, never Latin transliteration.
@@ -471,7 +497,7 @@ async def process_pdf_quiz(
             "formulas, and code. "
             "CRITICAL: If the document involves Arabic poetry, literature, or history, you MUST be strictly factual. "
             + (
-                "BREVITY (mandatory): at most 5 questions; every explanation is ONE short "
+                f"BREVITY (mandatory): at most {num_questions} questions; every explanation is ONE short "
                 "sentence of at most 15 words; keep each context quote under 120 characters."
                 if free_ar_brevity else ""
             )
@@ -508,6 +534,9 @@ async def process_pdf_quiz(
         }
     ]
 
+    calc_tokens = max(1200, min(8192, num_questions * 220 + 500))
+    max_tokens_val = min(calc_tokens, 2400) if free_ar_brevity else calc_tokens
+
     client = ctx["http"]
     try:
         # Round-19 + Round-22 (Option 3): route by OUTPUT language. Arabic
@@ -519,7 +548,7 @@ async def process_pdf_quiz(
             messages=messages,
             tier=tier,
             temperature=0.6,
-            max_tokens=(1100 if free_ar_brevity else 1600),
+            max_tokens=max_tokens_val,
             lang=route_lang,
             json_mode=True  # Round-22 rule 2: strict JSON mode on PDF quizzes
         )
@@ -543,7 +572,7 @@ async def process_pdf_quiz(
                 }],
                 tier=tier,
                 temperature=0.6,
-                max_tokens=(1100 if free_ar_brevity else 1600),
+                max_tokens=max_tokens_val,
                 lang=route_lang,
                 json_mode=True
             )
